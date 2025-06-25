@@ -1,7 +1,8 @@
 #pragma once
 
 struct pos {
-	int x;
-	int y;
-	int z;
+	float x;
+	float y;
+	float z;
 };
+

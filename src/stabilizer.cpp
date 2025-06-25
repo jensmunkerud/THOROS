@@ -22,4 +22,6 @@ pos Stabilizer::getAlignment() {
 		Serial.print("\t\t Yaw: ");
 		Serial.println(yaw);
 	}
+	pos p = {0, 0, 0};
+	return p;
 }

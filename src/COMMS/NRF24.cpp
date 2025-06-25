@@ -1,14 +1,18 @@
-#include "transceiver.h"
+#include "NRF24.h"
 #include <SPI.h>
 
-Transceiver::Transceiver() : radio{CE_PIN, CSN_PIN} {
-	Serial.begin(9600);
+NRF24::NRF24() : radio{CE_PIN, CSN_PIN} {}
+
+void NRF24::begin() {
 	radio.begin();
 	radio.setPALevel(RF24_PA_MAX); // Adjust as needed
 	radio.setDataRate(RF24_250KBPS);
 	radio.setChannel(124);
 	radio.setAutoAck(true);
-	radio.setRetries(5, 15);  // More reliable
+	radio.setRetries(0, 15);  // More reliable
+	radio.enableAckPayload();
+	radio.enableDynamicPayloads();
+	radio.setAutoAck(true);
 
 	if (IS_NODE_A) {
 		radio.openWritingPipe(addressB);  // Node A sends to B
@@ -20,11 +24,14 @@ Transceiver::Transceiver() : radio{CE_PIN, CSN_PIN} {
 
 	radio.startListening();
 	Serial.println(IS_NODE_A ? "Node A Ready" : "Node B Ready");
+	radio.printDetails();
 }
 
 // Continously fetches any radio messages and calls callbackfunction if so
-void Transceiver::loop() {
+void NRF24::loop() {
+	radio.startListening();
 	if (radio.available()) {
+		char buffer[32];
 		radio.read(&buffer, sizeof(buffer));
 		if (receiveCallback != nullptr) {
 			receiveCallback(buffer);
@@ -33,15 +40,17 @@ void Transceiver::loop() {
 }
 
 
-bool Transceiver::send(const char data[]) {
+bool NRF24::send(const char data[]) {
 	radio.stopListening();
-	bool success = radio.write(&data, strlen(data) + 1);
+	delayMicroseconds(100);
+	bool success = radio.write(data, strlen(data) + 1);
 	radio.startListening();
-	Serial.print("Sent: ");
-	Serial.println(data);
+	delayMicroseconds(100);
+	Serial.println(success ? "Send OK" : "Send failed");
+	if (success) {Serial.print("Sent: ");}
 	return success;
 }
 
-void Transceiver::setCallback(void (*callback)(const char* message)) {
+void NRF24::setCallback(void (*callback)(const char* message)) {
 	receiveCallback = callback;
 }
