@@ -10,6 +10,8 @@ void NRF24::begin() {
 	radio.setDataRate(RF24_250KBPS);
 	radio.setChannel(124);
 	radio.setRetries(0, 1);
+	radio.setAutoAck(true);
+	// radio.enableAckPayload();
 
 	if (IS_NODE_A) {
 		radio.openWritingPipe(addressB);  // Node A sends to B
@@ -32,7 +34,14 @@ void NRF24::loop() {
 	// 	if (receiveCallback != nullptr) {
 	// 		receiveCallback(buffer);
 	// 	}
-		radio.read(&status, sizeof(status));
+		// radio.read(&status, sizeof(status));
+		uint8_t payload[3];
+		radio.read(&payload, sizeof(payload));
+		uint8_t command = payload[0];
+		int16_t value = payload[1] | (payload[2] << 8); // combine low + high bytes
+		receiveCallback(command, value);
+		// String responseData = "guccigang";
+		// radio.writeAckPayload(1, &responseData, sizeof(responseData));
 	}
 }
 
@@ -42,13 +51,14 @@ bool NRF24::send(const char data[]) {
 	delayMicroseconds(100);
 	bool success = radio.write(data, strlen(data) + 1);
 	delayMicroseconds(100);
+	radio.startListening();
 	// Serial.println(success ? "Send OK" : "Send failed");
 	// if (success) {Serial.print("Sent: ");}
 	return success;
 }
 
 
-void NRF24::setCallback(void (*callback)(const char* message)) {
+void NRF24::setCallback(void (*callback)(const int command, const int value)) {
 	receiveCallback = callback;
 }
 
@@ -58,5 +68,6 @@ bool NRF24::sendStatus() {
 	delayMicroseconds(100);
 	bool success = radio.write(&status, sizeof(status));
 	delayMicroseconds(100);
+	radio.startListening();
 	return success;
 }

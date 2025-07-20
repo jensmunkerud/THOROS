@@ -28,9 +28,18 @@ Status status;
 ICM20948 icm20948(status);
 NRF24 nrf24(status);
 
-void onMessageReceived(const char* msg) {
-	Serial.print("Received: ");
-	Serial.println(msg);
+int flyHigh = 0;
+void onMessageReceived(const int command, const int value) {
+	if (command == 100) {
+		flyHigh = 1;
+	}
+	if (command == 110 || command == 111) {
+		flyHigh = 0;
+	}
+	if (command == 101) {
+		flyHigh = -1;
+	}
+	Serial.println("Something has been received!");
 }
 
 
@@ -56,6 +65,7 @@ void setup() {
 void loop() {
 	unsigned long current = millis();
 	// lora.loop();
+	nrf24.loop();
 	
 	if (current - prev >= interval) {
 		prev = current;
@@ -63,6 +73,7 @@ void loop() {
 		// nrf24.loop();
 		nrf24.sendStatus();
 	}
+	status.altitude += flyHigh;
 }
 
 

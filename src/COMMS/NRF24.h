@@ -15,12 +15,12 @@ class NRF24 {
 	void begin();
 	void loop();
 	bool send(const char data[]);
-	void setCallback(void (*callback)(const char* message));
+	void setCallback(void (*callback)(const int command, const int value));
 	void receive();
 	bool sendStatus();
 	RF24 radio;
 
 	private:
-	void (*receiveCallback)(const char* message) = nullptr;
+	void (*receiveCallback)(const int command, const int value) = nullptr;
 	Status& status;
 };

@@ -32,6 +32,15 @@ struct __attribute__((packed)) Status {
 	};
 
 	uint16_t timestamp; // unused
+
+	Status()
+		: altitude(0), speed(0),
+		  accelX(0), accelY(0), accelZ(0),
+		  gyroX(0), gyroY(0), gyroZ(0),
+		  temp(0), pressure(0),
+		  batteryVoltage(0),
+		  flags(0),
+		  timestamp(0) {}
 };
 
 
