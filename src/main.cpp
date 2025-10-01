@@ -4,6 +4,7 @@
 #include "COMMS/NRF24.h"
 #include "COMMS/LORA.h"
 #include "SENSORS/ICM20948.h"
+#include "SENSORS/BMP390.h"
 #include "Status.h"
 
 // PARAMETERS
@@ -12,21 +13,23 @@ constexpr int P {1};		// Proportional parameter
 constexpr int I {1};		// Integral parameter
 constexpr int D {1};		// Derivative parameter
 constexpr unsigned long interval = 1000/60;
+constexpr unsigned long interval2 = 1000/10;
 
-// LORA sends "Power on" when its gucci gang setup yaknow
 
 // CONFIGURATION
-
-constexpr int motorFL {13};
-constexpr int motorFR {14};
-constexpr int motorBL {15};
-constexpr int motorBR {16};
+constexpr int motor1 {3};
+constexpr int motor2 {4};
+constexpr int motor3 {2};
+constexpr int motor4 {5};
 
 unsigned long prev = 0;
-// LORA lora;
+unsigned long prev2 = 0;
+
 Status status;
 ICM20948 icm20948(status);
-NRF24 nrf24(status);
+BMP390 bmp390(status);
+
+
 
 int flyHigh = 0;
 void onMessageReceived(const int command, const int value) {
@@ -39,7 +42,6 @@ void onMessageReceived(const int command, const int value) {
 	if (command == 101) {
 		flyHigh = -1;
 	}
-	Serial.println("Something has been received!");
 }
 
 
@@ -54,6 +56,7 @@ void setup() {
 	// digitalWrite(8, HIGH);
 	delay(2000);
 	icm20948.begin();
+	bmp390.begin();
 	nrf24.begin();
 	nrf24.setCallback(onMessageReceived);
 }
@@ -70,10 +73,12 @@ void loop() {
 	if (current - prev >= interval) {
 		prev = current;
 		icm20948.loop();
-		// nrf24.loop();
-		nrf24.sendStatus();
+		bmp390.loop();
 	}
-	status.altitude += flyHigh;
+	if (current - prev2 >= interval2) {
+		prev2 = current;
+		status.altitude += flyHigh;
+	}
 }
 
 

@@ -4,11 +4,11 @@
 #include <ICM_20948.h>
 #include "Status.h"
 
-constexpr int ICM20948_CS {8};
+constexpr int ICM20948_CS {10};
 
 class ICM20948 {
 	public:
-	ICM20948(Status& stat);
+	ICM20948(Status& status);
 	ICM_20948_SPI icm20948;
 	void begin();
 	void loop();

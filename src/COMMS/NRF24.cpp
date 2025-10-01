@@ -11,7 +11,6 @@ void NRF24::begin() {
 	radio.setChannel(124);
 	radio.setRetries(0, 1);
 	radio.setAutoAck(true);
-	// radio.enableAckPayload();
 
 	if (IS_NODE_A) {
 		radio.openWritingPipe(addressB);  // Node A sends to B
@@ -22,39 +21,23 @@ void NRF24::begin() {
 	}
 
 	radio.startListening();
-	Serial.println(IS_NODE_A ? "Node A Ready" : "Node B Ready");
-	radio.printDetails();
 }
 
-// Continously fetches any radio messages and calls callbackfunction if so
+// Continously fetches for COMMANDS
 void NRF24::loop() {
 	if (radio.available()) {
-	// 	char buffer[32];
-	// 	radio.read(&buffer, sizeof(buffer));
-	// 	if (receiveCallback != nullptr) {
-	// 		receiveCallback(buffer);
-	// 	}
-		// radio.read(&status, sizeof(status));
-		uint8_t payload[3];
-		radio.read(&payload, sizeof(payload));
-		uint8_t command = payload[0];
-		int16_t value = payload[1] | (payload[2] << 8); // combine low + high bytes
-		receiveCallback(command, value);
-		// String responseData = "guccigang";
-		// radio.writeAckPayload(1, &responseData, sizeof(responseData));
+		uint8_t packet[5];
+		radio.read(&packet, sizeof(packet));
+
+		if (packet[0] == 0xAB && packet[4] == 0xCD) { // Check start & end markers
+			uint8_t command = packet[1];
+			int16_t value = packet[2] | (packet[3] << 8); // Combine little-endian
+			receiveCallback(command, value);
+			Serial.println("I understood everything");
+		} else {
+			Serial.println("NO HABLO INGLES");
+		}
 	}
-}
-
-
-bool NRF24::send(const char data[]) {
-	radio.stopListening();
-	delayMicroseconds(100);
-	bool success = radio.write(data, strlen(data) + 1);
-	delayMicroseconds(100);
-	radio.startListening();
-	// Serial.println(success ? "Send OK" : "Send failed");
-	// if (success) {Serial.print("Sent: ");}
-	return success;
 }
 
 

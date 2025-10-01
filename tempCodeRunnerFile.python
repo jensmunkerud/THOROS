@@ -1,0 +1,26 @@
+import serial
+import time
+from datetime import datetime
+
+# Replace with your FTDI serial port
+PORT = "/dev/tty.usbserial-0001"  # or "COM3" on Windows
+BAUD = 57600
+INTERVAL = 80  # seconds
+
+def get_timestamp():
+	return datetime.now().strftime("%H:%M:%S.%f")[:-3]  # Drop last 3 digits for ms
+
+try:
+	with serial.Serial(PORT, BAUD, timeout=1) as ser:
+		print(f"Sending timestamped messages every {INTERVAL} ms to {PORT}...")
+		while True:
+			timestamp = get_timestamp()
+			message = f"[{timestamp}] Hello from PC\n"
+			ser.write(message.encode())
+			print(f"> Sent: {message.strip()}")
+			time.sleep(INTERVAL/1000)
+
+except serial.SerialException as e:
+	print(f"Serial error: {e}")
+except KeyboardInterrupt:
+	print("Stopped by user.")

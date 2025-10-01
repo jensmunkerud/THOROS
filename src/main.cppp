@@ -1,0 +1,17 @@
+#include <Arduino.h>
+#include <PIO_DShot.h>
+#define MOTOR_POLES 14
+
+BidirDShotX1 *esc;
+
+void setup() {
+	esc = new BidirDShotX1(6, 600); // pin 10, DShot600
+}
+
+void loop() {
+	delayMicroseconds(200); // keep packets spaced out
+	uint32_t rpm = 500;
+	esc->getTelemetryErpm(&rpm);
+	rpm /= MOTOR_POLES / 2; // eRPM = RPM * poles/2
+	esc->sendThrottle(500); // 0-2000
+}

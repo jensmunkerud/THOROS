@@ -1,5 +1,4 @@
 #pragma once
-#include <Arduino_LSM6DSOX.h>
 #include "types.h"
 
 class Stabilizer {

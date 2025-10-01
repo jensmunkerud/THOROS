@@ -2,6 +2,7 @@
 #include <Arduino.h>
 
 struct __attribute__((packed)) Status {
+	int8_t BEGIN;
 	int16_t altitude;
 	int16_t speed;
 
@@ -26,21 +27,26 @@ struct __attribute__((packed)) Status {
 		uint8_t criticalOk		: 1;
 		uint8_t gpsFix			: 1;
 		uint8_t motorArmed		: 1;
-		uint8_t failsafe		: 1;
-		uint8_t reserved		: 3;
+		uint8_t BMP390			: 1;
+		uint8_t ICM20948		: 1;
+		uint8_t reserved		: 2;
 	};
 	};
 
 	uint16_t timestamp; // unused
+	int8_t END;
 
-	Status()
-		: altitude(0), speed(0),
-		  accelX(0), accelY(0), accelZ(0),
-		  gyroX(0), gyroY(0), gyroZ(0),
-		  temp(0), pressure(0),
-		  batteryVoltage(0),
-		  flags(0),
-		  timestamp(0) {}
+	Status() :
+		BEGIN(0xAB),
+		altitude(0),
+		speed(0),
+		accelX(0), accelY(0), accelZ(0),
+		gyroX(0), gyroY(0), gyroZ(0),
+		temp(0), pressure(0),
+		batteryVoltage(0),
+		flags(0),
+		timestamp(0),
+		END(0xCD) {}
 };
 
 
