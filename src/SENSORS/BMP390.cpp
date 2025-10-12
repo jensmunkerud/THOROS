@@ -4,7 +4,6 @@
 #include <Adafruit_BMP3XX.h>
 #include "Status.h"
 
-constexpr int BMP390_CS {9};
 // constexpr int SEALEVELPRESSURE_HPA {1013};
 
 Adafruit_BMP3XX bmp;
