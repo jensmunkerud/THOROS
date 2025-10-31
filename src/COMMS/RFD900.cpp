@@ -1,64 +1,54 @@
 #include "RFD900.h"
 
 
-RFD900::RFD900(Status& s, MovementController& m) : status{s}, movementController{m} {
-	// commandMap[100] = [this](int16_t value)			{ FORWARD(value); }; // FORWARD
-	// commandMap[102] = [this](int16_t value)			{ none(value); }; // LEFT
-	// commandMap[101] = [this](int16_t value)			{ none(value); }; // BACKWARD
-	// commandMap[103] = [this](int16_t value)			{ none(value); }; // RIGHT
-	// commandMap[104] = [this](int16_t value)			{ none(value); }; // PAN LEFT
-	// commandMap[105] = [this](int16_t value)			{ none(value); }; // PAN RIGHT
-	// commandMap[107] = [this](int16_t value)			{ none(value); }; // GO UP
-	// commandMap[108] = [this](int16_t value)			{ none(value); }; // GO DOWN
-}
+RFD900::RFD900(Status& s, MovementController& m) : status{s}, movementController{m} {}
 
 void RFD900::begin() {
 	Serial1.begin(57600);
 	Serial1.write(START_MARKER);
 	Serial1.write(HANDSHAKE);
 	Serial1.write(END_MARKER);
-	timer = 0;
-	while (status.RFD900 != 1 && timer < RFD_TIMEOUT_MS) {
+	while (status.RFD900 != 1) {
 		loop();
-		delay(1);
-		timer++;
-	}
-	if (timer >= RFD_TIMEOUT_MS) {
-		// SHIT AIN HANDSHAKIN
 	}
 }
 
 void RFD900::loop() {
 	index = 0;
 
+	if (millis() - lastCommand > RFD_TIMEOUT_MS) {status.RFD900 = 0;}
+
 	while (Serial1.available() > 0) {
 		byte incoming = Serial1.read();
-		// LOOKS FOR START_MARKER
+
+		// Wait for start marker
 		if (index == 0 && incoming != START_MARKER) {
 			continue;
 		}
 
 		buffer[index++] = incoming;
 
-		// WHEN BUFFER IS FULL
-		if (index == 5) {
-			if (buffer[0] == START_MARKER && buffer[4] == END_MARKER) {
-				// Extract fields
-				command_id = buffer[1];
-				value = buffer[2] | (buffer[3] << 8); // little endian
-				movementController.executeCommand(static_cast<CommandID>(command_id), value);
-			}
-		}
-
-		// USED FOR CONFIRMING HANDSHAKE FROM BEGIN
-		if (index == 1) {
-			if (buffer[index] == HANDSHAKE) {
-				status.RFD900 = 1;
-			}
-		}
-
-		if (index > 5) {
+		// Safety: if index exceeds buffer size, reset
+		if (index >= sizeof(buffer)) {
 			index = 0;
+			continue;
+		}
+
+		// Once a full 4-byte packet is received
+		if (index == 4 && buffer[0] == START_MARKER && buffer[3] == END_MARKER) {
+			lastCommand = millis();
+			byte cmd = buffer[1];
+			byte val = buffer[2];
+
+			if (cmd == HANDSHAKE) {
+				status.RFD900 = 1;
+				movementController.begin();
+			} else {
+				// Protect against invalid or too-frequent commands
+				movementController.executeCommand(static_cast<CommandID>(cmd), val);
+			}
+
+			index = 0; // reset for next packet
 		}
 	}
 }
@@ -72,8 +62,4 @@ void RFD900::sendStatus() {
 
 void none(int16_t value) {
 	//
-}
-
-void FORWARD(int16_t value) {
-
 }

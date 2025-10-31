@@ -6,22 +6,17 @@
 #include "SENSORS/GPS.h"
 #include "MovementController.h"
 #include "COMMS/RFD900.h"
+#include "LED.h"
+#include "Motor.h"
 
 // PARAMETERS
 constexpr int speed {100};	// Vehicle speed
 constexpr int P {1};		// Proportional parameter
 constexpr int I {1};		// Integral parameter
 constexpr int D {1};		// Derivative parameter
-constexpr unsigned long SENSOR_INTERVAL_FAST = 1000/200;
+constexpr unsigned long SENSOR_INTERVAL_FAST = 1000/1000;
 constexpr unsigned long SENSOR_INTERVAL_SLOW = 1000/1;
 constexpr unsigned long interval2 = 1000/10;
-
-
-// CONFIGURATION
-constexpr int MOTOR1 {3};
-constexpr int MOTOR2 {4};
-constexpr int MOTOR3 {2};
-constexpr int MOTOR4 {5};
 
 unsigned long prevFAST = 0;
 unsigned long prevSLOW = 0;
@@ -30,18 +25,19 @@ Status status;
 ICM20948 icm20948(status);
 BMP390 bmp390(status);
 GPS gps(status);
-MovementController movementController;
+MovementController movementController(status);
 RFD900 rfd900(status, movementController);
-
+LED led(status);
+Motor motor(movementController, status);
 
 
 // ----------------- //
 //       SETUP       //
 // ----------------- //
 void setup() {
-	rfd900.begin();
 	icm20948.begin();
 	bmp390.begin();
+	rfd900.begin();
 	delay(2000);
 }
 
@@ -60,24 +56,12 @@ void loop() {
 		rfd900.sendStatus();
 		movementController.update();
 	}
+	motor.loop();
 	
 	if (current - prevSLOW >= SENSOR_INTERVAL_SLOW) {
 		prevSLOW = current;
 		gps.loop();
+		led.loop();
 	}
-}
-
-
-void freeze() {
-
-}
-
-void emergencyLand() {
-
-}
-
-// Turn off EVERYTHING
-void lobotomize() {
-
 }
 

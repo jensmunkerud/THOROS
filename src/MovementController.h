@@ -4,6 +4,7 @@
 #include <unordered_map>
 #include <functional>
 #include <chrono>
+#include "Status.h"
 
 // Command IDs matching your radio protocol
 enum CommandID : uint8_t {
@@ -17,21 +18,20 @@ enum CommandID : uint8_t {
 	GO_DOWN   = 108
 };
 
-// Represents normalized flight input [-1.0, 1.0]
 struct ControlInput {
-	float pitch = 0.0f;     // forward/backward
-	float roll = 0.0f;      // left/right
-	float throttle = 0.0f;  // up/down
-	float yaw = 0.0f;       // rotation (optional)
+	int16_t pitch		{0};	// forward/backward
+	int16_t roll		{0};	// left/right
+	int16_t throttle	{0};	// up/down
+	int16_t yaw 		{0};	// rotation (optional)
 };
 
 // Main control manager
 class MovementController {
 public:
-	MovementController();
-
+	MovementController(Status& s);
+	void begin();
 	// Call when receiving a command from RFD900
-	void executeCommand(CommandID id, int16_t rawValue);
+	void executeCommand(CommandID id, uint8_t rawValue);
 
 	// Call periodically in main loop (e.g. every 10–20 ms)
 	void update();
@@ -43,29 +43,29 @@ public:
 	bool isInputActive() const;
 
 private:
-	std::unordered_map<CommandID, std::function<void(float)>> commandMap;
+	// Timeout in ms after which input is reset
+	static constexpr int INPUT_TIMEOUT_MS = 500000;
+
+	std::unordered_map<CommandID, std::function<void(uint8_t)>> commandMap;
 	ControlInput targetInput;   // from latest commands
 	ControlInput currentInput;  // smoothed input
 	std::chrono::steady_clock::time_point lastCommandTime;
-
-	// Timeout in ms after which input is reset
-	static constexpr int INPUT_TIMEOUT_MS = 500;
-	static constexpr float SMOOTHING_ALPHA = 0.2f; // 0.0–1.0
+	Status& status;
 
 	// Direction handlers
-	void handleForward(float value);
-	void handleBackward(float value);
-	void handleLeft(float value);
-	void handleRight(float value);
-	void handleUp(float value);
-	void handleDown(float value);
-	void handlePanLeft(float value);
-	void handlePanRight(float value);
+	void handleForward(uint8_t value);
+	void handleBackward(uint8_t value);
+	void handleLeft(uint8_t value);
+	void handleRight(uint8_t value);
+	void handleUp(uint8_t value);
+	void handleDown(uint8_t value);
+	void handlePanLeft(uint8_t value);
+	void handlePanRight(uint8_t value);
 
 	// Helpers
 	void updateCommandMap();
 	void applyFailsafeIfTimedOut();
-	float normalizeInput(int16_t rawValue);
-	float smooth(float current, float target, float alpha);
+	int16_t mapInput(uint8_t rawValue);
+	int16_t smooth(int16_t current, int16_t target);
 };
 

@@ -5,8 +5,7 @@
 // #include <map>
 #include <functional>
 
-constexpr int8_t RFD_TIMEOUT_MS = 10000;
-constexpr int8_t RFD_HANDSHAKETIME = 10000;
+constexpr int16_t RFD_TIMEOUT_MS {5000};
 
 class RFD900 {
 	public:
@@ -20,8 +19,7 @@ class RFD900 {
 	byte buffer[5];
 	byte index;
 	byte command_id;
-	int16_t value;
-	int8_t timer;
-	// std::map<byte, std::function<void(int16_t value)>> commandMap;
+	uint16_t value;
+	unsigned long lastCommand;
 	MovementController movementController;
 };
