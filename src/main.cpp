@@ -22,12 +22,12 @@ unsigned long prevFAST = 0;
 unsigned long prevSLOW = 0;
 
 Status status;
-ICM20948 icm20948(status);
-BMP390 bmp390(status);
-GPS gps(status);
+// ICM20948 icm20948(status);
+// BMP390 bmp390(status);
+// GPS gps(status);
 MovementController movementController(status);
 RFD900 rfd900(status, movementController);
-LED led(status);
+// LED led(status);
 Motor motor(movementController, status);
 
 
@@ -35,8 +35,8 @@ Motor motor(movementController, status);
 //       SETUP       //
 // ----------------- //
 void setup() {
-	icm20948.begin();
-	bmp390.begin();
+	// icm20948.begin();
+	// bmp390.begin();
 	rfd900.begin();
 	delay(2000);
 }
@@ -51,8 +51,8 @@ void loop() {
 	rfd900.loop();
 	if (current - prevFAST >= SENSOR_INTERVAL_FAST) {
 		prevFAST = current;
-		icm20948.loop();
-		bmp390.loop();
+		// icm20948.loop();
+		// bmp390.loop();
 		rfd900.sendStatus();
 		movementController.update();
 	}
@@ -60,8 +60,8 @@ void loop() {
 	
 	if (current - prevSLOW >= SENSOR_INTERVAL_SLOW) {
 		prevSLOW = current;
-		gps.loop();
-		led.loop();
+		// gps.loop();
+		// led.loop();
 	}
 }
 
