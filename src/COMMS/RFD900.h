@@ -3,6 +3,7 @@
 #include <Arduino.h>
 #include <functional>
 #include "freertos/queue.h"
+#include "freertos/FreeRTOS.h"
 
 constexpr int16_t RFD_TIMEOUT_MS {5000};
 
@@ -14,7 +15,7 @@ class RFD900 {
 	void begin();
 	void loop();
 	void sendStatus();
-	QueueHandle_t commandQueue;
+	QueueHandle_t getCommandQueue() const;
 
 	private:
 	Status& status;
@@ -24,4 +25,5 @@ class RFD900 {
 	uint16_t value;
 	unsigned long lastCommand;
 	TaskHandle_t rfdTaskHandle;
+	QueueHandle_t commandQueue;
 };

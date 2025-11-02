@@ -31,7 +31,7 @@ void RFD900::begin() {
 	RFD900Task,         // Task function
 	"RFD900 Task",      // Name
 	4096,               // Stack size (bytes)
-	NULL,               // Parameter
+	this,               // Parameter
 	1,                  // Priority
 	&rfdTaskHandle,     // Task handle
 	0                   // Core 0
@@ -67,8 +67,6 @@ void RFD900::loop() {
 			lastCommand = millis();
 			byte cmd = buffer[1];
 			byte val = buffer[2];
-			Serial.print("GOT whole cmd : ");
-			Serial.println(cmd);
 
 			if (cmd == HANDSHAKE) {
 				status.RFD900 = 1;
@@ -76,7 +74,7 @@ void RFD900::loop() {
 				// Protect against invalid or too-frequent commands
 				// movementController.executeCommand(static_cast<CommandID>(cmd), val);
 				uint8_t packet[2] = {cmd, val};
-				xQueueSendToBack(commandQueue, packet, 0);  // non-blocking
+				xQueueSendToBack(commandQueue, packet, pdMS_TO_TICKS(10));  // non-blocking
 			}
 
 			numPackets = 0; // reset for next packet
@@ -90,6 +88,8 @@ void RFD900::sendStatus() {
 		SerialRFD.write((uint8_t*)&status, sizeof(Status));
 	}
 }
+
+QueueHandle_t RFD900::getCommandQueue() const { return commandQueue; }
 
 void none(int16_t value) {
 	//

@@ -11,7 +11,7 @@ constexpr int MOTOR2 {32};
 constexpr int MOTOR3 {33};
 constexpr int MOTOR4 {25};
 
-constexpr int INITILIZE_ESC_DELAY {3000};
+constexpr int INITILIZE_ESC_DELAY {4000};
 constexpr int MINIMUM_MOTOR_SPEED(70);
 
 #define DSHOT_TYPE DSHOT300

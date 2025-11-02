@@ -64,10 +64,10 @@ int16_t MovementController::smooth(int16_t current, int16_t target) {
 // === Update Loop ===
 void MovementController::update() {
 	uint8_t packet[2];
-	while (xQueueReceive(rfd900.commandQueue, packet, 0) == pdTRUE) {
-		uint8_t cmd = packet[0];
-		uint8_t val = packet[1];
-		executeCommand(static_cast<CommandID>(cmd), val);
+	if (xQueueReceive(rfd900.getCommandQueue(), packet, 0) == pdTRUE) {
+		executeCommand(static_cast<CommandID>(packet[0]), packet[1]);
+		Serial.print("Executing command: ");
+		Serial.println(packet[0]);
 	}
 
 	// Smooth the current input toward the target
