@@ -6,7 +6,7 @@ constexpr uint8_t SPEED_MAX   = 255;
 constexpr uint16_t SMOOTHING_ALPHA_NUM = 1;  // numerator
 constexpr uint16_t SMOOTHING_ALPHA_DEN = 8;  // denominator => alpha = 0.25
 
-MovementController::MovementController(Status& s) : status{s} {
+MovementController::MovementController(Status& s, RFD900& rfd900) : status{s}, rfd900{rfd900} {
 	updateCommandMap();
 }
 
@@ -63,6 +63,13 @@ int16_t MovementController::smooth(int16_t current, int16_t target) {
 
 // === Update Loop ===
 void MovementController::update() {
+	uint8_t packet[2];
+	while (xQueueReceive(rfd900.commandQueue, packet, 0) == pdTRUE) {
+		uint8_t cmd = packet[0];
+		uint8_t val = packet[1];
+		executeCommand(static_cast<CommandID>(cmd), val);
+	}
+
 	// Smooth the current input toward the target
 	currentInput.pitch     = smooth(currentInput.pitch,     targetInput.pitch);
 	currentInput.roll      = smooth(currentInput.roll,      targetInput.roll);

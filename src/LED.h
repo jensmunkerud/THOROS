@@ -2,7 +2,7 @@
 #include "Arduino.h"
 #include "Status.h"
 
-static constexpr int LEDPIN {2};
+static constexpr int LEDPIN {14};
 
 class LED {
 	public:
@@ -18,7 +18,7 @@ LED::LED(Status& s) : status{s}, state{false} {pinMode(LEDPIN, OUTPUT);}
 
 void LED::loop() {
 	if (status.RFD900 == 1) {
-		digitalWrite(LEDPIN, HIGH);
+		digitalWrite(LEDPIN, LOW);
 	} else {
 		digitalWrite(LEDPIN, state ? HIGH : LOW);
 		state = not state;

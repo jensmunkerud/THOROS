@@ -5,6 +5,7 @@
 #include <functional>
 #include <chrono>
 #include "Status.h"
+#include "COMMS/RFD900.h"
 
 // Command IDs matching your radio protocol
 enum CommandID : uint8_t {
@@ -28,7 +29,7 @@ struct ControlInput {
 // Main control manager
 class MovementController {
 public:
-	MovementController(Status& s);
+	MovementController(Status& s, RFD900& rfd900);
 	void begin();
 	// Call when receiving a command from RFD900
 	void executeCommand(CommandID id, uint8_t rawValue);
@@ -51,6 +52,7 @@ private:
 	ControlInput currentInput;  // smoothed input
 	std::chrono::steady_clock::time_point lastCommandTime;
 	Status& status;
+	RFD900& rfd900;
 
 	// Direction handlers
 	void handleForward(uint8_t value);

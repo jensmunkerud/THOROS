@@ -1,54 +1,82 @@
 #include "RFD900.h"
 
 
-RFD900::RFD900(Status& s, MovementController& m) : status{s}, movementController{m} {}
+RFD900::RFD900(Status& s) : status{s}, numPackets{0}, rfdTaskHandle{nullptr} {
+	commandQueue = xQueueCreate(10, 2 * sizeof(uint8_t));
+}
+
+HardwareSerial SerialRFD(2);
+
+// Task function (runs on Core 0)
+void RFD900Task(void* parameter) {
+	RFD900* rfd = static_cast<RFD900*>(parameter); // Recover instance pointer
+	Serial.print("RFD900 ON CORE: ");
+	Serial.println(xPortGetCoreID());
+	for (;;) {
+		rfd->loop();       // Call the class loop()
+		vTaskDelay(1);     // Yield for FreeRTOS scheduler
+	}
+}
 
 void RFD900::begin() {
-	Serial1.begin(57600);
-	Serial1.write(START_MARKER);
-	Serial1.write(HANDSHAKE);
-	Serial1.write(END_MARKER);
+	SerialRFD.begin(57600, SERIAL_8N1, 16, 17);
+	SerialRFD.write(START_MARKER);
+	SerialRFD.write(HANDSHAKE);
+	SerialRFD.write(END_MARKER);
+
+	xTaskCreatePinnedToCore(
+	RFD900Task,         // Task function
+	"RFD900 Task",      // Name
+	4096,               // Stack size (bytes)
+	NULL,               // Parameter
+	1,                  // Priority
+	&rfdTaskHandle,     // Task handle
+	0                   // Core 0
+	);
+
 	while (status.RFD900 != 1) {
 		loop();
+		delay(1);
 	}
 }
 
 void RFD900::loop() {
-	index = 0;
 
-	if (millis() - lastCommand > RFD_TIMEOUT_MS) {status.RFD900 = 0;}
+	// if (millis() - lastCommand > RFD_TIMEOUT_MS) {status.RFD900 = 0;}
 
-	while (Serial1.available() > 0) {
-		byte incoming = Serial1.read();
+	while (SerialRFD.available() > 0) {
+		byte incoming = SerialRFD.read();
 
 		// Wait for start marker
-		if (index == 0 && incoming != START_MARKER) {
+		if (numPackets == 0 && incoming != START_MARKER) {
 			continue;
 		}
+		buffer[numPackets++] = incoming;
 
-		buffer[index++] = incoming;
-
-		// Safety: if index exceeds buffer size, reset
-		if (index >= sizeof(buffer)) {
-			index = 0;
+		// Safety: if numPackets exceeds buffer size, reset
+		if (numPackets >= sizeof(buffer)) {
+			numPackets = 0;
 			continue;
 		}
 
 		// Once a full 4-byte packet is received
-		if (index == 4 && buffer[0] == START_MARKER && buffer[3] == END_MARKER) {
+		if (numPackets == 4 && buffer[0] == START_MARKER && buffer[3] == END_MARKER) {
 			lastCommand = millis();
 			byte cmd = buffer[1];
 			byte val = buffer[2];
+			Serial.print("GOT whole cmd : ");
+			Serial.println(cmd);
 
 			if (cmd == HANDSHAKE) {
 				status.RFD900 = 1;
-				movementController.begin();
 			} else {
 				// Protect against invalid or too-frequent commands
-				movementController.executeCommand(static_cast<CommandID>(cmd), val);
+				// movementController.executeCommand(static_cast<CommandID>(cmd), val);
+				uint8_t packet[2] = {cmd, val};
+				xQueueSendToBack(commandQueue, packet, 0);  // non-blocking
 			}
 
-			index = 0; // reset for next packet
+			numPackets = 0; // reset for next packet
 		}
 	}
 }
@@ -56,7 +84,7 @@ void RFD900::loop() {
 
 void RFD900::sendStatus() {
 	if (status.RFD900 == 1) {
-		Serial1.write((uint8_t*)&status, sizeof(Status));
+		SerialRFD.write((uint8_t*)&status, sizeof(Status));
 	}
 }
 

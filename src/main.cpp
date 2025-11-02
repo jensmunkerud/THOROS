@@ -15,7 +15,7 @@ constexpr int P {1};		// Proportional parameter
 constexpr int I {1};		// Integral parameter
 constexpr int D {1};		// Derivative parameter
 constexpr unsigned long SENSOR_INTERVAL_FAST = 1000/200;
-constexpr unsigned long SENSOR_INTERVAL_SLOW = 1000/1;
+constexpr unsigned long SENSOR_INTERVAL_SLOW = 1000/10;
 constexpr unsigned long interval2 = 1000/10;
 
 unsigned long prevFAST = 0;
@@ -25,9 +25,9 @@ Status status;
 // ICM20948 icm20948(status);
 // BMP390 bmp390(status);
 // GPS gps(status);
-MovementController movementController(status);
-RFD900 rfd900(status, movementController);
-// LED led(status);
+RFD900 rfd900(status);
+MovementController movementController(status, rfd900);
+LED led(status);
 Motor motor(movementController, status);
 
 
@@ -38,6 +38,10 @@ void setup() {
 	// icm20948.begin();
 	// bmp390.begin();
 	motor.begin();
+	Serial.begin(115200);
+	Serial.println("STARTING RADIO..");
+	Serial.print("MAIN LOOP ON CORE: ");
+	Serial.println(xPortGetCoreID());
 	rfd900.begin();
 }
 
@@ -48,12 +52,10 @@ void setup() {
 void loop() {
 	unsigned long current = millis();
 	
-	rfd900.loop();
 	if (current - prevFAST >= SENSOR_INTERVAL_FAST) {
 		prevFAST = current;
 		// icm20948.loop();
 		// bmp390.loop();
-		rfd900.sendStatus();
 		movementController.update();
 		motor.loop();
 	}
@@ -61,7 +63,9 @@ void loop() {
 	if (current - prevSLOW >= SENSOR_INTERVAL_SLOW) {
 		prevSLOW = current;
 		// gps.loop();
-		// led.loop();
+		// rfd900.sendStatus();
+		led.loop();
 	}
+	delayMicroseconds(1);
 }
 

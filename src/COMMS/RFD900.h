@@ -1,25 +1,27 @@
 #pragma once
 #include "Status.h"
-#include "../MovementController.h"
 #include <Arduino.h>
-// #include <map>
 #include <functional>
+#include "freertos/queue.h"
 
 constexpr int16_t RFD_TIMEOUT_MS {5000};
 
+void RFD900Task(void* parameter);
+
 class RFD900 {
 	public:
-	RFD900(Status& s, MovementController& m);
+	RFD900(Status& s);
 	void begin();
 	void loop();
 	void sendStatus();
+	QueueHandle_t commandQueue;
 
 	private:
 	Status& status;
 	byte buffer[5];
-	byte index;
+	byte numPackets;
 	byte command_id;
 	uint16_t value;
 	unsigned long lastCommand;
-	MovementController movementController;
+	TaskHandle_t rfdTaskHandle;
 };

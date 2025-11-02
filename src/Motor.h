@@ -7,9 +7,12 @@
 
 // CONFIGURATION
 constexpr int MOTOR1 {27};
-constexpr int MOTOR2 {15};
-constexpr int MOTOR3 {16};
-constexpr int MOTOR4 {17};
+constexpr int MOTOR2 {32};
+constexpr int MOTOR3 {33};
+constexpr int MOTOR4 {25};
+
+constexpr int INITILIZE_ESC_DELAY {3000};
+constexpr int MINIMUM_MOTOR_SPEED(70);
 
 #define DSHOT_TYPE DSHOT300
 
@@ -22,4 +25,7 @@ private:
 	MovementController movementController;
 	Status& status;
 	DShotRMT motor1;
+	DShotRMT motor2;
+	DShotRMT motor3;
+	DShotRMT motor4;
 };
