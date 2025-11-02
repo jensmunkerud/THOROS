@@ -76,7 +76,7 @@ void MovementController::update() {
 	currentInput.throttle  = smooth(currentInput.throttle,  targetInput.throttle);
 	currentInput.yaw       = smooth(currentInput.yaw,       targetInput.yaw);
 	status.speed = currentInput.throttle;
-	applyFailsafeIfTimedOut();
+	// applyFailsafeIfTimedOut();
 }
 
 void MovementController::applyFailsafeIfTimedOut() {

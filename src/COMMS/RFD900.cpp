@@ -9,12 +9,15 @@ HardwareSerial SerialRFD(2);
 
 // Task function (runs on Core 0)
 void RFD900Task(void* parameter) {
-	RFD900* rfd = static_cast<RFD900*>(parameter); // Recover instance pointer
 	Serial.print("RFD900 ON CORE: ");
 	Serial.println(xPortGetCoreID());
+	RFD900* rfd = static_cast<RFD900*>(parameter);
+	if (!rfd) {
+		vTaskDelete(NULL); // safety check
+	}
 	for (;;) {
-		rfd->loop();       // Call the class loop()
-		vTaskDelay(1);     // Yield for FreeRTOS scheduler
+		rfd->loop();
+		vTaskDelay(1);
 	}
 }
 
