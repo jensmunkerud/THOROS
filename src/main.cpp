@@ -14,7 +14,7 @@ constexpr int speed {100};	// Vehicle speed
 constexpr int P {1};		// Proportional parameter
 constexpr int I {1};		// Integral parameter
 constexpr int D {1};		// Derivative parameter
-constexpr unsigned long SENSOR_INTERVAL_FAST = 1000/1000;
+constexpr unsigned long SENSOR_INTERVAL_FAST = 1000/200;
 constexpr unsigned long SENSOR_INTERVAL_SLOW = 1000/1;
 constexpr unsigned long interval2 = 1000/10;
 
@@ -37,8 +37,8 @@ Motor motor(movementController, status);
 void setup() {
 	// icm20948.begin();
 	// bmp390.begin();
+	motor.begin();
 	rfd900.begin();
-	delay(2000);
 }
 
 
@@ -55,8 +55,8 @@ void loop() {
 		// bmp390.loop();
 		rfd900.sendStatus();
 		movementController.update();
+		motor.loop();
 	}
-	motor.loop();
 	
 	if (current - prevSLOW >= SENSOR_INTERVAL_SLOW) {
 		prevSLOW = current;
