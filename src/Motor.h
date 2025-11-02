@@ -11,7 +11,7 @@ constexpr int MOTOR2 {32};
 constexpr int MOTOR3 {33};
 constexpr int MOTOR4 {25};
 
-constexpr int INITILIZE_ESC_DELAY {4000};
+constexpr int INITILIZE_ESC_TIME {4000};
 constexpr int MINIMUM_MOTOR_SPEED(70);
 
 #define DSHOT_TYPE DSHOT300
@@ -22,7 +22,7 @@ public:
 	void begin();
 	void loop();
 private:
-	MovementController movementController;
+	MovementController& movementController;
 	Status& status;
 	DShotRMT motor1;
 	DShotRMT motor2;

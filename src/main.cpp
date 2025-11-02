@@ -39,9 +39,6 @@ void setup() {
 	// bmp390.begin();
 	motor.begin();
 	Serial.begin(115200);
-	Serial.println("STARTING RADIO..");
-	Serial.print("MAIN LOOP ON CORE: ");
-	Serial.println(xPortGetCoreID());
 	rfd900.begin();
 }
 

@@ -1,7 +1,7 @@
 #include "RFD900.h"
 
 
-RFD900::RFD900(Status& s) : status{s}, numPackets{0}, rfdTaskHandle{nullptr} {
+RFD900::RFD900(Status& s) : status{s}, numPackets{0}, rfdTaskHandle{nullptr}, pingProgress{0} {
 	commandQueue = xQueueCreate(10, 2 * sizeof(uint8_t));
 }
 
@@ -18,6 +18,10 @@ void RFD900Task(void* parameter) {
 	for (;;) {
 		rfd->loop();
 		vTaskDelay(1);
+		if (rfd->pingProgress++ >= PING_INTERVAL) {
+			rfd->ping();
+			rfd->pingProgress = 0;
+		}
 	}
 }
 
@@ -45,7 +49,7 @@ void RFD900::begin() {
 
 void RFD900::loop() {
 
-	// if (millis() - lastCommand > RFD_TIMEOUT_MS) {status.RFD900 = 0;}
+	if (millis() - lastCommand > RFD_TIMEOUT_MS) {status.RFD900 = 0;}
 
 	while (SerialRFD.available() > 0) {
 		byte incoming = SerialRFD.read();
@@ -87,6 +91,14 @@ void RFD900::sendStatus() {
 	if (status.RFD900 == 1) {
 		SerialRFD.write((uint8_t*)&status, sizeof(Status));
 	}
+}
+
+
+void RFD900::ping() {
+	SerialRFD.write(START_MARKER);
+	SerialRFD.write(HANDSHAKE);
+	Serial.println("PINGED!!");
+	SerialRFD.write(END_MARKER);
 }
 
 QueueHandle_t RFD900::getCommandQueue() const { return commandQueue; }

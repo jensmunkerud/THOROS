@@ -6,6 +6,7 @@
 #include "freertos/FreeRTOS.h"
 
 constexpr int16_t RFD_TIMEOUT_MS {5000};
+constexpr int16_t PING_INTERVAL {2000};
 
 void RFD900Task(void* parameter);
 
@@ -15,7 +16,9 @@ class RFD900 {
 	void begin();
 	void loop();
 	void sendStatus();
+	void ping();
 	QueueHandle_t getCommandQueue() const;
+	uint16_t pingProgress;
 
 	private:
 	Status& status;

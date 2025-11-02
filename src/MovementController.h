@@ -16,7 +16,8 @@ enum CommandID : uint8_t {
 	PAN_LEFT  = 104,
 	PAN_RIGHT = 105,
 	GO_UP     = 107,
-	GO_DOWN   = 108
+	GO_DOWN   = 108,
+	TOGGLE    = 17
 };
 
 struct ControlInput {
@@ -43,6 +44,8 @@ public:
 	// Returns whether input is valid (not timed out)
 	bool isInputActive() const;
 
+	bool isToggled;
+
 private:
 	// Timeout in ms after which input is reset
 	static constexpr int INPUT_TIMEOUT_MS = 500000;
@@ -63,6 +66,7 @@ private:
 	void handleDown(uint8_t value);
 	void handlePanLeft(uint8_t value);
 	void handlePanRight(uint8_t value);
+	void toggle(uint8_t value);
 
 	// Helpers
 	void updateCommandMap();

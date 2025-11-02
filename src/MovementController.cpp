@@ -6,7 +6,7 @@ constexpr uint8_t SPEED_MAX   = 255;
 constexpr uint16_t SMOOTHING_ALPHA_NUM = 1;  // numerator
 constexpr uint16_t SMOOTHING_ALPHA_DEN = 8;  // denominator => alpha = 0.25
 
-MovementController::MovementController(Status& s, RFD900& rfd900) : status{s}, rfd900{rfd900} {
+MovementController::MovementController(Status& s, RFD900& rfd900) : status{s}, rfd900{rfd900} , isToggled{false}{
 	updateCommandMap();
 }
 
@@ -23,6 +23,7 @@ void MovementController::updateCommandMap() {
 	commandMap[CommandID::PAN_RIGHT] = [this](uint8_t v){ handlePanRight(v); };
 	commandMap[CommandID::GO_UP]     = [this](uint8_t v){ handleUp(v); };
 	commandMap[CommandID::GO_DOWN]   = [this](uint8_t v){ handleDown(v); };
+	commandMap[CommandID::TOGGLE]    = [this](uint8_t v){ toggle(v); };
 }
 
 void MovementController::executeCommand(CommandID id, uint8_t rawValue) {
@@ -43,6 +44,7 @@ void MovementController::handleUp(uint8_t v)       { targetInput.throttle =	targ
 void MovementController::handleDown(uint8_t v)     { targetInput.throttle =	targetInput.throttle <= 0 ? -v : 0;}
 void MovementController::handlePanLeft(uint8_t v)  { targetInput.yaw =		targetInput.yaw <= 0 ? -v : 0; }
 void MovementController::handlePanRight(uint8_t v) { targetInput.yaw =		targetInput.yaw >= 0 ? v : 0; }
+void MovementController::toggle(uint8_t v) {isToggled = not isToggled; Serial.print("Toggled ya ass, it is now: "); Serial.println(isToggled);}
 
 // === Helper Functions ===
 int16_t MovementController::mapInput(uint8_t rawValue) {
