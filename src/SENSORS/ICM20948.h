@@ -4,7 +4,7 @@
 #include <ICM_20948.h>
 #include "Status.h"
 
-constexpr int ICM20948_CS {10};
+constexpr int ICM20948_CS {15};
 
 class ICM20948 {
 	public:

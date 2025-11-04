@@ -7,14 +7,16 @@
 
 // CONFIGURATION
 constexpr int MOTOR1 {27};
-constexpr int MOTOR2 {32};
-constexpr int MOTOR3 {33};
-constexpr int MOTOR4 {25};
+constexpr int MOTOR2 {14};
+constexpr int MOTOR3 {12};
+constexpr int MOTOR4 {13};
+
+// we can ABSOLUTELY NOT send negative DShot values!!
 
 constexpr int INITILIZE_ESC_TIME {4000};
 constexpr int MINIMUM_MOTOR_SPEED(70);
 
-#define DSHOT_TYPE DSHOT300
+constexpr dshot_mode_e DSHOT_TYPE{DSHOT300};
 
 class Motor {
 public:

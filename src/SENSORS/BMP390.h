@@ -4,7 +4,7 @@
 #include <Adafruit_BMP3XX.h>
 #include "Status.h"
 
-constexpr int BMP390_CS {9};
+constexpr int BMP390_CS {2};
 
 class BMP390 {
 	public:

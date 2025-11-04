@@ -1,11 +1,10 @@
 #include "RFD900.h"
 
 
-RFD900::RFD900(Status& s) : status{s}, numPackets{0}, rfdTaskHandle{nullptr}, pingProgress{0} {
+RFD900::RFD900(Status& s) : status{s}, numPackets{0}, rfdTaskHandle{nullptr}, pingProgress{0}, SerialRFD(RFD_SERIAL) {
 	commandQueue = xQueueCreate(10, 2 * sizeof(uint8_t));
 }
 
-HardwareSerial SerialRFD(2);
 
 // Task function (runs on Core 0)
 void RFD900Task(void* parameter) {

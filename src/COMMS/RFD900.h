@@ -7,6 +7,7 @@
 
 constexpr int16_t RFD_TIMEOUT_MS {5000};
 constexpr int16_t PING_INTERVAL {2000};
+constexpr uint8_t RFD_SERIAL {2};
 
 void RFD900Task(void* parameter);
 
@@ -29,4 +30,5 @@ class RFD900 {
 	unsigned long lastCommand;
 	TaskHandle_t rfdTaskHandle;
 	QueueHandle_t commandQueue;
+	HardwareSerial SerialRFD;
 };
