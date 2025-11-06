@@ -20,7 +20,7 @@ void ICM20948::loop() {
 			// Serial.print("Accel (mg): ");
 			// Serial.print(icm20948.accX(), 2); Serial.print(", ");
 			// Serial.print(icm20948.accY(), 2); Serial.print(", ");
-			// Serial.print(icm20948.accZ(), 2); Serial.print(" | ");
+			// Serial.print(icm20948.accZ(), 2); Serial.println(" | ");
 
 			status.accelX = (int16_t)(icm20948.accX());
 			status.accelY = (int16_t)(icm20948.accY());

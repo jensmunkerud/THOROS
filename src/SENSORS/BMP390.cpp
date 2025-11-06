@@ -32,4 +32,5 @@ void BMP390::loop() {
 	// float currentPressure = bmp.readPressure();
 	// float relativeAltitude = 44330.0 * (1.0 - pow(currentPressure / baselinePressure, 0.5));
 	status.pressure = bmp.pressure;
+	// Serial.println(status.pressure);
 }

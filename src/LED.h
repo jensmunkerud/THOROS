@@ -2,7 +2,7 @@
 #include "Arduino.h"
 #include "Status.h"
 
-constexpr int LEDPIN {32};
+constexpr int LEDPIN {2};
 
 class LED {
 	public:

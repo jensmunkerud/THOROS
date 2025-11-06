@@ -3,8 +3,8 @@
 #include <Arduino.h>
 #include "Status.h"
 
-constexpr int GPS_OUT	{22};
-constexpr int GPS_IN	{21};
+constexpr int GPS_RX	{21};
+constexpr int GPS_TX	{22};
 const int maxPacketLength = 300;
 
 class GPS {
@@ -16,6 +16,6 @@ class GPS {
 	private:
 	TinyGPSPlus gps;
 	Status& status;
-	// SoftwareSerial gpsSerial;
+	HardwareSerial SerialGPS;
 	char c[500]; // data buffer
 };
