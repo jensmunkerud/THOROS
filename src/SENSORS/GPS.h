@@ -12,10 +12,8 @@ class GPS {
 	GPS(Status& status);
 	void loop();
 
-
 	private:
 	TinyGPSPlus gps;
 	Status& status;
 	HardwareSerial SerialGPS;
-	char c[500]; // data buffer
 };

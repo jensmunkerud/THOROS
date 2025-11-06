@@ -8,8 +8,6 @@ RFD900::RFD900(Status& s) : status{s}, numPackets{0}, rfdTaskHandle{nullptr}, pi
 
 // Task function (runs on Core 0)
 void RFD900Task(void* parameter) {
-	Serial.print("RFD900 ON CORE: ");
-	Serial.println(xPortGetCoreID());
 	RFD900* rfd = static_cast<RFD900*>(parameter);
 	if (!rfd) {
 		vTaskDelete(NULL); // safety check
@@ -20,6 +18,10 @@ void RFD900Task(void* parameter) {
 		if (rfd->pingProgress++ >= PING_INTERVAL) {
 			rfd->ping();
 			rfd->pingProgress = 0;
+		}
+		if (rfd->statusProgress++ >= SEND_STATUS_INTERVAL) {
+			rfd->sendStatus();
+			rfd->statusProgress = 0;
 		}
 	}
 }
@@ -96,7 +98,6 @@ void RFD900::sendStatus() {
 void RFD900::ping() {
 	SerialRFD.write(START_MARKER);
 	SerialRFD.write(HANDSHAKE);
-	Serial.println("PINGED!!");
 	SerialRFD.write(END_MARKER);
 }
 

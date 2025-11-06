@@ -13,14 +13,11 @@ void GPS::loop() {
 	}
 
 	if (gps.location.isValid()) {
+		status.gpsFix = 1;
 		status.latitude  = gps.location.lat() * 1e7;
 		status.longitude = gps.location.lng() * 1e7;
-		Serial.print("Lat: ");
-		Serial.print(gps.location.lat(), 6);
-		Serial.print(" | Lon: ");
-		Serial.println(gps.location.lng(), 6);
 	} else {
-		Serial.println("Waiting for GPS fix...");
+		status.gpsFix = 0;
 	}
 
 }

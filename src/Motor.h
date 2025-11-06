@@ -13,6 +13,11 @@ constexpr int MOTOR4 {13};
 
 // we can ABSOLUTELY NOT send negative DShot values!!
 
+constexpr int speed {100};	// Vehicle speed
+constexpr int P {1};		// Proportional parameter
+constexpr int I {1};		// Integral parameter
+constexpr int D {1};		// Derivative parameter
+
 constexpr int INITILIZE_ESC_TIME {4000};
 constexpr int MINIMUM_MOTOR_SPEED(70);
 

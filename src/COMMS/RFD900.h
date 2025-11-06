@@ -7,6 +7,7 @@
 
 constexpr int16_t RFD_TIMEOUT_MS {5000};
 constexpr int16_t PING_INTERVAL {2000};
+constexpr int16_t SEND_STATUS_INTERVAL {5};
 constexpr uint8_t RFD_SERIAL {2};
 
 void RFD900Task(void* parameter);
@@ -20,6 +21,7 @@ class RFD900 {
 	void ping();
 	QueueHandle_t getCommandQueue() const;
 	uint16_t pingProgress;
+	uint16_t statusProgress;
 
 	private:
 	Status& status;

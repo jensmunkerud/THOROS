@@ -10,10 +10,6 @@
 #include "Motor.h"
 
 // PARAMETERS
-constexpr int speed {100};	// Vehicle speed
-constexpr int P {1};		// Proportional parameter
-constexpr int I {1};		// Integral parameter
-constexpr int D {1};		// Derivative parameter
 constexpr unsigned long SENSOR_INTERVAL_FAST = 1000/200;
 constexpr unsigned long SENSOR_INTERVAL_SLOW = 1000/1;
 constexpr unsigned long interval2 = 1000/10;
@@ -25,10 +21,10 @@ Status status;
 ICM20948 icm20948(status);
 BMP390 bmp390(status);
 GPS gps(status);
-// RFD900 rfd900(status);
-// MovementController movementController(status, rfd900);
+RFD900 rfd900(status);
+MovementController movementController(status, rfd900);
 LED led(status);
-// Motor motor(movementController, status);
+Motor motor(movementController, status);
 
 
 // ----------------- //
@@ -37,9 +33,8 @@ LED led(status);
 void setup() {
 	icm20948.begin();
 	bmp390.begin();
-	// motor.begin();
-	Serial.begin(115200);
-	// rfd900.begin();
+	motor.begin();
+	rfd900.begin();
 }
 
 
@@ -53,14 +48,13 @@ void loop() {
 		prevFAST = current;
 		icm20948.loop();
 		bmp390.loop();
-		// movementController.update();
-		// motor.loop();
+		movementController.update();
+		motor.loop();
 	}
-	
+
 	if (current - prevSLOW >= SENSOR_INTERVAL_SLOW) {
 		prevSLOW = current;
 		gps.loop();
-		// rfd900.sendStatus();
 		led.loop();
 	}
 	delayMicroseconds(1);
