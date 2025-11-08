@@ -37,8 +37,21 @@ private:
 	DShotRMT motor2;
 	DShotRMT motor3;
 	DShotRMT motor4;
-	Quaternion target;
-	Quaternion error;
-	double p_int = 0.0, q_int = 0.0, r_int = 0.0;
-	double p_prev = 0.0, q_prev = 0.0, r_prev = 0.0;
+	Orientation computePID();
+	double targetPitch, targetRoll, targetYaw;
+	Orientation pid;
+
+	// PID constants
+	double Kp = 1, Ki = 0, Kd = 1;
+	double dt = 0.01;
+
+	double m1 = 0;
+	double m2 = 0;
+	double m3 = 0;
+	double m4 = 0;
+
+	// Error tracking
+	float errorPitch, errorRoll, errorYaw;
+	float integralPitch = 0, integralRoll = 0, integralYaw = 0;
+	float lastErrorPitch = 0, lastErrorRoll = 0, lastErrorYaw = 0;
 };

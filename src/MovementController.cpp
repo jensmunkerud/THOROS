@@ -24,6 +24,9 @@ void MovementController::updateCommandMap() {
 	commandMap[CommandID::GO_UP]     = [this](uint8_t v){ handleUp(v); };
 	commandMap[CommandID::GO_DOWN]   = [this](uint8_t v){ handleDown(v); };
 	commandMap[CommandID::TOGGLE]    = [this](uint8_t v){ toggle(v); };
+	commandMap[CommandID::P]         = [this](uint8_t v){ P(v); };
+	commandMap[CommandID::I]         = [this](uint8_t v){ I(v); };
+	commandMap[CommandID::D]         = [this](uint8_t v){ D(v); };
 }
 
 void MovementController::executeCommand(CommandID id, uint8_t rawValue) {
@@ -45,6 +48,9 @@ void MovementController::handleDown(uint8_t v)     { targetInput.throttle =	targ
 void MovementController::handlePanLeft(uint8_t v)  { targetInput.yaw =		targetInput.yaw <= 0 ? -v : 0; }
 void MovementController::handlePanRight(uint8_t v) { targetInput.yaw =		targetInput.yaw >= 0 ? v : 0; }
 void MovementController::toggle(uint8_t v) {isToggled = not isToggled; Serial.print("Toggled ya ass, it is now: "); Serial.println(isToggled);}
+void MovementController::P(uint8_t v) {Kp = max(0, (int)Kp + v);}
+void MovementController::I(uint8_t v) {Ki = max(0, (int)Ki + v);}
+void MovementController::D(uint8_t v) {Kd = max(0, (int)Kd + v);}
 
 // === Helper Functions ===
 int16_t MovementController::mapInput(uint8_t rawValue) {
