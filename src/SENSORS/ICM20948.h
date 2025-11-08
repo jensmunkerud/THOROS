@@ -12,8 +12,12 @@ class ICM20948 {
 	ICM_20948_SPI icm20948;
 	void begin();
 	void loop();
-	bool State;
 
 	private:
 	Status& status;
+	icm_20948_DMP_data_t data;
+	double q1;
+	double q2;
+	double q3;
+	double q0;
 };

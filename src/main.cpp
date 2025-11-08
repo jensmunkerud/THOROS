@@ -10,7 +10,7 @@
 #include "Motor.h"
 
 // PARAMETERS
-constexpr unsigned long SENSOR_INTERVAL_FAST = 1000/200;
+constexpr unsigned long SENSOR_INTERVAL_FAST = 1000/100;
 constexpr unsigned long SENSOR_INTERVAL_SLOW = 1000/1;
 constexpr unsigned long interval2 = 1000/10;
 
@@ -31,10 +31,11 @@ Motor motor(movementController, status);
 //       SETUP       //
 // ----------------- //
 void setup() {
+	Serial.begin(115200);
 	icm20948.begin();
 	bmp390.begin();
-	motor.begin();
 	rfd900.begin();
+	motor.begin();
 }
 
 
@@ -57,6 +58,6 @@ void loop() {
 		gps.loop();
 		led.loop();
 	}
-	delayMicroseconds(1);
+	// delayMicroseconds(1);
 }
 

@@ -18,7 +18,7 @@ LED::LED(Status& s) : status{s}, state{false} {pinMode(LEDPIN, OUTPUT);}
 
 void LED::loop() {
 	if (status.RFD900 == 1) {
-		digitalWrite(LEDPIN, LOW);
+		digitalWrite(LEDPIN, HIGH);
 	} else {
 		digitalWrite(LEDPIN, state ? HIGH : LOW);
 		state = not state;

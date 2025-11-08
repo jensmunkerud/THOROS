@@ -5,14 +5,22 @@
 #define END_MARKER 0xCD
 #define HANDSHAKE 0x10
 
+struct Quaternion {
+	double x;
+	double y;
+	double z;
+	double w;
+};
+
 struct __attribute__((packed)) Status {
 	int8_t BEGIN;
 	int16_t altitude;
 	int16_t speed;
 
-	int16_t accelX;
-	int16_t accelY;
-	int16_t accelZ;
+	// int16_t accelX;
+	// int16_t accelY;
+	// int16_t accelZ;
+	Quaternion attitude;
 
 	int16_t gyroX;
 	int16_t gyroY;
@@ -48,7 +56,8 @@ struct __attribute__((packed)) Status {
 		BEGIN(START_MARKER),
 		altitude(0),
 		speed(0),
-		accelX(0), accelY(0), accelZ(0),
+		// accelX(0), accelY(0), accelZ(0),
+		attitude{0.0, 0.0, 0.0, 1.0},
 		gyroX(0), gyroY(0), gyroZ(0),
 		temp(0), pressure(0),
 		batteryVoltage(0),
