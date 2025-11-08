@@ -16,14 +16,11 @@ struct __attribute__((packed)) Status {
 	int16_t altitude;
 	int16_t speed;
 
-	// int16_t accelX;
-	// int16_t accelY;
-	// int16_t accelZ;
 	Orientation attitude;
 
-	int16_t gyroX;
-	int16_t gyroY;
-	int16_t gyroZ;
+	double P;
+	double I;
+	double D;
 	
 	int16_t temp;
 	int16_t pressure;
@@ -57,7 +54,7 @@ struct __attribute__((packed)) Status {
 		speed(0),
 		// accelX(0), accelY(0), accelZ(0),
 		attitude{0.0, 0.0, 0.0},
-		gyroX(0), gyroY(0), gyroZ(0),
+		P(0), I(0), D(0),
 		temp(0), pressure(0),
 		batteryVoltage(0),
 		latitude(0), longitude(0),

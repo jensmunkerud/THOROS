@@ -25,8 +25,11 @@ void MovementController::updateCommandMap() {
 	commandMap[CommandID::GO_DOWN]   = [this](uint8_t v){ handleDown(v); };
 	commandMap[CommandID::TOGGLE]    = [this](uint8_t v){ toggle(v); };
 	commandMap[CommandID::P]         = [this](uint8_t v){ P(v); };
+	commandMap[CommandID::Pd]        = [this](uint8_t v){ Pd(v); };
 	commandMap[CommandID::I]         = [this](uint8_t v){ I(v); };
+	commandMap[CommandID::Id]        = [this](uint8_t v){ Id(v); };
 	commandMap[CommandID::D]         = [this](uint8_t v){ D(v); };
+	commandMap[CommandID::Dd]        = [this](uint8_t v){ Dd(v); };
 }
 
 void MovementController::executeCommand(CommandID id, uint8_t rawValue) {
@@ -43,14 +46,17 @@ void MovementController::handleForward(uint8_t v)  { targetInput.pitch =	targetI
 void MovementController::handleBackward(uint8_t v) { targetInput.pitch =	targetInput.pitch <= 0 ? -v : 0; }
 void MovementController::handleLeft(uint8_t v)     { targetInput.roll =		targetInput.roll <= 0 ? -v : 0; }
 void MovementController::handleRight(uint8_t v)    { targetInput.roll =		targetInput.roll >= 0 ? v : 0; }
-void MovementController::handleUp(uint8_t v)       { targetInput.throttle =	targetInput.throttle >= 0 ? v : 0; }
-void MovementController::handleDown(uint8_t v)     { targetInput.throttle =	targetInput.throttle <= 0 ? -v : 0;}
+void MovementController::handleUp(uint8_t v)       { verticalSpeed = v; }
+void MovementController::handleDown(uint8_t v)     { verticalSpeed = -v;}
 void MovementController::handlePanLeft(uint8_t v)  { targetInput.yaw =		targetInput.yaw <= 0 ? -v : 0; }
 void MovementController::handlePanRight(uint8_t v) { targetInput.yaw =		targetInput.yaw >= 0 ? v : 0; }
 void MovementController::toggle(uint8_t v) {isToggled = not isToggled; Serial.print("Toggled ya ass, it is now: "); Serial.println(isToggled);}
 void MovementController::P(uint8_t v) {Kp = max(0, (int)Kp + v);}
+void MovementController::Pd(uint8_t v) {Kp = max(0, (int)Kp - v);}
 void MovementController::I(uint8_t v) {Ki = max(0, (int)Ki + v);}
+void MovementController::Id(uint8_t v) {Ki = max(0, (int)Ki - v);}
 void MovementController::D(uint8_t v) {Kd = max(0, (int)Kd + v);}
+void MovementController::Dd(uint8_t v) {Kd = max(0, (int)Kd - v);}
 
 // === Helper Functions ===
 int16_t MovementController::mapInput(uint8_t rawValue) {
@@ -77,7 +83,10 @@ void MovementController::update() {
 		Serial.print("Executing command: ");
 		Serial.println(packet[0]);
 	}
-
+	if (count++ >= 20) {
+		targetInput.throttle += verticalSpeed;
+		count = 0;
+	}
 	// Smooth the current input toward the target
 	currentInput.pitch     = smooth(currentInput.pitch,     targetInput.pitch);
 	currentInput.roll      = smooth(currentInput.roll,      targetInput.roll);

@@ -19,9 +19,13 @@ enum CommandID : uint8_t {
 	GO_DOWN   = 108,
 	TOGGLE    = 17,
 	P         = 50,
-	I         = 51,
-	D         = 52,
+	Pd        = 51,
+	I         = 52,
+	Id        = 53,
+	D         = 54,
+	Dd        = 55
 };
+
 
 struct ControlInput {
 	int16_t pitch		{0};	// forward/backward
@@ -73,8 +77,14 @@ private:
 	void handlePanRight(uint8_t value);
 	void toggle(uint8_t value);
 	void P(uint8_t value);
+	void Pd(uint8_t value);
 	void I(uint8_t value);
+	void Id(uint8_t value);
 	void D(uint8_t value);
+	void Dd(uint8_t value);
+
+	int verticalSpeed {0};
+	int count {0};
 
 	// Helpers
 	void updateCommandMap();

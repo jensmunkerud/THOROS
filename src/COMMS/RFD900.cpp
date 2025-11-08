@@ -32,20 +32,20 @@ void RFD900::begin() {
 	SerialRFD.write(HANDSHAKE);
 	SerialRFD.write(END_MARKER);
 
-	// xTaskCreatePinnedToCore(
-	// RFD900Task,         // Task function
-	// "RFD900 Task",      // Name
-	// 4096,               // Stack size (bytes)
-	// this,               // Parameter
-	// 1,                  // Priority
-	// &rfdTaskHandle,     // Task handle
-	// 0                   // Core 0
-	// );
+	xTaskCreatePinnedToCore(
+	RFD900Task,         // Task function
+	"RFD900 Task",      // Name
+	4096,               // Stack size (bytes)
+	this,               // Parameter
+	1,                  // Priority
+	&rfdTaskHandle,     // Task handle
+	0                   // Core 0
+	);
 
-	// while (status.RFD900 != 1) {
-	// 	loop();
-	// 	delay(1);
-	// }
+	while (status.RFD900 != 1) {
+		loop();
+		delay(1);
+	}
 }
 
 void RFD900::loop() {

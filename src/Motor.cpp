@@ -32,6 +32,13 @@ void Motor::begin() {
 
 Orientation Motor::computePID() {
 	Kp = movementController.Kp;
+	Ki = movementController.Ki;
+	Kd = movementController.Kd;
+
+	status.P = Kp;
+	status.I = Ki;
+	status.D = Kd;
+
 	// Errors
 	errorPitch = targetPitch - status.attitude.pitch;
 	errorRoll  = targetRoll  - status.attitude.roll;
@@ -63,19 +70,19 @@ Orientation Motor::computePID() {
 
 
 void Motor::loop() {
-	// if (status.RFD900 != 1) {
-	// 	motor1.send_dshot_value(0);
-	// 	motor2.send_dshot_value(0);
-	// 	motor3.send_dshot_value(0);
-	// 	motor4.send_dshot_value(0);
-	// 	return;
-	// }
+	if (status.RFD900 != 1) {
+		motor1.send_dshot_value(0);
+		motor2.send_dshot_value(0);
+		motor3.send_dshot_value(0);
+		motor4.send_dshot_value(0);
+		return;
+	}
 
 	pid = computePID();
-	m1 = MINIMUM_MOTOR_SPEED + pid.pitch - pid.roll + pid.yaw; // Front Left
-	m2 = MINIMUM_MOTOR_SPEED + pid.pitch + pid.roll - pid.yaw; // Front Right
-	m3 = MINIMUM_MOTOR_SPEED - pid.pitch + pid.roll + pid.yaw; // Rear Right
-	m4 = MINIMUM_MOTOR_SPEED - pid.pitch - pid.roll - pid.yaw; // Rear Left
+	m4 = status.speed + MINIMUM_MOTOR_SPEED + pid.pitch + pid.roll - pid.yaw; // Front Right
+	m3 = status.speed + MINIMUM_MOTOR_SPEED - pid.pitch - pid.roll - pid.yaw; // Rear Left
+	m2 = status.speed + MINIMUM_MOTOR_SPEED + pid.pitch - pid.roll + pid.yaw; // Front Left
+	m1 = status.speed + MINIMUM_MOTOR_SPEED - pid.pitch + pid.roll + pid.yaw; // Rear Right
 
 
 	m1 = constrain(m1, 0, 500);
@@ -87,11 +94,11 @@ void Motor::loop() {
 	motor2.send_dshot_value((int)m2);
 	motor3.send_dshot_value((int)m3);
 	motor4.send_dshot_value((int)m4);
-	Serial.print((int)m1);
-	Serial.print("\t\t|\t");
-	Serial.print((int)m2);
-	Serial.print("\t\t|\t");
-	Serial.print((int)m3);
-	Serial.print("\t\t|\t");
-	Serial.println((int)m4);
+	// Serial.print((int)m1);
+	// Serial.print("\t\t|\t");
+	// Serial.print((int)m2);
+	// Serial.print("\t\t|\t");
+	// Serial.print((int)m3);
+	// Serial.print("\t\t|\t");
+	// Serial.println((int)m4);
 }
