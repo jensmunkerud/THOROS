@@ -28,10 +28,10 @@ enum CommandID : uint8_t {
 
 
 struct ControlInput {
-	long pitch		{0};	// forward/backward
-	long roll		{0};	// left/right
-	long throttle	{0};	// up/down
-	long yaw 		{0};	// rotation (optional)
+	float pitch		{0};	// forward/backward
+	float roll		{0};	// left/right
+	float throttle	{0};	// up/down
+	float yaw 		{0};	// rotation (optional)
 };
 
 // Main control manager
@@ -57,7 +57,7 @@ public:
 
 private:
 	// Timeout in ms after which movement is reset
-	static constexpr int MOVEMENT_TIMEOUT_MS {170}; // 2x 80ms which is the sending interval
+	static constexpr int MOVEMENT_TIMEOUT_MS {500}; // 2x 80ms which is the sending interval
 
 	std::unordered_map<CommandID, std::function<void(uint8_t)>> commandMap;
 	ControlInput targetInput;   // from latest commands
@@ -89,13 +89,13 @@ private:
 	long deltaTime{0};
 	std::array<long, 8> last_command_time_map;
 	std::array<bool, 8> commands_in_action;
-	void pingCommand(uint8_t command_id, bool shouldDisable);
+	void deleteCommand(uint8_t command_id);
 	void controlTimeouts();
 
 	// Helpers
 	void updateCommandMap();
 	void applyFailsafeIfTimedOut();
 	int16_t mapInput(uint8_t rawValue);
-	long smooth(long current, long target, int16_t sensitivity, long deltaTime, bool returnToZero);
+	float smooth(float current, float target, float sensitivity, float deltaTime);
 };
 

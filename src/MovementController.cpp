@@ -6,7 +6,7 @@ constexpr uint8_t SPEED_MAX   = 255;
 constexpr uint16_t SMOOTHING_ALPHA_NUM = 1;  // numerator
 constexpr uint16_t SMOOTHING_ALPHA_DEN = 8;  // denominator => alpha = 0.25
 
-MovementController::MovementController(Status& s, RFD900& rfd900) : status{s}, rfd900{rfd900} , isToggled{false}, last_command_time_map{}, commands_in_action{}{
+MovementController::MovementController(Status& s, RFD900& rfd900) : status{s}, rfd900{rfd900} , isToggled{false}, last_command_time_map{0, 0, 0, 0, 0, 0, 0, 0}, commands_in_action{0, 0, 0, 0, 0, 0, 0, 0}{
 	updateCommandMap();
 }
 
@@ -42,14 +42,14 @@ void MovementController::executeCommand(CommandID id, uint8_t rawValue) {
 }
 
 // === Command Handlers ===
-void MovementController::handleForward(uint8_t v)  { targetInput.pitch =	targetInput.pitch >= 0 ? v : 0;		last_command_time_map[0] = millis();}
-void MovementController::handleBackward(uint8_t v) { targetInput.pitch =	targetInput.pitch <= 0 ? -v : 0;	last_command_time_map[1] = millis();}
-void MovementController::handleLeft(uint8_t v)     { targetInput.roll =		targetInput.roll <= 0 ? -v : 0;		last_command_time_map[2] = millis();}
-void MovementController::handleRight(uint8_t v)    { targetInput.roll =		targetInput.roll >= 0 ? v : 0;		last_command_time_map[3] = millis();}
-void MovementController::handlePanLeft(uint8_t v)  { targetInput.yaw =		targetInput.yaw <= 0 ? -v : 0;		last_command_time_map[4] = millis();}
-void MovementController::handlePanRight(uint8_t v) { targetInput.yaw =		targetInput.yaw >= 0 ? v : 0;		last_command_time_map[5] = millis();}
-void MovementController::handleUp(uint8_t v)       { targetInput.throttle =	v;									last_command_time_map[6] = millis();}
-void MovementController::handleDown(uint8_t v)     { verticalSpeed =		0;									last_command_time_map[7] = millis();}
+void MovementController::handleForward(uint8_t v)  { targetInput.pitch =	targetInput.pitch >= 0 ? v : 0;		last_command_time_map[0] = millis(); commands_in_action[0] = true;}
+void MovementController::handleBackward(uint8_t v) { targetInput.pitch =	targetInput.pitch <= 0 ? -v : 0;	last_command_time_map[1] = millis(); commands_in_action[1] = true;}
+void MovementController::handleLeft(uint8_t v)     { targetInput.roll =		targetInput.roll <= 0 ? -v : 0;		last_command_time_map[2] = millis(); commands_in_action[2] = true;}
+void MovementController::handleRight(uint8_t v)    { targetInput.roll =		targetInput.roll >= 0 ? v : 0;		last_command_time_map[3] = millis(); commands_in_action[3] = true;}
+void MovementController::handlePanLeft(uint8_t v)  { targetInput.yaw =		targetInput.yaw <= 0 ? -v : 0;		last_command_time_map[4] = millis(); commands_in_action[4] = true;}
+void MovementController::handlePanRight(uint8_t v) { targetInput.yaw =		targetInput.yaw >= 0 ? v : 0;		last_command_time_map[5] = millis(); commands_in_action[5] = true;}
+void MovementController::handleUp(uint8_t v)       { targetInput.throttle =	v > 0 ? v : currentInput.throttle; if (v == 0) {Serial.println("V WAS EQUAL TO ZERO");}	last_command_time_map[6] = millis(); commands_in_action[6] = true;}
+void MovementController::handleDown(uint8_t v)     { targetInput.throttle = v > 0 ? -v : currentInput.throttle;	last_command_time_map[7] = millis(); commands_in_action[7] = true;}
 void MovementController::toggle(uint8_t v) {isToggled = not isToggled; Serial.print("Toggled , it is now: "); Serial.println(isToggled);}
 void MovementController::P(uint8_t v) {Kp = max(0, (int)Kp + v);}
 void MovementController::Pd(uint8_t v) {Kp = max(0, (int)Kp - v);}
@@ -63,43 +63,92 @@ int16_t MovementController::mapInput(uint8_t rawValue) {
 	return (static_cast<int32_t>(rawValue) * INPUT_SCALE) / 255;
 }
 
-long MovementController::smooth(long current, long target, int16_t sensitivity, long deltaTime, bool returnToZero) {
-	if (current < target) {
-		return current + sensitivity * deltaTime / 1000;
-	} 
-	else if (current > target) {
-		return current - sensitivity * deltaTime / 1000;
-	} 
-	else {
+float MovementController::smooth(float current, float target, float sensitivity, float deltaTime)
+{
+	if (current == target)
 		return current;
+
+	float step = sensitivity * (deltaTime / 1000.0f);
+
+	// Prevents overshoot
+	if (current < target) {
+		current += step;
+		if (current > target) current = target;
+	} else {
+		current -= step;
+		if (current < target) current = target;
+	}
+
+	return current;
+}
+
+
+void MovementController::deleteCommand(uint8_t command_id) {
+	switch (command_id) {
+		case 0: // 100 forward
+			if (targetInput.pitch < 0) {
+				targetInput.pitch = 0;
+				break;
+			}
+		case 1: // 101 backward
+			if (targetInput.pitch > 0) {
+				targetInput.pitch = 0;
+				break;
+			}
+		case 2: // 102 left
+			if (targetInput.roll < 0) {
+				targetInput.roll = 0;
+				break;
+			}
+		case 3: // 103 right
+			if (targetInput.roll > 0) {
+				targetInput.roll = 0;
+				break;
+			}
+		case 4: // 104 pan left
+			if (targetInput.yaw < 0) {
+				targetInput.yaw = 0;
+				break;
+			}
+		case 5: // 105 pan right
+			if (targetInput.yaw > 0) {
+				targetInput.yaw = 0;
+				break;
+			}
+		case 6: // 107 up
+			break;
+			if (targetInput.throttle > 0) {
+				targetInput.throttle = 0;
+				break;
+			}
+		case 7: // 108 down
+			break;
+			if (targetInput.throttle < 0) {
+				targetInput.throttle = 0;
+				break;
+			}
 	}
 }
 
-// void MovementController::pingCommand(uint8_t command_id, bool shouldDisable) {
-// 	switch (command_id) {
-// 		case 6: // 107 up
-// 			if (targetInput.throttle > 0) {
-// 				if (shouldDisable) {targetInput.throttle = 0; break;}
-// 				break;
-// 			}
-// 		case 108:
-// 			if (targetInput.throttle < 0) {
-// 				targetInput.throttle = 0;
-// 			}
-// 	}
-// }
-
-// void MovementController::controlTimeouts() {
-// 	for (int i = 0; i < sizeof(last_command_time_map); i++) {
-// 		if (last_command_time_map[i] > MOVEMENT_TIMEOUT_MS) {
-// 		}
-// 	}
-// }
+void MovementController::controlTimeouts() {
+	for (int i = 0; i < sizeof(commands_in_action); i++) {
+		if (!commands_in_action[i]) {continue;}
+		if (millis() - last_command_time_map[i] > MOVEMENT_TIMEOUT_MS) {
+			commands_in_action[i] = false;
+			deleteCommand(i);
+			Serial.print("TIMED OUT ACTION ");
+			Serial.print( i);
+			Serial.print(" with delay: ");
+			Serial.println(millis() - last_command_time_map[i]);
+		}
+	}
+}
 
 // === Update Loop ===
 void MovementController::update() {
 	deltaTime = millis() - lastTime;
 	lastTime = millis();
+	controlTimeouts();
 
 	uint8_t packet[2];
 	if (xQueueReceive(rfd900.getCommandQueue(), packet, 0) == pdTRUE) {
@@ -107,17 +156,17 @@ void MovementController::update() {
 		// Serial.print("Executing command: ");
 		// Serial.println(packet[0]);
 	}
-	// if (verticalSpeed == 0) {targetInput.throttle = 0;} else {
-	// 	targetInput.throttle += verticalSpeed * deltaTime / 100;
-	// }
 	// Smooth the current input toward the target
-	currentInput.pitch     = smooth(currentInput.pitch,     targetInput.pitch,		1000, deltaTime, false);
-	currentInput.roll      = smooth(currentInput.roll,      targetInput.roll,		1000, deltaTime, false);
-	currentInput.throttle  = smooth(currentInput.throttle,  targetInput.throttle,	1000, deltaTime, true);
-	currentInput.yaw       = smooth(currentInput.yaw,       targetInput.yaw,		1000, deltaTime, false);
-	status.speed = currentInput.throttle;
+	currentInput.pitch     = smooth(currentInput.pitch,     targetInput.pitch,		100, deltaTime);
+	currentInput.roll      = smooth(currentInput.roll,      targetInput.roll,		100, deltaTime);
+	currentInput.throttle  = smooth(currentInput.throttle,  targetInput.throttle,	100, deltaTime);
+	currentInput.yaw       = smooth(currentInput.yaw,       targetInput.yaw,		100, deltaTime);
+	status.speed = static_cast<int>(currentInput.throttle);
+	Serial.print("Target: ");
+	Serial.print(targetInput.throttle);
+	Serial.print(" Current: ");
 	Serial.println(currentInput.throttle);
-	applyFailsafeIfTimedOut();
+	// applyFailsafeIfTimedOut();
 }
 
 void MovementController::applyFailsafeIfTimedOut() {
@@ -125,7 +174,7 @@ void MovementController::applyFailsafeIfTimedOut() {
 	auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - lastCommandTime).count();
 	if (elapsed > MOVEMENT_TIMEOUT_MS) {
 		targetInput = {};  // Reset all inputs
-		Serial.println("TIMED OUT INPUT");
+		Serial.println("TIMED OUT EVERYTHING");
 	}
 }
 

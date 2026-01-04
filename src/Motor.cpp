@@ -81,7 +81,7 @@ void Motor::loop() {
 	// pid = computePID();
 	m4 = status.speed + MINIMUM_MOTOR_SPEED + pid.pitch + pid.roll - pid.yaw; // Front Right
 	m3 = status.speed + MINIMUM_MOTOR_SPEED - pid.pitch - pid.roll - pid.yaw; // Rear Left
-	m2 = status.speed + MINIMUM_MOTOR_SPEED + pid.pitch - pid.roll + pid.yaw; // Front Left
+	m2 = movementController.getInput().pitch + MINIMUM_MOTOR_SPEED + pid.pitch - pid.roll + pid.yaw; // Front Left
 	m1 = status.speed + MINIMUM_MOTOR_SPEED - pid.pitch + pid.roll + pid.yaw; // Rear Right
 
 
@@ -90,9 +90,9 @@ void Motor::loop() {
 	m3 = constrain(m3, 0, 200);
 	m4 = constrain(m4, 0, 200);
 
-	motor1.send_dshot_value((int)m1);
+	// motor1.send_dshot_value((int)m1);
 	motor2.send_dshot_value((int)m2);
-	// motor3.send_dshot_value((int)m3);
+	// motor3.send_dshot_value((int)m3); // PROPELLER
 	motor4.send_dshot_value((int)m4);
 	// Serial.print((int)m1);
 	// Serial.print("\t\t|\t");
