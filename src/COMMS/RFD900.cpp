@@ -2,7 +2,7 @@
 
 
 RFD900::RFD900(Status& s) : status{s}, numPackets{0}, rfdTaskHandle{nullptr}, pingProgress{0}, SerialRFD(RFD_SERIAL) {
-	commandQueue = xQueueCreate(10, 2 * sizeof(uint8_t));
+	commandQueue = xQueueCreate(30, 2 * sizeof(uint8_t));
 }
 
 
@@ -12,6 +12,7 @@ void RFD900Task(void* parameter) {
 	if (!rfd) {
 		vTaskDelete(NULL); // safety check
 	}
+
 	for (;;) {
 		rfd->loop();
 		vTaskDelay(1);
@@ -29,7 +30,7 @@ void RFD900Task(void* parameter) {
 void RFD900::begin() {
 	SerialRFD.begin(57600, SERIAL_8N1, 16, 17);
 	SerialRFD.write(START_MARKER);
-	SerialRFD.write(HANDSHAKE);
+	// SerialRFD.write(HANDSHAKE);
 	SerialRFD.write(END_MARKER);
 
 	xTaskCreatePinnedToCore(
@@ -42,10 +43,10 @@ void RFD900::begin() {
 	0                   // Core 0
 	);
 
-	while (status.RFD900 != 1) {
-		loop();
-		delay(1);
-	}
+	// while (status.RFD900 != 1) {
+	// 	loop();
+	// 	delay(1);
+	// }
 }
 
 void RFD900::loop() {
@@ -67,21 +68,25 @@ void RFD900::loop() {
 			continue;
 		}
 
-		// Once a full 4-byte packet is received
-		if (numPackets == 4 && buffer[0] == START_MARKER && buffer[3] == END_MARKER) {
+		// Once a complete packet is confirmed
+		// SOMETIMES they are bundled together, hence END_MARKER and START_MARKER skips inside
+		// (it might send too fast for SerialRFD to timeout or we receive next packet while inside for loop below)
+		if (buffer[numPackets-1] == END_MARKER) {
 			lastCommand = millis();
-			byte cmd = buffer[1];
-			byte val = buffer[2];
-
-			if (cmd == HANDSHAKE) {
-				status.RFD900 = 1;
-			} else {
-				// Protect against invalid or too-frequent commands
-				// movementController.executeCommand(static_cast<CommandID>(cmd), val);
-				uint8_t packet[2] = {cmd, val};
-				xQueueSendToBack(commandQueue, packet, pdMS_TO_TICKS(10));  // non-blocking
+			for (int i = 1; i <= numPackets - 2; i+=2) {
+				if (buffer[i] == END_MARKER || buffer[i] == START_MARKER) {continue;}
+				byte cmd = buffer[i];
+				byte val = buffer[i+1];
+	
+				if (cmd == HANDSHAKE) {
+					status.RFD900 = 1;
+				} else {
+					// Protect against invalid or too-frequent commands
+					// movementController.executeCommand(static_cast<CommandID>(cmd), val);
+					uint8_t packet[2] = {cmd, val};
+					xQueueSendToBack(commandQueue, packet, pdMS_TO_TICKS(10));  // non-blocking
+				}
 			}
-
 			numPackets = 0; // reset for next packet
 		}
 	}
@@ -97,7 +102,7 @@ void RFD900::sendStatus() {
 
 void RFD900::ping() {
 	SerialRFD.write(START_MARKER);
-	SerialRFD.write(HANDSHAKE);
+	// SerialRFD.write(HANDSHAKE);
 	SerialRFD.write(END_MARKER);
 }
 

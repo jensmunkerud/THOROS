@@ -31,6 +31,7 @@ Motor motor(movementController, status);
 //       SETUP       //
 // ----------------- //
 void setup() {
+	Serial.begin(115200);
 	icm20948.begin();
 	bmp390.begin();
 	rfd900.begin();

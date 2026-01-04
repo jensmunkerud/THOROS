@@ -25,7 +25,7 @@ class RFD900 {
 
 	private:
 	Status& status;
-	byte buffer[5];
+	byte buffer[32];
 	byte numPackets;
 	byte command_id;
 	uint16_t value;

@@ -78,21 +78,21 @@ void Motor::loop() {
 		return;
 	}
 
-	pid = computePID();
+	// pid = computePID();
 	m4 = status.speed + MINIMUM_MOTOR_SPEED + pid.pitch + pid.roll - pid.yaw; // Front Right
 	m3 = status.speed + MINIMUM_MOTOR_SPEED - pid.pitch - pid.roll - pid.yaw; // Rear Left
 	m2 = status.speed + MINIMUM_MOTOR_SPEED + pid.pitch - pid.roll + pid.yaw; // Front Left
 	m1 = status.speed + MINIMUM_MOTOR_SPEED - pid.pitch + pid.roll + pid.yaw; // Rear Right
 
 
-	m1 = constrain(m1, 0, 500);
-	m2 = constrain(m2, 0, 500);
-	m3 = constrain(m3, 0, 500);
-	m4 = constrain(m4, 0, 500);
+	m1 = constrain(m1, 0, 200);
+	m2 = constrain(m2, 0, 200);
+	m3 = constrain(m3, 0, 200);
+	m4 = constrain(m4, 0, 200);
 
 	motor1.send_dshot_value((int)m1);
 	motor2.send_dshot_value((int)m2);
-	motor3.send_dshot_value((int)m3);
+	// motor3.send_dshot_value((int)m3);
 	motor4.send_dshot_value((int)m4);
 	// Serial.print((int)m1);
 	// Serial.print("\t\t|\t");
