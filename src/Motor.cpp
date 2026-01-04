@@ -85,10 +85,10 @@ void Motor::loop() {
 	m1 = status.speed + MINIMUM_MOTOR_SPEED - pid.pitch + pid.roll + pid.yaw; // Rear Right
 
 
-	m1 = constrain(m1, 0, 200);
-	m2 = constrain(m2, 0, 200);
-	m3 = constrain(m3, 0, 200);
-	m4 = constrain(m4, 0, 200);
+	m1 = constrain(m1, 0, 500);
+	m2 = constrain(m2, 0, 500);
+	m3 = constrain(m3, 0, 500);
+	m4 = constrain(m4, 0, 500);
 
 	// motor1.send_dshot_value((int)m1);
 	motor2.send_dshot_value((int)m2);

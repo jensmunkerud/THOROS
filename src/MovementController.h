@@ -7,6 +7,8 @@
 #include "Status.h"
 #include "COMMS/RFD900.h"
 
+constexpr int SENSITIVITY {200};
+
 // Command IDs matching your radio protocol
 enum CommandID : uint8_t {
 	FORWARD   = 100,
@@ -53,6 +55,8 @@ public:
 
 	bool isToggled;
 	double Kp = 1, Ki = 0, Kd = 1;
+	std::array<bool, 8> commands_in_action;
+	
 
 
 private:
@@ -88,7 +92,6 @@ private:
 	long lastTime{0};
 	long deltaTime{0};
 	std::array<long, 8> last_command_time_map;
-	std::array<bool, 8> commands_in_action;
 	void deleteCommand(uint8_t command_id);
 	void controlTimeouts();
 

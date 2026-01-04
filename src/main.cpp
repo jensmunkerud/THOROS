@@ -23,7 +23,7 @@ BMP390 bmp390(status);
 GPS gps(status);
 RFD900 rfd900(status);
 MovementController movementController(status, rfd900);
-LED led(status);
+LED led(status, movementController);
 Motor motor(movementController, status);
 
 
@@ -51,6 +51,7 @@ void loop() {
 		prevFAST = current;
 		icm20948.loop();
 		// bmp390.loop(); // This thing is SUPER SLOW
+		led.loop();
 		movementController.update();
 		motor.loop();
 	}
@@ -58,7 +59,7 @@ void loop() {
 	if (current - prevSLOW >= SENSOR_INTERVAL_SLOW) {
 		prevSLOW = current;
 		gps.loop();
-		led.loop();
+		// led.loop();
 	}
 	// delayMicroseconds(1);
 }
