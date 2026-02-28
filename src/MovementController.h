@@ -8,6 +8,8 @@
 #include "set"
 
 constexpr int SENSITIVITY {200};
+static constexpr int MOVEMENT_TIMEOUT_MS {55}; // 2x 80ms which is the sending interval
+
 
 // Command IDs matching your radio protocol
 enum CommandID : uint8_t {
@@ -25,7 +27,8 @@ enum CommandID : uint8_t {
 	I         = 52,
 	Id        = 53,
 	D         = 54,
-	Dd        = 55
+	Dd        = 55,
+	KILL      = 254
 };
 
 
@@ -41,29 +44,18 @@ class MovementController {
 public:
 	MovementController(Status& s, RFD900& rfd900);
 	void begin();
-	// Call when receiving a command from RFD900
 	void executeCommand(CommandID id, uint8_t rawValue);
-
-	// Call with the list of running commands (from RFD900 packet)
-
-	// Call periodically in main loop (e.g. every 10–20 ms)
 	void update();
-
-	// Get current filtered input state
 	ControlInput getInput() const;
-
-	// Returns whether input is valid (not timed out)
 	bool isInputActive() const;
-
 	bool isToggled;
 	double Kp = 1, Ki = 0, Kd = 1;
 	std::array<bool, 8> commands_in_action;
 	ControlInput currentInput;  // smoothed input
+	void clearInputs(bool clearThrottle = false);
 
 
 private:
-	// Timeout in ms after which movement is reset
-	static constexpr int MOVEMENT_TIMEOUT_MS {500}; // 2x 80ms which is the sending interval
 
 	std::unordered_map<CommandID, std::function<void(uint8_t)>> commandMap;
 	ControlInput targetInput;   // from latest commands
@@ -73,6 +65,7 @@ private:
 	RFDCommandPacket received;
 	std::unordered_map<CommandID, uint8_t> newCommands;
 	std::set<CommandID> oldCommands;
+	std::chrono::steady_clock::time_point lastAutoProcessTime;
 
 	// Direction handlers
 	void handleForward(uint8_t value);
@@ -102,6 +95,7 @@ private:
 	// Helpers
 	void updateCommandMap();
 	void applyFailsafeIfTimedOut();
+	bool canApplyFailSafe;
 	int16_t mapInput(uint8_t rawValue);
 	float smooth(float current, float target, float sensitivity, float deltaTime);
 };

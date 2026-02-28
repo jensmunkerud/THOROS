@@ -12,7 +12,7 @@ void RFD900::RFD900Task(void* parameter) {
 	if (!rfd) {
 		vTaskDelete(NULL); // safety check
 	}
-
+	Serial.begin(115200);
 	for (;;) {
 		rfd->loop();
 		vTaskDelay(1); // 1ms
@@ -44,7 +44,13 @@ void RFD900::begin() {
 }
 
 void RFD900::loop() {
-	if (millis() - lastCommand > RFD_TIMEOUT_MS) {status.RFD900 = 0;}
+	if (millis() - lastCommand > RFD_TIMEOUT_MS) {
+		if (status.RFD900 == 1) {
+			RFDCommandPacket killCommand{1, { {254, 0} }};
+			xQueueSendToBack(commandQueue, &killCommand, pdMS_TO_TICKS(10));
+		}
+		status.RFD900 = 0;
+	}
 
 	while (SerialRFD.available() > 0) {
 		byte incoming = SerialRFD.read();

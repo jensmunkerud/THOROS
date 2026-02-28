@@ -2,6 +2,12 @@
 #include "MovementController.h"
 #include <Arduino.h>
 
+
+MovementController::MovementController(Status& s, RFD900& rfd900) : status{s}, rfd900{rfd900} , isToggled{false}, canApplyFailSafe{true} {
+	updateCommandMap();
+	lastAutoProcessTime = std::chrono::steady_clock::now();
+}
+
 void MovementController::updateRunningCommands() {
 	// Set all command values to their new values
 	for (const auto& entry : newCommands) {
@@ -13,6 +19,7 @@ void MovementController::updateRunningCommands() {
 		if (newCommands.find(oldCmd) == newCommands.end()) {
 			// Command was released → zero it once
 			// Special handling for GO_UP (throttle up)
+			Serial.println("ENDED COMMAND: " + String(static_cast<int>(oldCmd)));
 			if (oldCmd == CommandID::GO_UP || oldCmd == CommandID::GO_DOWN) {
 				targetInput.throttle = currentInput.throttle;
 			} else {
@@ -26,10 +33,6 @@ void MovementController::updateRunningCommands() {
 	for (const auto& entry : newCommands) {
 		oldCommands.insert(entry.first);
 	}
-}
-
-MovementController::MovementController(Status& s, RFD900& rfd900) : status{s}, rfd900{rfd900} , isToggled{false} {
-	updateCommandMap();
 }
 
 void MovementController::begin() {
@@ -52,6 +55,7 @@ void MovementController::updateCommandMap() {
 	commandMap[CommandID::Id]        = [this](uint8_t v){ Id(v); };
 	commandMap[CommandID::D]         = [this](uint8_t v){ D(v); };
 	commandMap[CommandID::Dd]        = [this](uint8_t v){ Dd(v); };
+	commandMap[CommandID::KILL]      = [this](uint8_t v){ clearInputs(true); canApplyFailSafe = false; };
 }
 
 void MovementController::executeCommand(CommandID id, uint8_t rawValue) {
@@ -151,18 +155,20 @@ void MovementController::deleteCommand(uint8_t command_id) {
 void MovementController::update() {
 	deltaTime = millis() - lastTime;
 	lastTime = millis();
-
 	uint8_t packet[2];
 	if (xQueueReceive(rfd900.getCommandQueue(), &received, 0) == pdTRUE) {
-		// Build map of all incoming commands
 		newCommands.clear();
+		// Build map of all incoming commands
 		for (int i = 0; i < received.numCmds; i++) {
+			canApplyFailSafe = true;
 			CommandID id = static_cast<CommandID>(received.commands[i].command);
 			uint8_t val = received.commands[i].value;
 			newCommands[id] = val;
 		}
 		updateRunningCommands();
+		if (received.numCmds > 0) {
 		lastCommandTime = std::chrono::steady_clock::now();
+		}
 	}
 	// Smooth the current input toward the target
 	currentInput.pitch     = constrain(smooth(currentInput.pitch,     targetInput.pitch,	SENSITIVITY, deltaTime), -1000, 1000);
@@ -170,18 +176,18 @@ void MovementController::update() {
 	currentInput.throttle  = constrain(smooth(currentInput.throttle,  targetInput.throttle,	SENSITIVITY, deltaTime), 0, 2000);
 	currentInput.yaw       = constrain(smooth(currentInput.yaw,       targetInput.yaw,		SENSITIVITY, deltaTime), -1000, 1000);
 	status.speed = static_cast<int>(currentInput.throttle);
-	Serial.print("Target: ");
-	Serial.print(targetInput.throttle);
-	Serial.print(" Current: ");
-	Serial.println(currentInput.throttle);
-	// applyFailsafeIfTimedOut();
+	// Serial.print("Target: ");
+	// Serial.print(targetInput.throttle);
+	// Serial.print(" Current: ");
+	// Serial.println(currentInput.throttle);
+	applyFailsafeIfTimedOut();
 }
 
 void MovementController::applyFailsafeIfTimedOut() {
 	auto now = std::chrono::steady_clock::now();
 	auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - lastCommandTime).count();
 	if (elapsed > MOVEMENT_TIMEOUT_MS) {
-		targetInput = {};  // Reset all inputs
+		clearInputs(false);
 	}
 }
 
@@ -193,4 +199,17 @@ bool MovementController::isInputActive() const {
 	auto now = std::chrono::steady_clock::now();
 	auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - lastCommandTime).count();
 	return elapsed < MOVEMENT_TIMEOUT_MS;
+}
+
+void MovementController::clearInputs(bool clearThrottle) {
+	if (canApplyFailSafe) {
+		targetInput.pitch = 0;
+		targetInput.roll = 0;
+		targetInput.yaw = 0;
+		targetInput.throttle = currentInput.throttle;
+		if (clearThrottle) {
+			targetInput.throttle = 0;
+		}
+	}
+	canApplyFailSafe = false;
 }

@@ -5,8 +5,8 @@
 #include "freertos/queue.h"
 #include "freertos/FreeRTOS.h"
 
-constexpr int16_t RFD_TIMEOUT_MS {5000};
-constexpr int16_t PING_INTERVAL {2000};
+constexpr int16_t RFD_TIMEOUT_MS {2100};
+constexpr int16_t PING_INTERVAL {1000};
 constexpr int16_t SEND_STATUS_INTERVAL {100};
 constexpr uint8_t RFD_SERIAL {2};
 
