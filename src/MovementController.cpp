@@ -1,7 +1,34 @@
+#include <set>
 #include "MovementController.h"
 #include <Arduino.h>
 
-MovementController::MovementController(Status& s, RFD900& rfd900) : status{s}, rfd900{rfd900} , isToggled{false}, last_command_time_map{0, 0, 0, 0, 0, 0, 0, 0}, commands_in_action{0, 0, 0, 0, 0, 0, 0, 0}{
+void MovementController::updateRunningCommands() {
+	// Set all command values to their new values
+	for (const auto& entry : newCommands) {
+		executeCommand(entry.first, entry.second);
+	}
+
+	// Detect commands that were active but are now gone
+	for (const auto& oldCmd : oldCommands) {
+		if (newCommands.find(oldCmd) == newCommands.end()) {
+			// Command was released → zero it once
+			// Special handling for GO_UP (throttle up)
+			if (oldCmd == CommandID::GO_UP || oldCmd == CommandID::GO_DOWN) {
+				targetInput.throttle = currentInput.throttle;
+			} else {
+				executeCommand(oldCmd, 0);
+			}
+		}
+	}
+
+	// Update activeCommands for next frame
+	oldCommands.clear();
+	for (const auto& entry : newCommands) {
+		oldCommands.insert(entry.first);
+	}
+}
+
+MovementController::MovementController(Status& s, RFD900& rfd900) : status{s}, rfd900{rfd900} , isToggled{false} {
 	updateCommandMap();
 }
 
@@ -29,23 +56,21 @@ void MovementController::updateCommandMap() {
 
 void MovementController::executeCommand(CommandID id, uint8_t rawValue) {
 	auto it = commandMap.find(id);
-	if (it == commandMap.end()) return;
-
+	if (it == commandMap.end()) {return;}
 	// float normalized = normalizeInput(rawValue);
 	it->second(rawValue);
-	lastCommandTime = std::chrono::steady_clock::now();
 }
 
 // === Command Handlers ===
-void MovementController::handleForward(uint8_t v)  { targetInput.pitch =	targetInput.pitch > 0 ? v : 0;		last_command_time_map[0] = millis(); commands_in_action[0] = true;}
-void MovementController::handleBackward(uint8_t v) { targetInput.pitch =	targetInput.pitch < 0 ? -v : 0;		last_command_time_map[1] = millis(); commands_in_action[1] = true;}
-void MovementController::handleLeft(uint8_t v)     { targetInput.roll =		targetInput.roll < 0 ? -v : 0;		last_command_time_map[2] = millis(); commands_in_action[2] = true;}
-void MovementController::handleRight(uint8_t v)    { targetInput.roll =		targetInput.roll > 0 ? v : 0;		last_command_time_map[3] = millis(); commands_in_action[3] = true;}
-void MovementController::handlePanLeft(uint8_t v)  { targetInput.yaw =		targetInput.yaw < 0 ? -v : 0;		last_command_time_map[4] = millis(); commands_in_action[4] = true;}
-void MovementController::handlePanRight(uint8_t v) { targetInput.yaw =		targetInput.yaw > 0 ? v : 0;		last_command_time_map[5] = millis(); commands_in_action[5] = true;}
-void MovementController::handleUp(uint8_t v)       { targetInput.throttle =	v > 0 ? v*16 : currentInput.throttle;	last_command_time_map[6] = millis(); commands_in_action[6] = true;}
-void MovementController::handleDown(uint8_t v)     { targetInput.throttle = v > 0 ? -v*16 : currentInput.throttle;	last_command_time_map[7] = millis(); commands_in_action[7] = true;}
-void MovementController::toggle(uint8_t v) {isToggled = not isToggled; Serial.print("Toggled , it is now: "); Serial.println(isToggled);}
+void MovementController::handleForward(uint8_t v)  { targetInput.pitch =	targetInput.pitch > 0 ? v : 0;}
+void MovementController::handleBackward(uint8_t v) { targetInput.pitch =	targetInput.pitch < 0 ? -v : 0;}
+void MovementController::handleLeft(uint8_t v)     { targetInput.roll =		targetInput.roll < 0 ? -v : 0;}
+void MovementController::handleRight(uint8_t v)    { targetInput.roll =		targetInput.roll > 0 ? v : 0;}
+void MovementController::handlePanLeft(uint8_t v)  { targetInput.yaw =		targetInput.yaw < 0 ? -v : 0;}
+void MovementController::handlePanRight(uint8_t v) { targetInput.yaw =		targetInput.yaw > 0 ? v : 0;}
+void MovementController::handleUp(uint8_t v)       { targetInput.throttle = v > 0 ? 2000 : 0;}
+void MovementController::handleDown(uint8_t v)     { targetInput.throttle = v > 0 ? 0 : targetInput.throttle;}
+void MovementController::toggle(uint8_t v) {isToggled = not isToggled; return; Serial.print("Toggled , it is now: "); Serial.println(isToggled);}
 void MovementController::P(uint8_t v) {Kp = max(0, (int)Kp + v);}
 void MovementController::Pd(uint8_t v) {Kp = max(0, (int)Kp - v);}
 void MovementController::I(uint8_t v) {Ki = max(0, (int)Ki + v);}
@@ -121,34 +146,26 @@ void MovementController::deleteCommand(uint8_t command_id) {
 	}
 }
 
-void MovementController::controlTimeouts() {
-	for (int i = 0; i < sizeof(commands_in_action); i++) {
-		if (!commands_in_action[i]) {continue;}
-		if (millis() - last_command_time_map[i] > MOVEMENT_TIMEOUT_MS) {
-			commands_in_action[i] = false;
-			deleteCommand(i);
-			Serial.print("TIMED OUT ACTION ");
-			Serial.print( i);
-			Serial.print(" with delay: ");
-			Serial.println(millis() - last_command_time_map[i]);
-		}
-	}
-}
 
 // === Update Loop ===
 void MovementController::update() {
 	deltaTime = millis() - lastTime;
 	lastTime = millis();
-	controlTimeouts();
 
 	uint8_t packet[2];
-	if (xQueueReceive(rfd900.getCommandQueue(), packet, 0) == pdTRUE) {
-		executeCommand(static_cast<CommandID>(packet[0]), packet[1]);
-		// Serial.print("Executing command: ");
-		// Serial.println(packet[0]);
+	if (xQueueReceive(rfd900.getCommandQueue(), &received, 0) == pdTRUE) {
+		// Build map of all incoming commands
+		newCommands.clear();
+		for (int i = 0; i < received.numCmds; i++) {
+			CommandID id = static_cast<CommandID>(received.commands[i].command);
+			uint8_t val = received.commands[i].value;
+			newCommands[id] = val;
+		}
+		updateRunningCommands();
+		lastCommandTime = std::chrono::steady_clock::now();
 	}
 	// Smooth the current input toward the target
-	currentInput.pitch     = constrain(smooth(currentInput.pitch,     targetInput.pitch,		SENSITIVITY, deltaTime), -1000, 1000);
+	currentInput.pitch     = constrain(smooth(currentInput.pitch,     targetInput.pitch,	SENSITIVITY, deltaTime), -1000, 1000);
 	currentInput.roll      = constrain(smooth(currentInput.roll,      targetInput.roll,		SENSITIVITY, deltaTime), -1000, 1000);
 	currentInput.throttle  = constrain(smooth(currentInput.throttle,  targetInput.throttle,	SENSITIVITY, deltaTime), 0, 2000);
 	currentInput.yaw       = constrain(smooth(currentInput.yaw,       targetInput.yaw,		SENSITIVITY, deltaTime), -1000, 1000);

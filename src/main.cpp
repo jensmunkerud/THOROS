@@ -10,7 +10,7 @@
 #include "Motor.h"
 
 // PARAMETERS
-constexpr unsigned long SENSOR_INTERVAL_FAST = 1000/1000;
+constexpr unsigned long SENSOR_INTERVAL_FAST = 1000/500;
 constexpr unsigned long SENSOR_INTERVAL_SLOW = 1000/1;
 constexpr unsigned long interval2 = 1000/10;
 
@@ -20,7 +20,7 @@ unsigned long prevSLOW = 0;
 Status status;
 ICM20948 icm20948(status);
 BMP390 bmp390(status);
-GPS gps(status);
+// GPS gps(status);
 RFD900 rfd900(status);
 MovementController movementController(status, rfd900);
 LED led(status, movementController);
@@ -38,7 +38,6 @@ void setup() {
 	motor.begin();
 }
 
-
 // ---------------- //
 //       LOOP       //
 // ---------------- //
@@ -51,15 +50,14 @@ void loop() {
 		prevFAST = current;
 		icm20948.loop();
 		// bmp390.loop(); // This thing is SUPER SLOW
-		led.loop();
 		movementController.update();
 		motor.loop();
 	}
 
 	if (current - prevSLOW >= SENSOR_INTERVAL_SLOW) {
 		prevSLOW = current;
-		gps.loop();
-		// led.loop();
+		// gps.loop();
+		led.loop();
 	}
 	// delayMicroseconds(1);
 }

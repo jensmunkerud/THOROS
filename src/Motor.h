@@ -6,10 +6,10 @@
 #include "DShotRMT.h"
 
 // CONFIGURATION
-constexpr int MOTOR1 {27};
-constexpr int MOTOR2 {14};
-constexpr int MOTOR3 {12};
-constexpr int MOTOR4 {13};
+constexpr int MOTOR1 {27}; // FRONT RIGHT
+constexpr int MOTOR2 {14}; // BACK RIGHT
+constexpr int MOTOR3 {12}; // FRONT LEFT
+constexpr int MOTOR4 {13}; // BACK LEFT
 
 // we can ABSOLUTELY NOT send negative DShot values!!
 

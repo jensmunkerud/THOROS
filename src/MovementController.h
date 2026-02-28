@@ -1,11 +1,11 @@
 #pragma once
-
 #include <cstdint>
 #include <unordered_map>
 #include <functional>
 #include <chrono>
 #include "Status.h"
 #include "COMMS/RFD900.h"
+#include "set"
 
 constexpr int SENSITIVITY {200};
 
@@ -44,6 +44,8 @@ public:
 	// Call when receiving a command from RFD900
 	void executeCommand(CommandID id, uint8_t rawValue);
 
+	// Call with the list of running commands (from RFD900 packet)
+
 	// Call periodically in main loop (e.g. every 10–20 ms)
 	void update();
 
@@ -56,7 +58,7 @@ public:
 	bool isToggled;
 	double Kp = 1, Ki = 0, Kd = 1;
 	std::array<bool, 8> commands_in_action;
-	
+	ControlInput currentInput;  // smoothed input
 
 
 private:
@@ -65,10 +67,12 @@ private:
 
 	std::unordered_map<CommandID, std::function<void(uint8_t)>> commandMap;
 	ControlInput targetInput;   // from latest commands
-	ControlInput currentInput;  // smoothed input
 	std::chrono::steady_clock::time_point lastCommandTime;
 	Status& status;
 	RFD900& rfd900;
+	RFDCommandPacket received;
+	std::unordered_map<CommandID, uint8_t> newCommands;
+	std::set<CommandID> oldCommands;
 
 	// Direction handlers
 	void handleForward(uint8_t value);
@@ -91,8 +95,8 @@ private:
 	int count {0};
 	long lastTime{0};
 	long deltaTime{0};
-	std::array<long, 8> last_command_time_map;
 	void deleteCommand(uint8_t command_id);
+	void updateRunningCommands();
 	void controlTimeouts();
 
 	// Helpers

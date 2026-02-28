@@ -64,3 +64,14 @@ struct __attribute__((packed)) Status {
 };
 
 
+struct RFDCommand {
+	uint8_t command;
+	uint8_t value;
+};
+
+constexpr uint8_t MAX_COMMANDS_PER_PACKET = 15;
+
+struct RFDCommandPacket {
+	uint8_t numCmds;
+	RFDCommand commands[MAX_COMMANDS_PER_PACKET];
+};
