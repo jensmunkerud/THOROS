@@ -95,9 +95,9 @@ void Motor::loop() {
 	m1 = movementController.currentInput.throttle;
 	m3 = movementController.currentInput.throttle;
 
-	m1 = constrain(m1, 0, 500);
+	m1 = constrain(m1, 0, 1000);
 	m2 = constrain(m2, 0, 1000);
-	m3 = constrain(m3, 0, 500);
+	m3 = constrain(m3, 0, 1000);
 	m4 = constrain(m4, 0, 1000);
 
 	motor1.send_dshot_value((int)m1);

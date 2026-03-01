@@ -3,9 +3,8 @@
 #include <Arduino.h>
 
 
-MovementController::MovementController(Status& s, RFD900& rfd900) : status{s}, rfd900{rfd900} , isToggled{false}, canApplyFailSafe{true} {
+MovementController::MovementController(Status& s, RFD900& rfd900) : status{s}, rfd900{rfd900} , isToggled{false}, canApplyFailSafe{true}, canChangeSpeed(true), movementSpeed{200} {
 	updateCommandMap();
-	lastAutoProcessTime = std::chrono::steady_clock::now();
 }
 
 void MovementController::updateRunningCommands() {
@@ -40,28 +39,29 @@ void MovementController::begin() {
 }
 
 void MovementController::updateCommandMap() {
-	commandMap[CommandID::FORWARD]   = [this](uint8_t v){ handleForward(v); };
-	commandMap[CommandID::BACKWARD]  = [this](uint8_t v){ handleBackward(v); };
-	commandMap[CommandID::LEFT]      = [this](uint8_t v){ handleLeft(v); };
-	commandMap[CommandID::RIGHT]     = [this](uint8_t v){ handleRight(v); };
-	commandMap[CommandID::PAN_LEFT]  = [this](uint8_t v){ handlePanLeft(v); };
-	commandMap[CommandID::PAN_RIGHT] = [this](uint8_t v){ handlePanRight(v); };
-	commandMap[CommandID::GO_UP]     = [this](uint8_t v){ handleUp(v); };
-	commandMap[CommandID::GO_DOWN]   = [this](uint8_t v){ handleDown(v); };
-	commandMap[CommandID::TOGGLE]    = [this](uint8_t v){ toggle(v); };
-	commandMap[CommandID::P]         = [this](uint8_t v){ P(v); };
-	commandMap[CommandID::Pd]        = [this](uint8_t v){ Pd(v); };
-	commandMap[CommandID::I]         = [this](uint8_t v){ I(v); };
-	commandMap[CommandID::Id]        = [this](uint8_t v){ Id(v); };
-	commandMap[CommandID::D]         = [this](uint8_t v){ D(v); };
-	commandMap[CommandID::Dd]        = [this](uint8_t v){ Dd(v); };
-	commandMap[CommandID::KILL]      = [this](uint8_t v){ clearInputs(true); canApplyFailSafe = false; };
+	commandMap[CommandID::FORWARD]			= [this](uint8_t v){ handleForward(v); };
+	commandMap[CommandID::BACKWARD]			= [this](uint8_t v){ handleBackward(v); };
+	commandMap[CommandID::LEFT]				= [this](uint8_t v){ handleLeft(v); };
+	commandMap[CommandID::RIGHT]			= [this](uint8_t v){ handleRight(v); };
+	commandMap[CommandID::PAN_LEFT]			= [this](uint8_t v){ handlePanLeft(v); };
+	commandMap[CommandID::PAN_RIGHT]		= [this](uint8_t v){ handlePanRight(v); };
+	commandMap[CommandID::GO_UP]			= [this](uint8_t v){ handleUp(v); };
+	commandMap[CommandID::GO_DOWN]			= [this](uint8_t v){ handleDown(v); };
+	commandMap[CommandID::TOGGLE]			= [this](uint8_t v){ toggle(v); };
+	commandMap[CommandID::P]				= [this](uint8_t v){ P(v); };
+	commandMap[CommandID::Pd]				= [this](uint8_t v){ Pd(v); };
+	commandMap[CommandID::I]				= [this](uint8_t v){ I(v); };
+	commandMap[CommandID::Id]				= [this](uint8_t v){ Id(v); };
+	commandMap[CommandID::D]				= [this](uint8_t v){ D(v); };
+	commandMap[CommandID::Dd]				= [this](uint8_t v){ Dd(v); };
+	commandMap[CommandID::KILL]				= [this](uint8_t v){ clearInputs(true); canApplyFailSafe = false; };
+	commandMap[CommandID::SPEED_UP]			= [this](uint8_t v){ speedUp(v); };
+	commandMap[CommandID::SPEED_DOWN]		= [this](uint8_t v){ speedDown(v); };
 }
 
 void MovementController::executeCommand(CommandID id, uint8_t rawValue) {
 	auto it = commandMap.find(id);
 	if (it == commandMap.end()) {return;}
-	// float normalized = normalizeInput(rawValue);
 	it->second(rawValue);
 }
 
@@ -75,6 +75,8 @@ void MovementController::handlePanRight(uint8_t v) { targetInput.yaw =		targetIn
 void MovementController::handleUp(uint8_t v)       { targetInput.throttle = v > 0 ? 2000 : 0;}
 void MovementController::handleDown(uint8_t v)     { targetInput.throttle = v > 0 ? 0 : targetInput.throttle;}
 void MovementController::toggle(uint8_t v) {isToggled = not isToggled; return; Serial.print("Toggled , it is now: "); Serial.println(isToggled);}
+void MovementController::speedUp(uint8_t v) {if (canChangeSpeed && v > 0) {movementSpeed = constrain(movementSpeed + SENSITIVITY, 50, 500); canChangeSpeed = false;} Serial.print("Sped up, speed: "); Serial.println(movementSpeed); if (v == 0) {canChangeSpeed = true;}}
+void MovementController::speedDown(uint8_t v) {if (canChangeSpeed && v > 0) {movementSpeed = constrain(movementSpeed - SENSITIVITY, 50, 500); canChangeSpeed = false;} if (v == 0) {canChangeSpeed = true;}}
 void MovementController::P(uint8_t v) {Kp = max(0, (int)Kp + v);}
 void MovementController::Pd(uint8_t v) {Kp = max(0, (int)Kp - v);}
 void MovementController::I(uint8_t v) {Ki = max(0, (int)Ki + v);}
@@ -103,54 +105,6 @@ float MovementController::smooth(float current, float target, float sensitivity,
 }
 
 
-void MovementController::deleteCommand(uint8_t command_id) {
-	switch (command_id) {
-		case 0: // 100 forward
-			if (targetInput.pitch < 0) {
-				targetInput.pitch = 0;
-				break;
-			}
-		case 1: // 101 backward
-			if (targetInput.pitch > 0) {
-				targetInput.pitch = 0;
-				break;
-			}
-		case 2: // 102 left
-			if (targetInput.roll < 0) {
-				targetInput.roll = 0;
-				break;
-			}
-		case 3: // 103 right
-			if (targetInput.roll > 0) {
-				targetInput.roll = 0;
-				break;
-			}
-		case 4: // 104 pan left
-			if (targetInput.yaw < 0) {
-				targetInput.yaw = 0;
-				break;
-			}
-		case 5: // 105 pan right
-			if (targetInput.yaw > 0) {
-				targetInput.yaw = 0;
-				break;
-			}
-		case 6: // 107 up
-			break;
-			if (targetInput.throttle > 0) {
-				targetInput.throttle = 0;
-				break;
-			}
-		case 7: // 108 down
-			break;
-			if (targetInput.throttle < 0) {
-				targetInput.throttle = 0;
-				break;
-			}
-	}
-}
-
-
 // === Update Loop ===
 void MovementController::update() {
 	deltaTime = millis() - lastTime;
@@ -171,10 +125,10 @@ void MovementController::update() {
 		}
 	}
 	// Smooth the current input toward the target
-	currentInput.pitch     = constrain(smooth(currentInput.pitch,     targetInput.pitch,	SENSITIVITY, deltaTime), -1000, 1000);
-	currentInput.roll      = constrain(smooth(currentInput.roll,      targetInput.roll,		SENSITIVITY, deltaTime), -1000, 1000);
-	currentInput.throttle  = constrain(smooth(currentInput.throttle,  targetInput.throttle,	SENSITIVITY, deltaTime), 0, 2000);
-	currentInput.yaw       = constrain(smooth(currentInput.yaw,       targetInput.yaw,		SENSITIVITY, deltaTime), -1000, 1000);
+	currentInput.pitch     = constrain(smooth(currentInput.pitch,     targetInput.pitch,	movementSpeed, deltaTime), -1000, 1000);
+	currentInput.roll      = constrain(smooth(currentInput.roll,      targetInput.roll,		movementSpeed, deltaTime), -1000, 1000);
+	currentInput.throttle  = constrain(smooth(currentInput.throttle,  targetInput.throttle,	movementSpeed, deltaTime), 0, 2000);
+	currentInput.yaw       = constrain(smooth(currentInput.yaw,       targetInput.yaw,		movementSpeed, deltaTime), -1000, 1000);
 	status.speed = static_cast<int>(currentInput.throttle);
 	// Serial.print("Target: ");
 	// Serial.print(targetInput.throttle);
@@ -195,11 +149,6 @@ ControlInput MovementController::getInput() const {
 	return currentInput;
 }
 
-bool MovementController::isInputActive() const {
-	auto now = std::chrono::steady_clock::now();
-	auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - lastCommandTime).count();
-	return elapsed < MOVEMENT_TIMEOUT_MS;
-}
 
 void MovementController::clearInputs(bool clearThrottle) {
 	if (canApplyFailSafe) {

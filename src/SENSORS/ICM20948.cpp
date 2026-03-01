@@ -14,7 +14,7 @@ void ICM20948::begin() {
 	status.ICM20948 &= icm20948.enableDMP() == ICM_20948_Stat_Ok;
 	status.ICM20948 &= icm20948.resetFIFO() == ICM_20948_Stat_Ok;
 	status.ICM20948 &= icm20948.resetDMP() == ICM_20948_Stat_Ok;
-	delay(500);
+	delay(500); // why is this delayed
 }
 
 void ICM20948::loop() {
