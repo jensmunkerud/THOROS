@@ -7,8 +7,11 @@ ICM20948::ICM20948(Status& status) : status{status}, lastTime{0} {}
 void ICM20948::begin() {
 	SPI.begin();
 	status.ICM20948 = icm20948.begin(ICM20948_CS, SPI) == ICM_20948_Stat_Ok;
-	// icm20948.setFullScale(ICM_20948_Internal_Acc, );
-	// icm20948.setFullScale(ICM_20948_Internal_Gyr, );
+	ICM_20948_fss_t myFSS;
+	myFSS.a = gpm4;
+	myFSS.g = dps500;
+	icm20948.setFullScale(ICM_20948_Internal_Acc, myFSS);
+	icm20948.setFullScale(ICM_20948_Internal_Gyr, myFSS);
 
 	icm20948.setSampleRate(ICM_20948_Internal_Gyr, ICM_SAMPLERATE);
 	icm20948.setSampleRate(ICM_20948_Internal_Acc, ICM_SAMPLERATE);
@@ -17,7 +20,10 @@ void ICM20948::begin() {
 }
  
 void ICM20948::loop() {
-	lastTime = micros();
+	uint32_t now = micros();
+	float dt = (now - lastTime) * 1e-6f;
+	lastTime = now;
+
 	agmt = icm20948.getAGMT();
 
 	float gx = agmt.gyr.axes.x * DEG_TO_RAD;
@@ -28,8 +34,6 @@ void ICM20948::loop() {
 	float ay = agmt.acc.axes.y;
 	float az = agmt.acc.axes.z;
 
-	uint32_t now = micros();
-	float dt = (now - lastTime) * 1e-6f;
 	lastTime = now;
 
 	filter.update(gx, gy, gz, ax, ay, az, dt);
@@ -39,11 +43,15 @@ void ICM20948::loop() {
 		filter.getYaw(),
 		filter.getRoll()
 	};
-	Serial.print("P: ");
 	Serial.print(status.attitude.pitch);
-	Serial.print("		Y: ");
+	Serial.print("/");
 	Serial.print(status.attitude.yaw);
-	Serial.print("		R: ");
-	Serial.print(status.attitude.roll);
+	Serial.print("/");
+	Serial.println(status.attitude.roll);
+// 	Serial.print(gx);
+// 	Serial.print("/");
+// 	Serial.print(gy);
+// 	Serial.print("/");
+// 	Serial.println(gz);
 }
 

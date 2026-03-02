@@ -18,7 +18,7 @@ void MovementController::updateRunningCommands() {
 		if (newCommands.find(oldCmd) == newCommands.end()) {
 			// Command was released → zero it once
 			// Special handling for GO_UP (throttle up)
-			Serial.println("ENDED COMMAND: " + String(static_cast<int>(oldCmd)));
+			// Serial.println("ENDED COMMAND: " + String(static_cast<int>(oldCmd)));
 			if (oldCmd == CommandID::GO_UP || oldCmd == CommandID::GO_DOWN) {
 				targetInput.throttle = currentInput.throttle;
 			} else {

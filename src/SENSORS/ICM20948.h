@@ -4,6 +4,7 @@
 #include <ICM_20948.h>
 #include "Status.h"
 #include "Madgwick.h"
+#include "Kalman.h"
 
 static constexpr int ICM20948_CS {15};
 static constexpr ICM_20948_smplrt_t ICM_SAMPLERATE {1000};
@@ -22,7 +23,7 @@ class ICM20948 {
 	double q2;
 	double q3;
 	double q0;
-	Madgwick filter;
+	Kalman filter;
 	ICM_20948_AGMT_t agmt;
 	uint32_t lastTime;
 };
