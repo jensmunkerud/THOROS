@@ -1,8 +1,8 @@
 #include "ICM20948.h"
 #include "string"
 
-#define PRINT_FILTERED_ORIENTATION 0
-#define PRINT_RAW_ORIENTATION 1
+#define PRINT_FILTERED_ORIENTATION 1
+#define PRINT_RAW_ORIENTATION 0
 
 ICM20948::ICM20948(Status& status) : status{status}, lastTime{0} {
 	// filter = new MadgwickFilter(0.04f);
@@ -16,7 +16,7 @@ void ICM20948::begin() {
 	status.ICM20948 = icm20948.begin(ICM20948_CS, SPI) == ICM_20948_Stat_Ok;
 	ICM_20948_fss_t fss;
 	fss.a = gpm8;
-	fss.g = dps500;
+	fss.g = dps2000;
 
 	icm20948.setFullScale(ICM_20948_Internal_Acc, fss);
 	icm20948.setFullScale(ICM_20948_Internal_Gyr, fss);
@@ -32,27 +32,6 @@ void ICM20948::begin() {
 	lastTime = micros();
 }
 
-Attitude accelToRPY(float ax_mg, float ay_mg, float az_mg)
-{
-	Attitude ang;
-
-	// Convert milli-g to g
-	float ax = ax_mg / 1000.0f;
-	float ay = ay_mg / 1000.0f;
-	float az = az_mg / 1000.0f;
-
-	// Compute roll and pitch (radians)
-	float roll_rad  = atan2f(ay, az);
-	float pitch_rad = atan2f(-ax, sqrtf(ay * ay + az * az));
-
-	// Convert to degrees
-	ang.roll  = roll_rad  * 180.0f / PI;
-	ang.pitch = pitch_rad * 180.0f / PI;
-	ang.yaw   = 0.0f;  // Cannot compute from accel alone
-
-	return ang;
-}
-
 void ICM20948::loop() {
 	if (icm20948.dataReady()) {
 		icm20948.getAGMT();
@@ -64,10 +43,6 @@ void ICM20948::loop() {
 
 		float dt = delta * 1e-6f;
 		lastTime = now;
-
-		float gx = (icm20948.gyrX() - gyroBiasX) * DEG_TO_RAD;
-		float gy = (icm20948.gyrY() - gyroBiasY) * DEG_TO_RAD;
-		float gz = (icm20948.gyrZ() - gyroBiasZ) * DEG_TO_RAD;
 
 		float mx = icm20948.magX();
 		float my = icm20948.magY();
@@ -86,7 +61,6 @@ void ICM20948::loop() {
 		};
 
 		acc = rotate(acc);
-		gyr = rotate(gyr);
 
 
 		// filter->update(gx, gy, gz,
@@ -229,7 +203,8 @@ void ICM20948::computeMountingRotation()
 	axis.z /= axis_norm;
 
 	float cosA = dot(g, target);
-	float sinA = axis_norm;
+	float angle = acos(cosA);
+	float sinA = sin(angle);
 
 	float K[3][3] = {
 		{0, -axis.z, axis.y},
