@@ -30,7 +30,7 @@ void Motor::begin() {
 }
 
 
-Orientation Motor::computePID() {
+Attitude Motor::computePID() {
 	Kp = movementController.Kp;
 	Ki = movementController.Ki;
 	Kd = movementController.Kd;

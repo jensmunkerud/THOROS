@@ -5,10 +5,10 @@
 #define END_MARKER 0xCD
 #define HANDSHAKE 0x10
 
-struct Orientation {
-	double pitch;
-	double yaw;
-	double roll;
+struct Attitude {
+	float pitch;
+	float yaw;
+	float roll;
 };
 
 struct __attribute__((packed)) Status {
@@ -16,7 +16,7 @@ struct __attribute__((packed)) Status {
 	int16_t altitude;
 	int16_t speed;
 
-	Orientation attitude;
+	Attitude attitude;
 
 	double P;
 	double I;

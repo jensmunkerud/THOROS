@@ -10,7 +10,7 @@
 #include "Motor.h"
 
 // PARAMETERS
-constexpr unsigned long SENSOR_INTERVAL_FAST = 1000/500;
+constexpr unsigned long SENSOR_INTERVAL_FAST = 1000/100;
 constexpr unsigned long SENSOR_INTERVAL_SLOW = 1000/1;
 constexpr unsigned long interval2 = 1000/10;
 
@@ -45,13 +45,13 @@ void loop() {
 	unsigned long current = millis();
 	
 	if (current - prevFAST >= SENSOR_INTERVAL_FAST) {
+		icm20948.loop();
 		// Serial.print(1000/(current-prevFAST));
 		// Serial.println("Hz");
-		prevFAST = current;
-		icm20948.loop();
+		// prevFAST = current;
 		// bmp390.loop(); // This thing is SUPER SLOW
-		movementController.update();
-		motor.loop();
+		// movementController.update();
+		// motor.loop();
 	}
 
 	if (current - prevSLOW >= SENSOR_INTERVAL_SLOW) {
