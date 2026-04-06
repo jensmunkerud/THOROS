@@ -19,7 +19,7 @@ void Motor::begin() {
 	motor2.begin(DSHOT_TYPE, NO_BIDIRECTION, 14);
 	motor3.begin(DSHOT_TYPE, NO_BIDIRECTION, 14);
 	motor4.begin(DSHOT_TYPE, NO_BIDIRECTION, 14);
-
+	
 	for(int i = 0; i < INITILIZE_ESC_TIME; i++) {
 		motor1.send_dshot_value(0);
 		motor2.send_dshot_value(0);
@@ -90,14 +90,14 @@ void Motor::loop() {
 	m4 = 0;
 	// Serial.println(movementController.currentInput.throttle);
 
-	// m2 = movementController.currentInput.throttle;
-	// m4 = movementController.currentInput.throttle;
+	m2 = movementController.currentInput.throttle;
+	m4 = movementController.currentInput.throttle;
 	m1 = movementController.currentInput.throttle;
 	m3 = movementController.currentInput.throttle;
 
-	m1 = constrain(m1, 0, 100);
+	m1 = constrain(m1, 0, 2000);
 	m2 = constrain(m2, 0, 2000);
-	m3 = constrain(m3, 0, 500);
+	m3 = constrain(m3, 0, 2000);
 	m4 = constrain(m4, 0, 2000);
 
 	motor1.send_dshot_value((int)m1);

@@ -6,9 +6,11 @@
 #include "MadgwickFilter.h"
 #include <MadgwickAHRS.h>
 #include "AttitudeEKF.h"
+#include "AHRSAlgorithms.h"
 
 static constexpr int ICM20948_CS {15};
-static constexpr int ICM_SAMPLERATE {500};
+static constexpr int ICM_SAMPLERATE {100};
+static constexpr float DEG2RAD = 0.01745329251f;
 
 struct Vec3 {
 	float x, y, z;
@@ -41,6 +43,9 @@ class ICM20948 {
 	float accBiasX;
 	float accBiasY;
 	float accBiasZ;
+	float magBiasX;
+	float magBiasY;
+	float magBiasZ;
 
 	Vec3 normalize(Vec3 v);
 	Vec3 cross(Vec3 a, Vec3 b);

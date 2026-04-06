@@ -1,3 +1,5 @@
+#define ENABLE_MAGNETOMETER 0
+
 #include "MadgwickFilter.h"
 
 MadgwickFilter::MadgwickFilter(float b)
@@ -32,8 +34,10 @@ void MadgwickFilter::update(float gx, float gy, float gz,
 	if (ax == 0.0f && ay == 0.0f && az == 0.0f)
 		return;
 
+#if ENABLE_MAGNETOMETER
 	// Normalize magnetometer
 	normalize(mx, my, mz);
+#endif
 
 	float q0 = this->q0;
 	float q1 = this->q1;
@@ -48,6 +52,7 @@ void MadgwickFilter::update(float gx, float gy, float gz,
 	float _2q2 = 2.0f * q2;
 	float _2q3 = 2.0f * q3;
 
+#if ENABLE_MAGNETOMETER
 	//
 	// --- Reference magnetic field ---
 	//
@@ -66,6 +71,7 @@ void MadgwickFilter::update(float gx, float gy, float gz,
 		mx * (_2q1*q3 - _2q0*q2) +
 		my * (_2q0*q1 + _2q2*q3) +
 		mz * (0.5f - q1*q1 - q2*q2);
+#endif
 
 	//
 	// --- Gradient Descent (Full 9DOF Objective) ---
@@ -75,6 +81,7 @@ void MadgwickFilter::update(float gx, float gy, float gz,
 	float f2 = 2.0f*(q0*q1 + q2*q3) - ay;
 	float f3 = 2.0f*(0.5f - q1*q1 - q2*q2) - az;
 
+#if ENABLE_MAGNETOMETER
 	float f4 =
 		2.0f*bx*(0.5f - q2*q2 - q3*q3) +
 		2.0f*bz*(q1*q3 - q0*q2) - mx;
@@ -86,11 +93,11 @@ void MadgwickFilter::update(float gx, float gy, float gz,
 	float f6 =
 		2.0f*bx*(q0*q2 + q1*q3) +
 		2.0f*bz*(0.5f - q1*q1 - q2*q2) - mz;
+#endif
 
 	//
-	// Jacobian transpose (mag + accel)
+	// Jacobian transpose
 	//
-
 	float J_11 = -_2q2;
 	float J_12 =  _2q3;
 	float J_13 = -_2q0;
@@ -102,22 +109,28 @@ void MadgwickFilter::update(float gx, float gy, float gz,
 	float J_24 =  _2q2;
 
 	float s0 =
-		J_14*f1 + J_24*f2 +
-		(2.0f*bx*q3 + 2.0f*bz*q1)*f4 +
-		(2.0f*bx*q2 - 2.0f*bz*q0)*f5;
+		J_14*f1 + J_24*f2;
 
 	float s1 =
-		J_13*f1 + J_23*f2 +
-		(2.0f*bx*q2 - 2.0f*bz*q0)*f4 +
-		(2.0f*bx*q3 + 2.0f*bz*q1)*f5;
+		J_13*f1 + J_23*f2;
 
 	float s2 =
-		J_12*f1 + J_22*f2 -
-		4.0f*bx*q2*f6;
+		J_12*f1 + J_22*f2;
 
 	float s3 =
-		J_11*f1 + J_21*f2 -
-		4.0f*bx*q3*f6;
+		J_11*f1 + J_21*f2;
+
+#if ENABLE_MAGNETOMETER
+	s0 += (2.0f*bx*q3 + 2.0f*bz*q1)*f4 +
+		  (2.0f*bx*q2 - 2.0f*bz*q0)*f5;
+
+	s1 += (2.0f*bx*q2 - 2.0f*bz*q0)*f4 +
+		  (2.0f*bx*q3 + 2.0f*bz*q1)*f5;
+
+	s2 += -4.0f*bx*q2*f6;
+
+	s3 += -4.0f*bx*q3*f6;
+#endif
 
 	//
 	// Normalize gradient
@@ -147,7 +160,7 @@ void MadgwickFilter::update(float gx, float gy, float gz,
 		0.5f * ( q0*gz + q1*gy - q2*gx) - beta * s3;
 
 	//
-	// --- Integrate once ---
+	// --- Integrate ---
 	//
 	q0 += qDot0 * dt;
 	q1 += qDot1 * dt;

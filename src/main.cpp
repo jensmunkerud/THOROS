@@ -33,7 +33,7 @@ Motor motor(movementController, status);
 void setup() {
 	Serial.begin(115200);
 	icm20948.begin();
-	bmp390.begin();
+	// bmp390.begin();
 	rfd900.begin();
 	motor.begin();
 }
@@ -45,13 +45,13 @@ void loop() {
 	unsigned long current = millis();
 	
 	if (current - prevFAST >= SENSOR_INTERVAL_FAST) {
+		prevFAST = current;
 		icm20948.loop();
 		// Serial.print(1000/(current-prevFAST));
 		// Serial.println("Hz");
-		// prevFAST = current;
 		// bmp390.loop(); // This thing is SUPER SLOW
-		// movementController.update();
-		// motor.loop();
+		movementController.update();
+		motor.loop();
 	}
 
 	if (current - prevSLOW >= SENSOR_INTERVAL_SLOW) {

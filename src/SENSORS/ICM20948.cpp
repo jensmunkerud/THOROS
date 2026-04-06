@@ -5,7 +5,7 @@
 #define PRINT_RAW_ORIENTATION 0
 
 ICM20948::ICM20948(Status& status) : status{status}, lastTime{0} {
-	// filter = new MadgwickFilter(0.04f);
+	filter = new MadgwickFilter(0.1f);
 
 	sampleRate.a = (1000 / ICM_SAMPLERATE) - 1;
 	sampleRate.g = (1000 / ICM_SAMPLERATE) - 1;
@@ -14,6 +14,7 @@ ICM20948::ICM20948(Status& status) : status{status}, lastTime{0} {
 void ICM20948::begin() {
 	SPI.begin();
 	status.ICM20948 = icm20948.begin(ICM20948_CS, SPI) == ICM_20948_Stat_Ok;
+	status.ICM20948 &= icm20948.startupMagnetometer();
 	ICM_20948_fss_t fss;
 	fss.a = gpm8;
 	fss.g = dps2000;
@@ -44,36 +45,57 @@ void ICM20948::loop() {
 		float dt = delta * 1e-6f;
 		lastTime = now;
 
-		float mx = icm20948.magX();
-		float my = icm20948.magY();
-		float mz = icm20948.magZ();
+		float mx = icm20948.magX() - magBiasX;
+		float my = icm20948.magY() - magBiasY;
+		float mz = icm20948.magZ() - magBiasZ;
 
 		Vec3 acc = {
-			(icm20948.accX()) / 1024.0f,
-			(icm20948.accY()) / 1024.0f,
-			(icm20948.accZ()) / 1024.0f
+			(icm20948.accX()) / 1000.0f,
+			(icm20948.accY()) / 1000.0f,
+			(icm20948.accZ()) / 1000.0f
 		};
 
 		Vec3 gyr = {
-			(icm20948.gyrX() - gyroBiasX) * DEG_TO_RAD,
-			(icm20948.gyrY() - gyroBiasY) * DEG_TO_RAD,
-			(icm20948.gyrZ() - gyroBiasZ) * DEG_TO_RAD
+			(icm20948.gyrX()) * DEG2RAD,
+			(icm20948.gyrY()) * DEG2RAD,
+			(icm20948.gyrZ()) * DEG2RAD
 		};
 
 		acc = rotate(acc);
 
+		// Serial.print(mx);
+		// Serial.print("/");
+		// Serial.print(my);
+		// Serial.print("/");
+		// Serial.println(mz);
 
-		// filter->update(gx, gy, gz,
-		// 				ax, ay, az,
+		// filter->update(gyr.x, gyr.y, gyr.z,
+		// 				acc.x, acc.y, acc.z,
 		// 				mx, my, mz, dt);
 
-		ekf.predict(gyr.x, gyr.y, gyr.z, dt);
-		ekf.updateAccel(acc.x, acc.y, acc.z);
-		ekf.updateMag(mx, my, mz);
+		// MadgwickQuaternionUpdate(acc.x, acc.y, acc.z, gyr.x, gyr.y, gyr.z, mx, my, mz, dt);
+		// MahonyQuaternionUpdateIMU(acc.x, acc.y, acc.z, gyr.x, gyr.y, gyr.z, dt);
+		// Attitude a = getAttitude();
 
-		status.attitude.pitch = ekf.getPitch();
-		status.attitude.roll  = ekf.getRoll();
-		status.attitude.yaw   = ekf.getYaw();
+		Attitude a = UpdateIMU(acc.x, acc.y, acc.z, gyr.x, gyr.y, gyr.z, dt);
+		status.attitude.pitch = a.pitch;
+		status.attitude.roll  = a.roll;
+		status.attitude.yaw   = a.yaw;
+		// Serial.print(getQ()[0]);
+		// Serial.print("/");
+		// Serial.print(getQ()[1]);
+		// Serial.print("/");
+		// Serial.print(getQ()[2]);
+		// Serial.print("/");
+		// Serial.println(getQ()[3]);
+
+		// ekf.predict(gyr.x, gyr.y, gyr.z, dt);
+		// ekf.updateAccel(acc.x, acc.y, acc.z);
+		// ekf.updateMag(mx, my, mz);
+
+		// status.attitude.pitch = filter->getPitch();
+		// status.attitude.roll  = filter->getRoll();
+		// status.attitude.yaw   = filter->getYaw();
 
 		#if PRINT_FILTERED_ORIENTATION
 			Serial.print(status.attitude.pitch);
@@ -89,11 +111,11 @@ void ICM20948::loop() {
 			// Serial.print(gy);
 			// Serial.print("/");
 			// Serial.println(gz);
-			Serial.print(gyr.x, 8);
+			Serial.print(acc.x, 8);
 			Serial.print("		/		");
-			Serial.print(gyr.y, 8);
+			Serial.print(acc.y, 8);
 			Serial.print("		/		");
-			Serial.println(gyr.z, 8);
+			Serial.println(acc.z, 8);
 
 			// GYRO
 			// pitch = -float(items[1]); // ->gy
@@ -104,9 +126,13 @@ void ICM20948::loop() {
 }
 
 void ICM20948::calibrateIMU() {
-	const int samples = 2000;
+	const int samples = 1000;
 	float sumGx = 0, sumGy = 0, sumGz = 0;
 	float sumAx = 0, sumAy = 0, sumAz = 0;
+	float mx = 0, my = 0, mz = 0;
+	float magMin[3] = {100000,100000,100000};
+	float magMax[3] = {-100000,-100000,-100000};
+
 
 	for (int i = 0; i < samples; i++) {
 		while (!icm20948.dataReady());
@@ -120,6 +146,18 @@ void ICM20948::calibrateIMU() {
 		sumAy += icm20948.accY();
 		sumAz += icm20948.accZ();
 
+		mx = icm20948.magX();
+		my = icm20948.magY();
+		mz = icm20948.magZ();
+
+		magMin[0] = min(magMin[0], mx);
+		magMin[1] = min(magMin[1], my);
+		magMin[2] = min(magMin[2], mz);
+
+		magMax[0] = max(magMax[0], mx);
+		magMax[1] = max(magMax[1], my);
+		magMax[2] = max(magMax[2], mz);
+
 		delayMicroseconds(1000);
 	}
 
@@ -130,6 +168,10 @@ void ICM20948::calibrateIMU() {
 	// accBiasX = sumAx / samples;
 	// accBiasY = sumAy / samples;
 	// accBiasZ = sumAz / samples;
+
+	magBiasX = (magMax[0] + magMin[0]) * 0.5f;
+	magBiasY = (magMax[1] + magMin[1]) * 0.5f;
+	magBiasZ = (magMax[2] + magMin[2]) * 0.5f;
 }
 
 Vec3 ICM20948::normalize(Vec3 v)
