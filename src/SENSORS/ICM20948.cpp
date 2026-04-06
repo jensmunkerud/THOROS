@@ -4,8 +4,9 @@
 #define PRINT_FILTERED_ORIENTATION 1
 #define PRINT_RAW_ORIENTATION 0
 
-ICM20948::ICM20948(Status& status) : status{status}, lastTime{0} {
-	filter = new MadgwickFilter(0.1f);
+ICM20948::ICM20948(Status& status) : status{status}, lastTime{0}, filter{} {
+	// filter = new MadgwickFilter(0.1f);
+	
 
 	sampleRate.a = (1000 / ICM_SAMPLERATE) - 1;
 	sampleRate.g = (1000 / ICM_SAMPLERATE) - 1;
@@ -49,19 +50,28 @@ void ICM20948::loop() {
 		float my = icm20948.magY() - magBiasY;
 		float mz = icm20948.magZ() - magBiasZ;
 
+		float accDivision = 1000.0f;
 		Vec3 acc = {
-			(icm20948.accX()) / 1000.0f,
-			(icm20948.accY()) / 1000.0f,
-			(icm20948.accZ()) / 1000.0f
+			(icm20948.accX()) / accDivision,
+			(icm20948.accY()) / accDivision,
+			(icm20948.accZ()) / accDivision
 		};
 
 		Vec3 gyr = {
-			(icm20948.gyrX()) * DEG2RAD,
-			(icm20948.gyrY()) * DEG2RAD,
-			(icm20948.gyrZ()) * DEG2RAD
+			(icm20948.gyrX() - gyroBiasX) * DEG2RAD,
+			(icm20948.gyrY() - gyroBiasY) * DEG2RAD,
+			(icm20948.gyrZ() - gyroBiasZ) * DEG2RAD
 		};
 
-		acc = rotate(acc);
+		acc = applyAccelerometerOffset(acc);
+
+		// ============================================
+		// RAW SENSOR DATA IS TUNED FROM THIS POINT ON
+		// Gyro -> rad/s
+		// Acc  -> Gs
+		// Mag  -> micro teslas
+		// ============================================
+
 
 		// Serial.print(mx);
 		// Serial.print("/");
@@ -69,18 +79,18 @@ void ICM20948::loop() {
 		// Serial.print("/");
 		// Serial.println(mz);
 
-		// filter->update(gyr.x, gyr.y, gyr.z,
-		// 				acc.x, acc.y, acc.z,
-		// 				mx, my, mz, dt);
+		// Attitude a = filter.update(gyr.x, gyr.y, gyr.z,
+						// acc.x, acc.y, acc.z, dt);
+		filter.update(gyr.x, gyr.y, gyr.z, acc.x, acc.y, acc.z, dt);
 
 		// MadgwickQuaternionUpdate(acc.x, acc.y, acc.z, gyr.x, gyr.y, gyr.z, mx, my, mz, dt);
 		// MahonyQuaternionUpdateIMU(acc.x, acc.y, acc.z, gyr.x, gyr.y, gyr.z, dt);
 		// Attitude a = getAttitude();
 
-		Attitude a = UpdateIMU(acc.x, acc.y, acc.z, gyr.x, gyr.y, gyr.z, dt);
-		status.attitude.pitch = a.pitch;
-		status.attitude.roll  = a.roll;
-		status.attitude.yaw   = a.yaw;
+		// Attitude a = UpdateIMU(acc.x, acc.y, acc.z, gyr.x, gyr.y, gyr.z, dt);
+		status.attitude.pitch = filter.getPitch();
+		status.attitude.roll  = filter.getRoll();
+		status.attitude.yaw   = filter.getYaw();
 		// Serial.print(getQ()[0]);
 		// Serial.print("/");
 		// Serial.print(getQ()[1]);
@@ -125,6 +135,7 @@ void ICM20948::loop() {
 	}
 }
 
+// Sensor calibration sequence upon startup - Time: 1000ms
 void ICM20948::calibrateIMU() {
 	const int samples = 1000;
 	float sumGx = 0, sumGy = 0, sumGz = 0;
@@ -194,7 +205,7 @@ float ICM20948::dot(Vec3 a, Vec3 b)
 	return a.x*b.x + a.y*b.y + a.z*b.z;
 }
 
-Vec3 ICM20948::rotate(Vec3 v)
+Vec3 ICM20948::applyAccelerometerOffset(Vec3 v)
 {
 	Vec3 r;
 	r.x = R_mount[0][0]*v.x + R_mount[0][1]*v.y + R_mount[0][2]*v.z;
@@ -203,6 +214,7 @@ Vec3 ICM20948::rotate(Vec3 v)
 	return r;
 }
 
+// Calibrates IMU orientation using accelerometer. Time: 1000ms
 void ICM20948::computeMountingRotation()
 {
 	const int samples = 1000;

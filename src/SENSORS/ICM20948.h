@@ -3,10 +3,12 @@
 #include <SPI.h>
 #include <ICM_20948.h>
 #include "Status.h"
-#include "MadgwickFilter.h"
+// #include "FILTERS/MadgwickFilter.h"
+#include "FILTERS/OldMadgwick.h"
 #include <MadgwickAHRS.h>
-#include "AttitudeEKF.h"
-#include "AHRSAlgorithms.h"
+#include "FILTERS/AttitudeEKF.h"
+#include "FILTERS/AHRSAlgorithms.h"
+#include "FILTERS/Complementary.h"
 
 static constexpr int ICM20948_CS {15};
 static constexpr int ICM_SAMPLERATE {100};
@@ -32,7 +34,8 @@ class ICM20948 {
 	float R_mount[3][3];
 
 	AttitudeEKF ekf;
-	MadgwickFilter* filter;
+	Madgwick2 filter;
+	// ComplementaryFilter filter;
 	ICM_20948_SPI icm20948;
 	ICM_20948_AGMT_t agmt;
 	ICM_20948_smplrt_t sampleRate;
@@ -50,7 +53,7 @@ class ICM20948 {
 	Vec3 normalize(Vec3 v);
 	Vec3 cross(Vec3 a, Vec3 b);
 	float dot(Vec3 a, Vec3 b);
-	Vec3 rotate(Vec3 a);
+	Vec3 applyAccelerometerOffset(Vec3 a);
 
 	void calibrateIMU();
 	void computeMountingRotation();
