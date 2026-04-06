@@ -37,9 +37,9 @@ private:
 	DShotRMT motor2;
 	DShotRMT motor3;
 	DShotRMT motor4;
-	Orientation computePID();
+	Attitude computePID();
 	double targetPitch, targetRoll, targetYaw;
-	Orientation pid;
+	Attitude pid;
 
 	// PID constants
 	double Kp = 1, Ki = 0, Kd = 1;

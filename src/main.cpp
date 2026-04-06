@@ -10,7 +10,7 @@
 #include "Motor.h"
 
 // PARAMETERS
-constexpr unsigned long SENSOR_INTERVAL_FAST = 1000/500;
+constexpr unsigned long SENSOR_INTERVAL_FAST = 1000/1000;
 constexpr unsigned long SENSOR_INTERVAL_SLOW = 1000/1;
 constexpr unsigned long interval2 = 1000/10;
 
@@ -24,7 +24,7 @@ BMP390 bmp390(status);
 RFD900 rfd900(status);
 MovementController movementController(status, rfd900);
 LED led(status, movementController);
-Motor motor(movementController, status);
+// Motor motor(movementController, status);
 
 
 // ----------------- //
@@ -32,10 +32,11 @@ Motor motor(movementController, status);
 // ----------------- //
 void setup() {
 	Serial.begin(115200);
+	Serial.println("SETUP BEGUN!");
 	icm20948.begin();
-	bmp390.begin();
+	// bmp390.begin();
 	rfd900.begin();
-	motor.begin();
+	// motor.begin();
 }
 
 // ---------------- //
@@ -45,13 +46,13 @@ void loop() {
 	unsigned long current = millis();
 	
 	if (current - prevFAST >= SENSOR_INTERVAL_FAST) {
-		// Serial.print(1000/(current-prevFAST));
-		// Serial.println("Hz");
 		prevFAST = current;
 		icm20948.loop();
+		// Serial.print(1000/(current-prevFAST));
+		// Serial.println("Hz");
 		// bmp390.loop(); // This thing is SUPER SLOW
-		movementController.update();
-		motor.loop();
+		// movementController.update();
+		// motor.loop();
 	}
 
 	if (current - prevSLOW >= SENSOR_INTERVAL_SLOW) {

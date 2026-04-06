@@ -1,57 +1,191 @@
 #include "ICM20948.h"
-#include "string"
-
-
-ICM20948::ICM20948(Status& status) : status{status} {}
+ 
+ICM20948::ICM20948(Status& status) : status{status} {
+	sampleRate.a = (1000 / ICM_SAMPLERATE) - 1;
+	sampleRate.g = (1000 / ICM_SAMPLERATE) - 1;
+}
 
 void ICM20948::begin() {
 	SPI.begin();
 	status.ICM20948 = icm20948.begin(ICM20948_CS, SPI) == ICM_20948_Stat_Ok;
-	status.ICM20948 &= icm20948.initializeDMP() == ICM_20948_Stat_Ok;
-	status.ICM20948 &= icm20948.enableDMPSensor(INV_ICM20948_SENSOR_GAME_ROTATION_VECTOR) == ICM_20948_Stat_Ok;
-	status.ICM20948 &= icm20948.setDMPODRrate(DMP_ODR_Reg_Quat6, 0) == ICM_20948_Stat_Ok;
-	status.ICM20948 &= icm20948.enableFIFO() == ICM_20948_Stat_Ok;
-	status.ICM20948 &= icm20948.enableDMP() == ICM_20948_Stat_Ok;
-	status.ICM20948 &= icm20948.resetFIFO() == ICM_20948_Stat_Ok;
-	status.ICM20948 &= icm20948.resetDMP() == ICM_20948_Stat_Ok;
-	delay(500); // why is this delayed
+	status.ICM20948 &= icm20948.startupMagnetometer();
+	ICM_20948_fss_t fss;
+	fss.a = gpm8;
+	fss.g = dps2000;
+
+	icm20948.setFullScale(ICM_20948_Internal_Acc, fss);
+	icm20948.setFullScale(ICM_20948_Internal_Gyr, fss);
+
+	icm20948.setSampleRate(ICM_20948_Internal_Acc, sampleRate);
+	icm20948.setSampleRate(ICM_20948_Internal_Gyr, sampleRate);
+
+	delay(500);
+	calibrateIMU();
 }
 
 void ICM20948::loop() {
-	icm20948.readDMPdataFromFIFO(&data);
-	if ((icm20948.status == ICM_20948_Stat_Ok) || (icm20948.status == ICM_20948_Stat_FIFOMoreDataAvail)) {
-		if ((data.header & DMP_header_bitmap_Quat6) > 0) {
-			q1 = ((double)data.Quat6.Data.Q1) / 1073741824.0; // Convert to double. Divide by 2^30
-			q2 = ((double)data.Quat6.Data.Q2) / 1073741824.0; // Convert to double. Divide by 2^30
-			q3 = ((double)data.Quat6.Data.Q3) / 1073741824.0; // Convert to double. Divide by 2^30
-			q0 = sqrt(1.0 - ((q1 * q1) + (q2 * q2) + (q3 * q3)));
+	if (icm20948.dataReady()) {
+		icm20948.getAGMT();
+		dt = fusion.deltatUpdate();
 
-			double qw = q0;
-			double qx = q2;
-			double qy = q1;
-			double qz = -q3;
+		Vec3 gyr = {
+			(icm20948.gyrX() - gyroBias.x) * DEG2RAD,
+			(icm20948.gyrY() - gyroBias.y) * DEG2RAD,
+			(icm20948.gyrZ() - gyroBias.z) * DEG2RAD
+		};
+		
+		float accDivision = 1000.0f;
+		Vec3 acc = {
+			(icm20948.accX()) / accDivision,
+			(icm20948.accY()) / accDivision,
+			(icm20948.accZ()) / accDivision
+		};
+		
+		Vec3 mag = {
+			icm20948.magX() - MAG_BIAS_X * MAG_SCALE_X,
+			icm20948.magY() - MAG_BIAS_Y * MAG_SCALE_Y,
+			icm20948.magZ() - MAG_BIAS_Z * MAG_SCALE_Z
+		};
 
-			// roll (x-axis rotation)
-			double t0 = +2.0 * (qw * qx + qy * qz);
-			double t1 = +1.0 - 2.0 * (qx * qx + qy * qy);
-			double roll = atan2(t0, t1) * 180.0 / PI;
+		gyr = compensateForMountingRotation(gyr);
+		acc = compensateForMountingRotation(acc);
+		mag = compensateForMountingRotation(mag);
 
-			// pitch (y-axis rotation)
-			double t2 = +2.0 * (qw * qy - qx * qz);
-			t2 = t2 > 1.0 ? 1.0 : t2;
-			t2 = t2 < -1.0 ? -1.0 : t2;
-			double pitch = asin(t2) * 180.0 / PI;
+		// ============================================
+		// RAW SENSOR DATA IS TUNED FROM THIS POINT ON
+		// Gyro -> rad/s
+		// Acc  -> Gs
+		// Mag  -> micro teslas
+		// ============================================
 
-			// yaw (z-axis rotation)
-			double t3 = +2.0 * (qw * qz + qx * qy);
-			double t4 = +1.0 - 2.0 * (qy * qy + qz * qz);
-			double yaw = atan2(t3, t4) * 180.0 / PI;
-			// Serial.println(pitch);
-			// Serial.print("\t\t|\t");
-			// Serial.print(yaw);
-			// Serial.print("\t\t|\t");
-			// Serial.println(roll);
-			status.attitude = {pitch, yaw, roll};
-		}
+		fusion.MahonyUpdate(gyr.x, gyr.y, gyr.z, acc.x, acc.y, acc.z, dt);  //mahony is suggested if there isn't the mag and the mcu is slow
+		// fusion.MadgwickUpdate(gyr.x, gyr.y, gyr.z, acc.x, acc.y, acc.z, mag.x, mag.y, mag.z, deltat);  //else use the magwick, it is slower but more accurate
+		status.attitude.pitch = fusion.getPitch();
+		status.attitude.roll  = fusion.getRoll();
+		status.attitude.yaw   = fusion.getYaw();
+
+		Serial.print(status.attitude.pitch);
+		Serial.print("/");
+		Serial.print(status.attitude.yaw);
+		Serial.print("/");
+		Serial.println(status.attitude.roll);
+
+		// Print: 9axis_debug
+		// Serial.print(acc.x, 4); Serial.print("/");
+		// Serial.print(acc.y, 4); Serial.print("/");
+		// Serial.print(acc.z, 4); Serial.print("/");
+		// Serial.print(gyr.x, 4); Serial.print("/");
+		// Serial.print(gyr.y, 4); Serial.print("/");
+		// Serial.print(gyr.z, 4); Serial.print("/");
+		// Serial.print(mag.x, 4); Serial.print("/");
+		// Serial.print(mag.y, 4); Serial.print("/");
+		// Serial.println(mag.z, 4);
 	}
 }
+
+// Sensor calibration sequence, also compensates mountingRotation - Time: 1000ms
+void ICM20948::calibrateIMU() {
+	const int samples = 1000;
+	Vec3 gyr = {0, 0, 0};
+	Vec3 acc = {0, 0, 0};
+
+	for (int i = 0; i < samples; i++) {
+		while (!icm20948.dataReady());
+		icm20948.getAGMT();
+
+		gyr.x += icm20948.gyrX();
+		gyr.y += icm20948.gyrY();
+		gyr.z += icm20948.gyrZ();
+		
+		acc.x += icm20948.accX();
+		acc.y += icm20948.accY();
+		acc.z += icm20948.accZ();
+
+		delayMicroseconds(1000);
+	}
+
+	gyroBias.x = gyr.x / samples;
+	gyroBias.y = gyr.y / samples;
+	gyroBias.z = gyr.z / samples;
+
+	acc = normalize(acc);
+
+	Vec3 target = {0, 0, 1};
+
+	Vec3 axis = cross(acc, target);
+	float axis_norm = sqrtf(axis.x*axis.x + axis.y*axis.y + axis.z*axis.z);
+
+	if(axis_norm < 1e-6f)
+	{
+		// Already aligned
+		R_mount[0][0]=1; R_mount[0][1]=0; R_mount[0][2]=0;
+		R_mount[1][0]=0; R_mount[1][1]=1; R_mount[1][2]=0;
+		R_mount[2][0]=0; R_mount[2][1]=0; R_mount[2][2]=1;
+		return;
+	}
+
+	axis.x /= axis_norm;
+	axis.y /= axis_norm;
+	axis.z /= axis_norm;
+
+	float cosA = dot(acc, target);
+	cosA = constrain(cosA, -1.0f, 1.0f);
+	float angle = acos(cosA);
+	float sinA = sin(angle);
+
+	float K[3][3] = {
+		{0, -axis.z, axis.y},
+		{axis.z, 0, -axis.x},
+		{-axis.y, axis.x, 0}
+	};
+
+	// Rodrigues formula: R = I + sinA*K + (1-cosA)*K^2
+	float K2[3][3];
+
+	for(int i=0;i<3;i++)
+	for(int j=0;j<3;j++)
+	{
+		K2[i][j] = 0;
+		for(int k=0;k<3;k++)
+			K2[i][j] += K[i][k]*K[k][j];
+	}
+
+	for(int i=0;i<3;i++)
+	for(int j=0;j<3;j++)
+	{
+		R_mount[i][j] =
+			(i==j ? 1.0f : 0.0f)
+			+ sinA * K[i][j]
+			+ (1 - cosA) * K2[i][j];
+	}
+}
+
+Vec3 ICM20948::normalize(Vec3 v)
+{
+	float n = sqrtf(v.x*v.x + v.y*v.y + v.z*v.z);
+	return { v.x/n, v.y/n, v.z/n };
+}
+
+Vec3 ICM20948::cross(Vec3 a, Vec3 b)
+{
+	return {
+		a.y*b.z - a.z*b.y,
+		a.z*b.x - a.x*b.z,
+		a.x*b.y - a.y*b.x
+	};
+}
+
+float ICM20948::dot(Vec3 a, Vec3 b)
+{
+	return a.x*b.x + a.y*b.y + a.z*b.z;
+}
+
+Vec3 ICM20948::compensateForMountingRotation(Vec3 v)
+{
+	Vec3 r;
+	r.x = R_mount[0][0]*v.x + R_mount[0][1]*v.y + R_mount[0][2]*v.z;
+	r.y = R_mount[1][0]*v.x + R_mount[1][1]*v.y + R_mount[1][2]*v.z;
+	r.z = R_mount[2][0]*v.x + R_mount[2][1]*v.y + R_mount[2][2]*v.z;
+	return r;
+}
+
