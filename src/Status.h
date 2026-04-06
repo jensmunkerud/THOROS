@@ -5,6 +5,10 @@
 #define END_MARKER 0xCD
 #define HANDSHAKE 0x10
 
+struct Vec3 {
+	float x, y, z;
+};
+
 struct Attitude {
 	float pitch;
 	float yaw;
