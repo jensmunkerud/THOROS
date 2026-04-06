@@ -2,6 +2,10 @@
 
 void Madgwick2::begin(float b) {
 	beta = b;
+	q0 = 1.0f;
+	q1 = 0.0f;
+	q2 = 0.0f;
+	q3 = 0.0f;
 }
 
 void Madgwick2::update(float gx, float gy, float gz,
@@ -9,7 +13,7 @@ void Madgwick2::update(float gx, float gy, float gz,
 					  float dt)
 {
 	float norm = sqrt(ax * ax + ay * ay + az * az);
-	if (norm == 0.0f) return;
+	if (norm < 1e-10f) return;
 	norm = 1.0f / norm;
 	ax *= norm;
 	ay *= norm;
@@ -31,10 +35,16 @@ void Madgwick2::update(float gx, float gy, float gz,
 	float J_32 = 2 * J_14or21;
 	float J_33 = 2 * J_11or24;
 
-	float s0 = -J_14or21 * f2 + J_11or24 * f1;
-	float s1 = J_13or22 * f2 + J_12or23 * f1 - J_32 * f3;
-	float s2 = J_13or22 * f1 - J_33 * f3 - J_12or23 * f2;
-	float s3 = J_14or21 * f1 + J_11or24 * f2;
+	// float s0 = -J_14or21 * f2 + J_11or24 * f1;
+	// float s1 = J_13or22 * f2 + J_12or23 * f1 - J_32 * f3;
+	// float s2 = J_13or22 * f1 - J_33 * f3 - J_12or23 * f2;
+	// float s3 = J_14or21 * f1 + J_11or24 * f2;
+
+	// CORRECT (from Madgwick's paper):
+	float s0 = -J_13or22 * f1 + J_14or21 * f2;   // note: J_13or22 * f1 was missing entirely
+	float s1 =  J_13or22 * f2 + J_12or23 * f1 - J_32 * f3;
+	float s2 = -J_14or21 * f1 - J_12or23 * f2 - J_33 * f3;  // sign flip on J_14or21
+	float s3 =  J_11or24 * f1 + J_13or22 * f2;
 
 	norm = sqrt(s0*s0 + s1*s1 + s2*s2 + s3*s3);
 	norm = 1.0f / norm;

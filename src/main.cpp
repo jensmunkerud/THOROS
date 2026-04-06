@@ -10,7 +10,7 @@
 #include "Motor.h"
 
 // PARAMETERS
-constexpr unsigned long SENSOR_INTERVAL_FAST = 1000/100;
+constexpr unsigned long SENSOR_INTERVAL_FAST = 1000/1000;
 constexpr unsigned long SENSOR_INTERVAL_SLOW = 1000/1;
 constexpr unsigned long interval2 = 1000/10;
 
@@ -32,6 +32,7 @@ LED led(status, movementController);
 // ----------------- //
 void setup() {
 	Serial.begin(115200);
+	Serial.println("SETUP BEGUN!");
 	icm20948.begin();
 	// bmp390.begin();
 	rfd900.begin();

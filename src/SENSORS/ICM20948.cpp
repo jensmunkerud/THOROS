@@ -4,9 +4,9 @@
 #define PRINT_FILTERED_ORIENTATION 1
 #define PRINT_RAW_ORIENTATION 0
 
-ICM20948::ICM20948(Status& status) : status{status}, lastTime{0}, filter{} {
+ICM20948::ICM20948(Status& status) : status{status}, lastTime{0} {
 	// filter = new MadgwickFilter(0.1f);
-	
+	filter.begin(0);
 
 	sampleRate.a = (1000 / ICM_SAMPLERATE) - 1;
 	sampleRate.g = (1000 / ICM_SAMPLERATE) - 1;
@@ -27,7 +27,6 @@ void ICM20948::begin() {
 	icm20948.setSampleRate(ICM_20948_Internal_Gyr, sampleRate);
 
 	// madgwickFilter.begin(ICM_SAMPLERATE);
-
 	delay(500);
 	calibrateIMU();
 	computeMountingRotation();

@@ -3,7 +3,7 @@
 
 class Madgwick2 {
 public:
-	void begin(float beta);
+	void begin(float beta = 0.041f);
 	void update(float gx, float gy, float gz,
 				float ax, float ay, float az,
 				float dt);
@@ -13,6 +13,9 @@ public:
 	float getYaw();
 
 private:
-	float q0 = 1.0f, q1 = 0.0f, q2 = 0.0f, q3 = 0.0f;
+	float q0;
+	float q1;
+	float q2;
+	float q3;
 	float beta;
 };

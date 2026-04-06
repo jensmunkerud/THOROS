@@ -11,7 +11,7 @@
 #include "FILTERS/Complementary.h"
 
 static constexpr int ICM20948_CS {15};
-static constexpr int ICM_SAMPLERATE {100};
+static constexpr int ICM_SAMPLERATE {1000};
 static constexpr float DEG2RAD = 0.01745329251f;
 
 struct Vec3 {
