@@ -3,12 +3,13 @@
 #include <SPI.h>
 #include <ICM_20948.h>
 #include "Status.h"
+#include "SensorFusion.h"
 // #include "FILTERS/MadgwickFilter.h"
-#include "FILTERS/OldMadgwick.h"
-#include <MadgwickAHRS.h>
-#include "FILTERS/AttitudeEKF.h"
-#include "FILTERS/AHRSAlgorithms.h"
-#include "FILTERS/Complementary.h"
+// #include "FILTERS/OldMadgwick.h"
+// #include <MadgwickAHRS.h>
+// #include "FILTERS/AttitudeEKF.h"
+// #include "FILTERS/AHRSAlgorithms.h"
+// #include "FILTERS/Complementary.h"
 
 static constexpr int ICM20948_CS {15};
 static constexpr int ICM_SAMPLERATE {1000};
@@ -33,9 +34,11 @@ class ICM20948 {
 	double q0;
 	float R_mount[3][3];
 
-	AttitudeEKF ekf;
-	Madgwick2 filter;
+	// AttitudeEKF ekf;
+	// Madgwick2 filter;
 	// ComplementaryFilter filter;
+	SF fusion;
+	float deltat;
 	ICM_20948_SPI icm20948;
 	ICM_20948_AGMT_t agmt;
 	ICM_20948_smplrt_t sampleRate;
@@ -57,5 +60,15 @@ class ICM20948 {
 
 	void calibrateIMU();
 	void computeMountingRotation();
+
+	// Magnetometer hard-iron bias (uT)
+	const float MAG_BIAS_X = 18.2250f;
+	const float MAG_BIAS_Y = -18.8250f;
+	const float MAG_BIAS_Z = -22.4250f;
+
+	// Magnetometer soft-iron scale correction
+	const float MAG_SCALE_X = 1.0265f;
+	const float MAG_SCALE_Y = 1.0157f;
+	const float MAG_SCALE_Z = 0.9603f;
 };
 
