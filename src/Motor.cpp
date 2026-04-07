@@ -52,6 +52,7 @@ Attitude Motor::computePID() {
 	lastErrorPitch = errorPitch;
 	lastErrorRoll  = errorRoll;
 	lastErrorYaw   = errorYaw;
+	// Serial.println(errorPitch);
 	
 	// Mix to motors
 	return {pidPitch, pidRoll, pidYaw};
@@ -59,7 +60,7 @@ Attitude Motor::computePID() {
 
 
 void Motor::loop() {
-	if (status.RFD900 != 1) {
+	if (status.RFD900 != 0) {
 		motor1.send_dshot_value(0);
 		motor2.send_dshot_value(0);
 		motor3.send_dshot_value(0);
@@ -67,7 +68,7 @@ void Motor::loop() {
 		return;
 	}
 
-	PID = computePID();
+	resultPID = computePID();
 
 	m1 = 0;
 	m2 = 0;
@@ -75,10 +76,10 @@ void Motor::loop() {
 	m4 = 0;
 	// Serial.println(movementController.currentInput.throttle);
 
-	m1 = constrain(movementController.currentInput.throttle - PID.roll + PID.pitch + PID.yaw, 0, MAXIMUM_MOTOR_SPEED);
-	m2 = constrain(movementController.currentInput.throttle - PID.roll - PID.pitch - PID.yaw, 0, MAXIMUM_MOTOR_SPEED);
-	m3 = constrain(movementController.currentInput.throttle + PID.roll + PID.pitch - PID.yaw, 0, MAXIMUM_MOTOR_SPEED);
-	m4 = constrain(movementController.currentInput.throttle + PID.roll - PID.pitch + PID.yaw, 0, MAXIMUM_MOTOR_SPEED);
+	m1 = constrain(movementController.currentInput.throttle - resultPID.roll * 0 - resultPID.pitch + resultPID.yaw + MINIMUM_MOTOR_SPEED, 0, MAXIMUM_MOTOR_SPEED);
+	m2 = constrain(movementController.currentInput.throttle - resultPID.roll * 0 + resultPID.pitch - resultPID.yaw + MINIMUM_MOTOR_SPEED, 0, MAXIMUM_MOTOR_SPEED);
+	m3 = constrain(movementController.currentInput.throttle + resultPID.roll * 0 - resultPID.pitch - resultPID.yaw + MINIMUM_MOTOR_SPEED, 0, MAXIMUM_MOTOR_SPEED);
+	m4 = constrain(movementController.currentInput.throttle + resultPID.roll * 0 + resultPID.pitch + resultPID.yaw + MINIMUM_MOTOR_SPEED, 0, MAXIMUM_MOTOR_SPEED);
 
 	motor1.send_dshot_value((int)m1);
 	motor2.send_dshot_value((int)m2);
