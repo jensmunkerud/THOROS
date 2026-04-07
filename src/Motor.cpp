@@ -5,9 +5,6 @@ motor1(MOTOR1),
 motor2(MOTOR2),
 motor3(MOTOR3),
 motor4(MOTOR4),
-targetPitch{0},
-targetYaw{0},
-targetRoll{0},
 m1{0},
 m2{0},
 m3{0},
@@ -31,18 +28,10 @@ void Motor::begin() {
 
 
 Attitude Motor::computePID() {
-	Kp = movementController.Kp;
-	Ki = movementController.Ki;
-	Kd = movementController.Kd;
-
-	status.P = Kp;
-	status.I = Ki;
-	status.D = Kd;
-
 	// Errors
-	errorPitch = targetPitch - status.attitude.pitch;
-	errorRoll  = targetRoll  - status.attitude.roll;
-	errorYaw   = targetYaw   - status.attitude.yaw;
+	errorPitch = target.pitch - status.attitude.pitch;
+	errorRoll  = target.roll  - status.attitude.roll;
+	errorYaw   = target.yaw   - status.attitude.yaw;
 
 	// Integrals
 	integralPitch += errorPitch * dt;
@@ -55,9 +44,9 @@ Attitude Motor::computePID() {
 	float dYaw   = (errorYaw   - lastErrorYaw)   / dt;
 
 	// PID outputs
-	float pidPitch = Kp * errorPitch + Ki * integralPitch + Kd * dPitch;
-	float pidRoll  = Kp * errorRoll  + Ki * integralRoll  + Kd * dRoll;
-	float pidYaw   = Kp * errorYaw   + Ki * integralYaw   + Kd * dYaw;
+	float pidPitch = pitchPid.D * errorPitch + pitchPid.I * integralPitch + pitchPid.D * dPitch;
+	float pidRoll  = rollPid.P * errorRoll  + rollPid.I * integralRoll  + rollPid.D * dRoll;
+	float pidYaw   = yawPid.P * errorYaw   + yawPid.I * integralYaw   + yawPid.D * dYaw;
 
 	// Save last errors
 	lastErrorPitch = errorPitch;
@@ -78,11 +67,7 @@ void Motor::loop() {
 		return;
 	}
 
-	// pid = computePID();
-	// m4 = status.speed + MINIMUM_MOTOR_SPEED + pid.pitch + pid.roll - pid.yaw; // Front Right
-	// m3 = status.speed + MINIMUM_MOTOR_SPEED - pid.pitch - pid.roll - pid.yaw; // Rear Left
-	// m2 = movementController.getInput().pitch + MINIMUM_MOTOR_SPEED + pid.pitch - pid.roll + pid.yaw; // Front Left
-	// m1 = status.speed + MINIMUM_MOTOR_SPEED - pid.pitch + pid.roll + pid.yaw; // Rear Right
+	PID = computePID();
 
 	m1 = 0;
 	m2 = 0;
@@ -90,25 +75,27 @@ void Motor::loop() {
 	m4 = 0;
 	// Serial.println(movementController.currentInput.throttle);
 
-	m2 = movementController.currentInput.throttle;
-	m4 = movementController.currentInput.throttle;
-	m1 = movementController.currentInput.throttle;
-	m3 = movementController.currentInput.throttle;
-
-	m1 = constrain(m1, 0, 2000);
-	m2 = constrain(m2, 0, 2000);
-	m3 = constrain(m3, 0, 2000);
-	m4 = constrain(m4, 0, 2000);
+	m1 = constrain(movementController.currentInput.throttle - PID.roll + PID.pitch + PID.yaw, 0, MAXIMUM_MOTOR_SPEED);
+	m2 = constrain(movementController.currentInput.throttle - PID.roll - PID.pitch - PID.yaw, 0, MAXIMUM_MOTOR_SPEED);
+	m3 = constrain(movementController.currentInput.throttle + PID.roll + PID.pitch - PID.yaw, 0, MAXIMUM_MOTOR_SPEED);
+	m4 = constrain(movementController.currentInput.throttle + PID.roll - PID.pitch + PID.yaw, 0, MAXIMUM_MOTOR_SPEED);
 
 	motor1.send_dshot_value((int)m1);
 	motor2.send_dshot_value((int)m2);
 	motor3.send_dshot_value((int)m3); // PROPELLER
 	motor4.send_dshot_value((int)m4);
-	// Serial.print((int)m1);
-	// Serial.print("\t\t|\t");
-	// Serial.print((int)m2);
-	// Serial.print("\t\t|\t");
-	// Serial.print((int)m3);
-	// Serial.print("\t\t|\t");
-	// Serial.println((int)m4);
+
+	Serial.print(status.attitude.pitch);
+	Serial.print("/");
+	Serial.print(status.attitude.yaw);
+	Serial.print("/");
+	Serial.print(status.attitude.roll);
+	Serial.print("/");
+	Serial.print((int)m1);
+	Serial.print("/");
+	Serial.print((int)m2);
+	Serial.print("/");
+	Serial.print((int)m3);
+	Serial.print("/");
+	Serial.println((int)m4);
 }

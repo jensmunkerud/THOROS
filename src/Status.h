@@ -9,6 +9,10 @@ struct Vec3 {
 	float x, y, z;
 };
 
+struct PID {
+	float P, I, D;
+};
+
 struct Attitude {
 	float pitch;
 	float yaw;
@@ -22,10 +26,6 @@ struct __attribute__((packed)) Status {
 
 	Attitude attitude;
 
-	double P;
-	double I;
-	double D;
-	
 	int16_t temp;
 	int16_t pressure;
 
@@ -58,7 +58,6 @@ struct __attribute__((packed)) Status {
 		speed(0),
 		// accelX(0), accelY(0), accelZ(0),
 		attitude{0.0, 0.0, 0.0},
-		P(0), I(0), D(0),
 		temp(0), pressure(0),
 		batteryVoltage(0),
 		latitude(0), longitude(0),

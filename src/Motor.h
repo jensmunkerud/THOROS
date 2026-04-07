@@ -1,17 +1,15 @@
 #pragma once
-#include "PID.h"
 #include <Arduino.h>
+#include <DShotRMT.h>
+#include <QuickPID.h>
 #include "MovementController.h"
 #include "Status.h"
-#include "DShotRMT.h"
 
 // CONFIGURATION
 constexpr int MOTOR1 {27}; // FRONT RIGHT
 constexpr int MOTOR2 {14}; // BACK RIGHT
 constexpr int MOTOR3 {12}; // FRONT LEFT
 constexpr int MOTOR4 {13}; // BACK LEFT
-
-// we can ABSOLUTELY NOT send negative DShot values!!
 
 constexpr double Kp_att = 4.0;    // outer loop gain (attitude)
 constexpr double Kp_rate = 0.4;   // inner loop proportional
@@ -20,8 +18,9 @@ constexpr double Kd_rate = 0.001;
 constexpr double dt = 0.1;
 
 
-constexpr int INITILIZE_ESC_TIME {4000};
-constexpr int MINIMUM_MOTOR_SPEED(70);
+constexpr int INITILIZE_ESC_TIME (4000);
+constexpr int MINIMUM_MOTOR_SPEED (70);
+constexpr int MAXIMUM_MOTOR_SPEED (1000);
 
 constexpr dshot_mode_e DSHOT_TYPE{DSHOT300};
 
@@ -30,6 +29,11 @@ public:
 	Motor(MovementController& mc, Status& s);
 	void begin();
 	void loop();
+
+	PID pitchPid{};
+	PID yawPid{};
+	PID rollPid{};
+
 private:
 	MovementController& movementController;
 	Status& status;
@@ -38,17 +42,17 @@ private:
 	DShotRMT motor3;
 	DShotRMT motor4;
 	Attitude computePID();
-	double targetPitch, targetRoll, targetYaw;
-	Attitude pid;
+	Attitude target{};
+	Attitude PID;
+
 
 	// PID constants
-	double Kp = 1, Ki = 0, Kd = 1;
 	double dt = 0.01;
 
-	double m1 = 0;
-	double m2 = 0;
-	double m3 = 0;
-	double m4 = 0;
+	double m1;
+	double m2;
+	double m3;
+	double m4;
 
 	// Error tracking
 	float errorPitch, errorRoll, errorYaw;
