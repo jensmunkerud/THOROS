@@ -59,6 +59,14 @@ void loop() {
 		Serial.print(status.attitude.yaw);
 		Serial.print("/");
 		Serial.print(status.attitude.roll);
+		Serial.print("/");
+		Serial.print(status.attitude.pitch);
+		Serial.print("/");
+		Serial.print(status.attitude.pitch);
+		Serial.print("/");
+		Serial.print(status.attitude.yaw);
+		Serial.print("/");
+		Serial.println(status.attitude.roll);
 	}
 
 	if (current - prevSLOW >= SENSOR_INTERVAL_SLOW) {
