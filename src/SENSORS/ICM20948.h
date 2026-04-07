@@ -9,6 +9,8 @@ static constexpr int ICM20948_CS {15};
 static constexpr int ICM_SAMPLERATE {1000};
 static constexpr float DEG2RAD = 0.01745329251f;
 
+// Drone yaw drifts around -1deg per 45sec
+
 class ICM20948 {
 	public:
 	ICM20948(Status& status);

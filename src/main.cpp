@@ -24,7 +24,7 @@ BMP390 bmp390(status);
 RFD900 rfd900(status);
 MovementController movementController(status, rfd900);
 LED led(status, movementController);
-// Motor motor(movementController, status);
+Motor motor(movementController, status);
 
 
 // ----------------- //
@@ -36,7 +36,7 @@ void setup() {
 	icm20948.begin();
 	// bmp390.begin();
 	rfd900.begin();
-	// motor.begin();
+	motor.begin();
 }
 
 // ---------------- //
@@ -51,8 +51,14 @@ void loop() {
 		// Serial.print(1000/(current-prevFAST));
 		// Serial.println("Hz");
 		// bmp390.loop(); // This thing is SUPER SLOW
-		// movementController.update();
-		// motor.loop();
+		movementController.update();
+		motor.loop();
+
+		Serial.print(status.attitude.pitch);
+		Serial.print("/");
+		Serial.print(status.attitude.yaw);
+		Serial.print("/");
+		Serial.print(status.attitude.roll);
 	}
 
 	if (current - prevSLOW >= SENSOR_INTERVAL_SLOW) {

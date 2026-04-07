@@ -50,14 +50,14 @@ Attitude Motor::computePID() {
 	integralYaw   += errorYaw * dt;
 
 	// derivatives
-	double dPitch = (errorPitch - lastErrorPitch) / dt;
-	double dRoll  = (errorRoll  - lastErrorRoll)  / dt;
-	double dYaw   = (errorYaw   - lastErrorYaw)   / dt;
+	float dPitch = (errorPitch - lastErrorPitch) / dt;
+	float dRoll  = (errorRoll  - lastErrorRoll)  / dt;
+	float dYaw   = (errorYaw   - lastErrorYaw)   / dt;
 
 	// PID outputs
-	double pidPitch = Kp * errorPitch + Ki * integralPitch + Kd * dPitch;
-	double pidRoll  = Kp * errorRoll  + Ki * integralRoll  + Kd * dRoll;
-	double pidYaw   = Kp * errorYaw   + Ki * integralYaw   + Kd * dYaw;
+	float pidPitch = Kp * errorPitch + Ki * integralPitch + Kd * dPitch;
+	float pidRoll  = Kp * errorRoll  + Ki * integralRoll  + Kd * dRoll;
+	float pidYaw   = Kp * errorYaw   + Ki * integralYaw   + Kd * dYaw;
 
 	// Save last errors
 	lastErrorPitch = errorPitch;
