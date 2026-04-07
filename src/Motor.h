@@ -18,7 +18,7 @@ constexpr double Kd_rate = 0.001;
 constexpr double dt = 0.1;
 
 
-constexpr int INITILIZE_ESC_TIME (4000);
+constexpr int INITILIZE_ESC_TIME (40); // 4000
 constexpr int MINIMUM_MOTOR_SPEED (70);
 constexpr int MAXIMUM_MOTOR_SPEED (1000);
 
@@ -30,9 +30,9 @@ public:
 	void begin();
 	void loop();
 
-	PID pitchPid{};
-	PID yawPid{};
-	PID rollPid{};
+	PID pitchPid{2, 0, 10};
+	PID yawPid{2, 0, 10};
+	PID rollPid{2, 0, 10};
 
 private:
 	MovementController& movementController;
@@ -43,11 +43,11 @@ private:
 	DShotRMT motor4;
 	Attitude computePID();
 	Attitude target{};
-	Attitude PID;
+	Attitude resultPID;
 
 
 	// PID constants
-	double dt = 0.01;
+	double dt = 0.001;
 
 	double m1;
 	double m2;
