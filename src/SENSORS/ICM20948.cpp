@@ -64,12 +64,6 @@ void ICM20948::loop() {
 		status.attitude.roll  = fusion.getRoll();
 		status.attitude.yaw   = fusion.getYaw();
 
-		Serial.print(status.attitude.pitch);
-		Serial.print("/");
-		Serial.print(status.attitude.yaw);
-		Serial.print("/");
-		Serial.println(status.attitude.roll);
-
 		// Print: 9axis_debug
 		// Serial.print(acc.x, 4); Serial.print("/");
 		// Serial.print(acc.y, 4); Serial.print("/");
