@@ -6,10 +6,10 @@
 #include "Status.h"
 
 // CONFIGURATION
-constexpr int MOTOR1 {27}; // FRONT RIGHT
-constexpr int MOTOR2 {14}; // BACK RIGHT
-constexpr int MOTOR3 {12}; // FRONT LEFT
-constexpr int MOTOR4 {13}; // BACK LEFT
+constexpr int MOTOR1 {27}; // FRONT RIGHT	CCW
+constexpr int MOTOR2 {14}; // BACK RIGHT	CW
+constexpr int MOTOR3 {12}; // FRONT LEFT	CW
+constexpr int MOTOR4 {13}; // BACK LEFT		CCW
 
 constexpr double Kp_att = 4.0;    // outer loop gain (attitude)
 constexpr double Kp_rate = 0.4;   // inner loop proportional
