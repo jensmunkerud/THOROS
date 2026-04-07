@@ -37,8 +37,8 @@ enum CommandID : uint8_t {
 struct ControlInput {
 	float pitch		{0};	// forward/backward
 	float roll		{0};	// left/right
-	float throttle	{0};	// up/down
 	float yaw 		{0};	// rotation (optional)
+	float throttle	{0};	// up/down
 };
 
 // Main control manager
