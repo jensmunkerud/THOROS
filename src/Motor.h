@@ -21,7 +21,11 @@ constexpr int YAW_PID_OUTPUT_LIMIT (200);
 constexpr int ROLL_PID_OUTPUT_LIMIT (200);
 constexpr float AXIS_INPUT_LPF_ALPHA (0.15f);
 constexpr float AXIS_OUTPUT_SLEW_PER_LOOP (12.0f);
-constexpr float FRONT_BIAS = 0.1f;
+constexpr float FRONT_BIAS = 0.11f;
+constexpr float XY_ACCEL_DEADBAND_G = 0.02f;
+constexpr float XY_VELOCITY_DECAY_PER_SEC = 1.0f;
+constexpr float XY_VELOCITY_TO_COMMAND = 500.0f;
+constexpr float XY_COMMAND_LIMIT = 500.0f;
 
 constexpr dshot_mode_e DSHOT_TYPE{DSHOT300};
 
@@ -48,6 +52,7 @@ private:
 	QuickPID rollQuickPID;
 	QuickPID yawQuickPID;
 	void updateAxisPid(QuickPID& pid, float measurement, float& filteredInput, float& pidOutput, float& command, float outputLimit);
+	void updateMotionCorrection(float dtSeconds, float pidAuthority);
 	float pidAuthority;
 
 	float frontScale;
@@ -56,6 +61,11 @@ private:
 	float pitchInput;
 	float yawInput;
 	float rollInput;
+	float xVelocity;
+	float yVelocity;
+	float xyPitchCommand;
+	float xyRollCommand;
+	unsigned long lastMotionUpdateMs;
 
 	float quickPitchOUT;
 	float quickYawOUT;
