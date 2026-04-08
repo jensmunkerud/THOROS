@@ -1,2 +1,0 @@
-str = ["jens" if x%2==0 else "iver" for x in range(100)]
-print(str)

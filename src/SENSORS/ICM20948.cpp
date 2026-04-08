@@ -94,18 +94,22 @@ void ICM20948::loop() {
 
 		fusion.MahonyUpdate(gyr.x, gyr.y, gyr.z, acc.x, acc.y, acc.z, dt);  //mahony is suggested if there isn't the mag and the mcu is slow
 		// fusion.MadgwickUpdate(gyr.x, gyr.y, gyr.z, acc.x, acc.y, acc.z, mag.x, mag.y, mag.z, deltat);  //else use the magwick, it is slower but more accurate
-		status.attitude.pitch = -fusion.getRoll();
-		status.attitude.roll  = fusion.getPitch();
-		status.attitude.yaw   = fusion.getYaw() - 184.0f;
+		float fusedRoll = fusion.getRoll();
+		float fusedPitch = fusion.getPitch();
+		float fusedYaw = fusion.getYaw() - 184.0f;
+
+		status.attitude.pitch = -fusedRoll;
+		status.attitude.roll  = fusedPitch;
+		status.attitude.yaw   = fusedYaw;
 
 		// Remove gravity using current attitude, then convert to world frame.
-		Vec3 gBody = gravityBodyFromAttitude(status.attitude.roll, status.attitude.pitch);
+		Vec3 gBody = gravityBodyFromAttitude(fusedRoll, fusedPitch);
 		Vec3 linBody = {
 			acc.x - gBody.x,
 			acc.y - gBody.y,
 			acc.z - gBody.z
 		};
-		Vec3 worldLinAcc = bodyToWorldAccel(linBody, status.attitude.roll, status.attitude.pitch, status.attitude.yaw);
+		Vec3 worldLinAcc = bodyToWorldAccel(linBody, fusedRoll, fusedPitch, fusedYaw);
 		status.linearAccel.x = worldLinAcc.x;
 		status.linearAccel.y = worldLinAcc.y;
 		status.linearAccel.z = worldLinAcc.z;
