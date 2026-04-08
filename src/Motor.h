@@ -30,9 +30,9 @@ public:
 	void begin();
 	void loop();
 
-	PID pitchPid{2, 0, 10};
-	PID yawPid{2, 0, 10};
-	PID rollPid{2, 0, 10};
+	PID pitchPid{4, 0, 6};
+	PID yawPid{4, 0, 6};
+	PID rollPid{4, 0, 6};
 
 private:
 	MovementController& movementController;
