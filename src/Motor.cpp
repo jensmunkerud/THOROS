@@ -105,7 +105,7 @@ void Motor::updateAxisPid(QuickPID& pid, float measurement, float& filteredInput
 
 
 void Motor::loop() {
-	if (status.RFD900 != 1 || status.motorArmed == 0) {
+	if (status.RFD900 != 1) {
 		xVelocity = 0.0f;
 		yVelocity = 0.0f;
 		xyPitchCommand = 0.0f;
@@ -144,10 +144,12 @@ void Motor::loop() {
 	rollCmd += xyRollCommand;
 
 	// ATTITUDE AND ACCELERATION CORRECTION
-	m1 = constrain(throttleBase * frontScale + pitchCmd * frontScale - rollCmd + yawCmd, 0, MAXIMUM_MOTOR_SPEED);
-	m2 = constrain(throttleBase * rearScale  - pitchCmd * rearScale  - rollCmd - yawCmd, 0, MAXIMUM_MOTOR_SPEED);
-	m3 = constrain(throttleBase * frontScale + pitchCmd * frontScale + rollCmd - yawCmd, 0, MAXIMUM_MOTOR_SPEED);
-	m4 = constrain(throttleBase * rearScale  - pitchCmd * rearScale  + rollCmd + yawCmd, 0, MAXIMUM_MOTOR_SPEED);
+	m1 = constrain(throttleBase * frontScale + pitchCmd * frontScale - rollCmd + yawCmd * 0, 0, MAXIMUM_MOTOR_SPEED);
+	m2 = constrain(throttleBase * rearScale  - pitchCmd * rearScale  - rollCmd - yawCmd * 0, 0, MAXIMUM_MOTOR_SPEED);
+	m3 = constrain(throttleBase * frontScale + pitchCmd * frontScale + rollCmd - yawCmd * 0, 0, MAXIMUM_MOTOR_SPEED);
+	m4 = constrain(throttleBase * rearScale  - pitchCmd * rearScale  + rollCmd + yawCmd * 0, 0, MAXIMUM_MOTOR_SPEED);
+
+// TEST WITH ACCELERATION CORRECTION ISOLATED!! 4realz
 
 	// ONLY ACCELERATION CORRECTION
 	// m1 = constrain(throttleBase * frontScale + pitchCmd * frontScale * 0 - rollCmd * 0 + yawCmd * 0 - xyPitchCommand - xyRollCommand, 0, MAXIMUM_MOTOR_SPEED);
