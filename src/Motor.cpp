@@ -8,7 +8,19 @@ motor4(MOTOR4),
 m1{0},
 m2{0},
 m3{0},
-m4{0}
+m4{0},
+pitchInput{0},
+rollInput{0},
+yawInput{0},
+quickPitchOUT{0},
+quickRollOUT{0},
+quickYawOUT{0},
+quickPitchCommand{0},
+quickRollCommand{0},
+quickYawCommand{0},
+pitchQuickPID{&pitchInput, &quickPitchOUT, &target.pitch, pitchPid.P, pitchPid.I, pitchPid.D, QuickPID::Action::direct},
+rollQuickPID{&rollInput, &quickRollOUT, &target.roll, rollPid.P, rollPid.I, rollPid.D, QuickPID::Action::direct},
+yawQuickPID{&yawInput, &quickYawOUT, &target.yaw, yawPid.P, yawPid.I, yawPid.D, QuickPID::Action::direct}
 {}
 
 void Motor::begin() {
@@ -16,6 +28,18 @@ void Motor::begin() {
 	motor2.begin(DSHOT_TYPE, NO_BIDIRECTION, 14);
 	motor3.begin(DSHOT_TYPE, NO_BIDIRECTION, 14);
 	motor4.begin(DSHOT_TYPE, NO_BIDIRECTION, 14);
+
+	pitchQuickPID.SetMode(QuickPID::Control::timer);
+	rollQuickPID.SetMode(QuickPID::Control::timer);
+	yawQuickPID.SetMode(QuickPID::Control::timer);
+
+	pitchQuickPID.SetSampleTimeUs(AXIS_PID_SAMPLE_US);
+	rollQuickPID.SetSampleTimeUs(AXIS_PID_SAMPLE_US);
+	yawQuickPID.SetSampleTimeUs(AXIS_PID_SAMPLE_US);
+
+	pitchQuickPID.SetOutputLimits(-PITCH_PID_OUTPUT_LIMIT, PITCH_PID_OUTPUT_LIMIT);
+	rollQuickPID.SetOutputLimits(-ROLL_PID_OUTPUT_LIMIT, ROLL_PID_OUTPUT_LIMIT);
+	yawQuickPID.SetOutputLimits(-YAW_PID_OUTPUT_LIMIT, YAW_PID_OUTPUT_LIMIT);
 	
 	for(int i = 0; i < INITILIZE_ESC_TIME; i++) {
 		motor1.send_dshot_value(0);
@@ -55,7 +79,7 @@ Attitude Motor::computePID() {
 	// Serial.println(errorPitch);
 	
 	// Mix to motors
-	return {pidPitch, pidRoll, pidYaw};
+	return {pidPitch, pidYaw, pidRoll};
 }
 
 
@@ -68,7 +92,30 @@ void Motor::loop() {
 		return;
 	}
 
-	resultPID = computePID();
+	// resultPID = computePID();
+	pitchInput += AXIS_INPUT_LPF_ALPHA * (status.attitude.pitch - pitchInput);
+	yawInput += AXIS_INPUT_LPF_ALPHA * (status.attitude.yaw - yawInput);
+	rollInput += AXIS_INPUT_LPF_ALPHA * (status.attitude.roll - rollInput);
+
+	pitchQuickPID.Compute();
+	rollQuickPID.Compute();
+	yawQuickPID.Compute();
+
+	quickPitchCommand = constrain(
+		quickPitchCommand + constrain(quickPitchOUT - quickPitchCommand, -AXIS_OUTPUT_SLEW_PER_LOOP, AXIS_OUTPUT_SLEW_PER_LOOP),
+		-PITCH_PID_OUTPUT_LIMIT,
+		PITCH_PID_OUTPUT_LIMIT
+	);
+	quickRollCommand = constrain(
+		quickRollCommand + constrain(quickRollOUT - quickRollCommand, -AXIS_OUTPUT_SLEW_PER_LOOP, AXIS_OUTPUT_SLEW_PER_LOOP),
+		-ROLL_PID_OUTPUT_LIMIT,
+		ROLL_PID_OUTPUT_LIMIT
+	);
+	quickYawCommand = constrain(
+		quickYawCommand + constrain(quickYawOUT - quickYawCommand, -AXIS_OUTPUT_SLEW_PER_LOOP, AXIS_OUTPUT_SLEW_PER_LOOP),
+		-YAW_PID_OUTPUT_LIMIT,
+		YAW_PID_OUTPUT_LIMIT
+	);
 
 	m1 = 0;
 	m2 = 0;
@@ -76,15 +123,23 @@ void Motor::loop() {
 	m4 = 0;
 	// Serial.println(movementController.currentInput.throttle);
 
-	m1 = constrain(movementController.currentInput.throttle - resultPID.roll * 0 - resultPID.pitch + resultPID.yaw * 0, MINIMUM_MOTOR_SPEED, MAXIMUM_MOTOR_SPEED);
-	m2 = constrain(movementController.currentInput.throttle - resultPID.roll * 0 + resultPID.pitch - resultPID.yaw * 0, MINIMUM_MOTOR_SPEED, MAXIMUM_MOTOR_SPEED);
-	m3 = constrain(movementController.currentInput.throttle + resultPID.roll * 0 - resultPID.pitch - resultPID.yaw * 0, MINIMUM_MOTOR_SPEED, MAXIMUM_MOTOR_SPEED);
-	m4 = constrain(movementController.currentInput.throttle + resultPID.roll * 0 + resultPID.pitch + resultPID.yaw * 0, MINIMUM_MOTOR_SPEED, MAXIMUM_MOTOR_SPEED);
+	// My custom PID setup
+	// m1 = constrain(movementController.currentInput.throttle - resultPID.roll + resultPID.pitch + resultPID.yaw, MINIMUM_MOTOR_SPEED, MAXIMUM_MOTOR_SPEED);
+	// m2 = constrain(movementController.currentInput.throttle - resultPID.roll - resultPID.pitch - resultPID.yaw, MINIMUM_MOTOR_SPEED, MAXIMUM_MOTOR_SPEED);
+	// m3 = constrain(movementController.currentInput.throttle + resultPID.roll + resultPID.pitch - resultPID.yaw, MINIMUM_MOTOR_SPEED, MAXIMUM_MOTOR_SPEED);
+	// m4 = constrain(movementController.currentInput.throttle + resultPID.roll - resultPID.pitch + resultPID.yaw, MINIMUM_MOTOR_SPEED, MAXIMUM_MOTOR_SPEED);
+
+	// QuickPID Setup
+	float throttleBase = movementController.currentInput.throttle + 500;
+	m1 = constrain(throttleBase - quickPitchCommand - quickRollCommand + quickYawCommand, 0, MAXIMUM_MOTOR_SPEED);
+	m2 = constrain(throttleBase + quickPitchCommand - quickRollCommand - quickYawCommand, 0, MAXIMUM_MOTOR_SPEED);
+	m3 = constrain(throttleBase - quickPitchCommand + quickRollCommand - quickYawCommand, 0, MAXIMUM_MOTOR_SPEED);
+	m4 = constrain(throttleBase + quickPitchCommand + quickRollCommand + quickYawCommand, 0, MAXIMUM_MOTOR_SPEED);
 
 	motor1.send_dshot_value((int)m1);
-	motor2.send_dshot_value((int)m2);
-	motor3.send_dshot_value((int)m3); // PROPELLER
-	motor4.send_dshot_value((int)m4);
+	motor2.send_dshot_value((int)m2); // PROPELLER
+	motor3.send_dshot_value((int)m3);
+	motor4.send_dshot_value((int)m4); // PROPELLER
 
 	Serial.print(status.attitude.pitch);
 	Serial.print("/");
@@ -99,4 +154,5 @@ void Motor::loop() {
 	Serial.print((int)m3);
 	Serial.print("/");
 	Serial.println((int)m4);
+	// Serial.println(errorYaw);
 }

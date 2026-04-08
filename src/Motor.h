@@ -11,16 +11,15 @@ constexpr int MOTOR2 {14}; // BACK RIGHT	CW
 constexpr int MOTOR3 {12}; // FRONT LEFT	CW
 constexpr int MOTOR4 {13}; // BACK LEFT		CCW
 
-constexpr double Kp_att = 4.0;    // outer loop gain (attitude)
-constexpr double Kp_rate = 0.4;   // inner loop proportional
-constexpr double Ki_rate = 0.05;
-constexpr double Kd_rate = 0.001;
-constexpr double dt = 0.1;
-
-
 constexpr int INITILIZE_ESC_TIME (40); // 4000
 constexpr int MINIMUM_MOTOR_SPEED (70);
 constexpr int MAXIMUM_MOTOR_SPEED (1000);
+constexpr int AXIS_PID_SAMPLE_US (2000);
+constexpr int PITCH_PID_OUTPUT_LIMIT (500);
+constexpr int YAW_PID_OUTPUT_LIMIT (300);
+constexpr int ROLL_PID_OUTPUT_LIMIT (500);
+constexpr float AXIS_INPUT_LPF_ALPHA (0.15f);
+constexpr float AXIS_OUTPUT_SLEW_PER_LOOP (12.0f);
 
 constexpr dshot_mode_e DSHOT_TYPE{DSHOT300};
 
@@ -30,9 +29,9 @@ public:
 	void begin();
 	void loop();
 
-	PID pitchPid{4, 0, 6};
-	PID yawPid{4, 0, 6};
-	PID rollPid{4, 0, 6};
+	PID pitchPid{5, 0, 1};
+	PID yawPid{10, 0, 5};
+	PID rollPid{10, 0, 10};
 
 private:
 	MovementController& movementController;
@@ -44,6 +43,22 @@ private:
 	Attitude computePID();
 	Attitude target{};
 	Attitude resultPID;
+
+	QuickPID pitchQuickPID;
+	QuickPID rollQuickPID;
+	QuickPID yawQuickPID;
+
+	float pitchInput;
+	float yawInput;
+	float rollInput;
+
+	float quickPitchOUT;
+	float quickYawOUT;
+	float quickRollOUT;
+
+	float quickPitchCommand;
+	float quickYawCommand;
+	float quickRollCommand;
 
 
 	// PID constants

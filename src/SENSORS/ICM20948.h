@@ -25,6 +25,7 @@ class ICM20948 {
 	ICM_20948_smplrt_t sampleRate;
 	float R_mount[3][3];
 	Vec3 gyroBias;
+	float yawOffset = 0.0f;
 
 	Vec3 normalize(Vec3 v);
 	Vec3 cross(Vec3 a, Vec3 b);
