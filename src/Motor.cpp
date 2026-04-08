@@ -20,7 +20,9 @@ quickRollCommand{0},
 quickYawCommand{0},
 pitchQuickPID{&pitchInput, &quickPitchOUT, &target.pitch, pitchPid.P, pitchPid.I, pitchPid.D, QuickPID::Action::direct},
 yawQuickPID{&yawInput, &quickYawOUT, &target.yaw, yawPid.P, yawPid.I, yawPid.D, QuickPID::Action::direct},
-rollQuickPID{&rollInput, &quickRollOUT, &target.roll, rollPid.P, rollPid.I, rollPid.D, QuickPID::Action::reverse}
+rollQuickPID{&rollInput, &quickRollOUT, &target.roll, rollPid.P, rollPid.I, rollPid.D, QuickPID::Action::reverse},
+frontScale{1.0f + FRONT_BIAS},
+rearScale{1.0f - FRONT_BIAS}
 {}
 
 void Motor::begin() {
@@ -51,40 +53,19 @@ void Motor::begin() {
 }
 
 
-Attitude Motor::computePID() {
-	// Errors
-	errorPitch = target.pitch - status.attitude.pitch;
-	errorRoll  = target.roll  - status.attitude.roll;
-	errorYaw   = target.yaw   - status.attitude.yaw;
-
-	// Integrals
-	integralPitch += errorPitch * dt;
-	integralRoll  += errorRoll * dt;
-	integralYaw   += errorYaw * dt;
-
-	// derivatives
-	float dPitch = (errorPitch - lastErrorPitch) / dt;
-	float dRoll  = (errorRoll  - lastErrorRoll)  / dt;
-	float dYaw   = (errorYaw   - lastErrorYaw)   / dt;
-
-	// PID outputs
-	float pidPitch = pitchPid.P * errorPitch + pitchPid.I * integralPitch + pitchPid.D * dPitch;
-	float pidRoll  = rollPid.P * errorRoll  + rollPid.I * integralRoll  + rollPid.D * dRoll;
-	float pidYaw   = yawPid.P * errorYaw   + yawPid.I * integralYaw   + yawPid.D * dYaw;
-
-	// Save last errors
-	lastErrorPitch = errorPitch;
-	lastErrorRoll  = errorRoll;
-	lastErrorYaw   = errorYaw;
-	// Serial.println(errorPitch);
-	
-	// Mix to motors
-	return {pidPitch, pidYaw, pidRoll};
+void Motor::updateAxisPid(QuickPID& pid, float measurement, float& filteredInput, float& pidOutput, float& command, float outputLimit) {
+	filteredInput += AXIS_INPUT_LPF_ALPHA * (measurement - filteredInput);
+	pid.Compute();
+	command = constrain(
+		command + constrain(pidOutput - command, -AXIS_OUTPUT_SLEW_PER_LOOP, AXIS_OUTPUT_SLEW_PER_LOOP),
+		-outputLimit,
+		outputLimit
+	);
 }
 
 
 void Motor::loop() {
-	if (status.RFD900 != 0) {
+	if (status.RFD900 != 1) {
 		motor1.send_dshot_value(0);
 		motor2.send_dshot_value(0);
 		motor3.send_dshot_value(0);
@@ -92,55 +73,33 @@ void Motor::loop() {
 		return;
 	}
 
-	// resultPID = computePID();
-	pitchInput += AXIS_INPUT_LPF_ALPHA * (status.attitude.pitch - pitchInput);
-	yawInput += AXIS_INPUT_LPF_ALPHA * (status.attitude.yaw - yawInput);
-	rollInput += AXIS_INPUT_LPF_ALPHA * (status.attitude.roll - rollInput);
-
-	pitchQuickPID.Compute();
-	rollQuickPID.Compute();
-	yawQuickPID.Compute();
-
-	quickPitchCommand = constrain(
-		quickPitchCommand + constrain(quickPitchOUT - quickPitchCommand, -AXIS_OUTPUT_SLEW_PER_LOOP, AXIS_OUTPUT_SLEW_PER_LOOP),
-		-PITCH_PID_OUTPUT_LIMIT,
-		PITCH_PID_OUTPUT_LIMIT
-	);
-	quickRollCommand = constrain(
-		quickRollCommand + constrain(quickRollOUT - quickRollCommand, -AXIS_OUTPUT_SLEW_PER_LOOP, AXIS_OUTPUT_SLEW_PER_LOOP),
-		-ROLL_PID_OUTPUT_LIMIT,
-		ROLL_PID_OUTPUT_LIMIT
-	);
-	quickYawCommand = constrain(
-		quickYawCommand + constrain(quickYawOUT - quickYawCommand, -AXIS_OUTPUT_SLEW_PER_LOOP, AXIS_OUTPUT_SLEW_PER_LOOP),
-		-YAW_PID_OUTPUT_LIMIT,
-		YAW_PID_OUTPUT_LIMIT
-	);
-
-	m1 = 0;
-	m2 = 0;
-	m3 = 0;
-	m4 = 0;
-	// Serial.println(movementController.currentInput.throttle);
-
-	// My custom PID setup
-	// m1 = constrain(movementController.currentInput.throttle - resultPID.roll + resultPID.pitch + resultPID.yaw, MINIMUM_MOTOR_SPEED, MAXIMUM_MOTOR_SPEED);
-	// m2 = constrain(movementController.currentInput.throttle - resultPID.roll - resultPID.pitch - resultPID.yaw, MINIMUM_MOTOR_SPEED, MAXIMUM_MOTOR_SPEED);
-	// m3 = constrain(movementController.currentInput.throttle + resultPID.roll + resultPID.pitch - resultPID.yaw, MINIMUM_MOTOR_SPEED, MAXIMUM_MOTOR_SPEED);
-	// m4 = constrain(movementController.currentInput.throttle + resultPID.roll - resultPID.pitch + resultPID.yaw, MINIMUM_MOTOR_SPEED, MAXIMUM_MOTOR_SPEED);
-
+	updateAxisPid(pitchQuickPID, status.attitude.pitch, pitchInput, quickPitchOUT, quickPitchCommand, PITCH_PID_OUTPUT_LIMIT);
+	updateAxisPid(rollQuickPID, status.attitude.roll, rollInput, quickRollOUT, quickRollCommand, ROLL_PID_OUTPUT_LIMIT);
+	updateAxisPid(yawQuickPID, status.attitude.yaw, yawInput, quickYawOUT, quickYawCommand, YAW_PID_OUTPUT_LIMIT);
+	
 	// QuickPID Setup
-	float throttleBase = movementController.currentInput.throttle + 500;
-	m1 = constrain(throttleBase - quickPitchCommand - quickRollCommand + quickYawCommand, 0, MAXIMUM_MOTOR_SPEED);
-	m2 = constrain(throttleBase + quickPitchCommand - quickRollCommand - quickYawCommand, 0, MAXIMUM_MOTOR_SPEED);
-	m3 = constrain(throttleBase - quickPitchCommand + quickRollCommand - quickYawCommand, 0, MAXIMUM_MOTOR_SPEED);
-	m4 = constrain(throttleBase + quickPitchCommand + quickRollCommand + quickYawCommand, 0, MAXIMUM_MOTOR_SPEED);
+	float throttleBase = movementController.currentInput.throttle;
+	pidAuthority = constrain(
+			(throttleBase - (float)MINIMUM_MOTOR_SPEED) / (float)(PID_MAX_EFFECT_AFTER_SPEED - MINIMUM_MOTOR_SPEED),
+			0.0f,
+			1.0f
+	);
+
+	float pitchCmd = quickPitchCommand * pidAuthority;
+	float rollCmd = quickRollCommand * pidAuthority;
+	float yawCmd = quickYawCommand * pidAuthority;
+
+	m1 = constrain(throttleBase * frontScale + pitchCmd * frontScale - rollCmd + yawCmd * 0, 0, MAXIMUM_MOTOR_SPEED);
+	m2 = constrain(throttleBase * rearScale  - pitchCmd * rearScale  - rollCmd - yawCmd * 0, 0, MAXIMUM_MOTOR_SPEED);
+	m3 = constrain(throttleBase * frontScale + pitchCmd * frontScale + rollCmd - yawCmd * 0, 0, MAXIMUM_MOTOR_SPEED);
+	m4 = constrain(throttleBase * rearScale  - pitchCmd * rearScale  + rollCmd + yawCmd * 0, 0, MAXIMUM_MOTOR_SPEED);
 
 	motor1.send_dshot_value((int)m1);
-	motor2.send_dshot_value((int)m2); // PROPELLER
+	motor2.send_dshot_value((int)m2);
 	motor3.send_dshot_value((int)m3);
-	motor4.send_dshot_value((int)m4); // PROPELLER
+	motor4.send_dshot_value((int)m4);
 
+	return;
 	Serial.print(status.attitude.pitch);
 	Serial.print("/");
 	Serial.print(status.attitude.yaw);
@@ -154,5 +113,4 @@ void Motor::loop() {
 	Serial.print((int)m3);
 	Serial.print("/");
 	Serial.println((int)m4);
-	// Serial.println(errorYaw);
 }

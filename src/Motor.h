@@ -11,15 +11,17 @@ constexpr int MOTOR2 {14}; // BACK RIGHT	CW
 constexpr int MOTOR3 {12}; // FRONT LEFT	CW
 constexpr int MOTOR4 {13}; // BACK LEFT		CCW
 
-constexpr int INITILIZE_ESC_TIME (40); // 4000
+constexpr int INITILIZE_ESC_TIME (4000); // 4000
 constexpr int MINIMUM_MOTOR_SPEED (70);
 constexpr int MAXIMUM_MOTOR_SPEED (1000);
-constexpr int AXIS_PID_SAMPLE_US (2000);
+constexpr int PID_MAX_EFFECT_AFTER_SPEED (200);
+constexpr int AXIS_PID_SAMPLE_US (1000);
 constexpr int PITCH_PID_OUTPUT_LIMIT (200);
 constexpr int YAW_PID_OUTPUT_LIMIT (200);
 constexpr int ROLL_PID_OUTPUT_LIMIT (200);
 constexpr float AXIS_INPUT_LPF_ALPHA (0.15f);
 constexpr float AXIS_OUTPUT_SLEW_PER_LOOP (12.0f);
+constexpr float FRONT_BIAS = 0.1f;
 
 constexpr dshot_mode_e DSHOT_TYPE{DSHOT300};
 
@@ -29,9 +31,9 @@ public:
 	void begin();
 	void loop();
 
-	PID pitchPid{5, 0, 2};
-	PID yawPid{5, 0, 2};
-	PID rollPid{5, 0, 2};
+	PID pitchPid{8, 1, 1};
+	PID yawPid{8, 1, 1};
+	PID rollPid{8, 1, 1};
 
 private:
 	MovementController& movementController;
@@ -40,13 +42,16 @@ private:
 	DShotRMT motor2;
 	DShotRMT motor3;
 	DShotRMT motor4;
-	Attitude computePID();
 	Attitude target{};
-	Attitude resultPID;
 
 	QuickPID pitchQuickPID;
 	QuickPID rollQuickPID;
 	QuickPID yawQuickPID;
+	void updateAxisPid(QuickPID& pid, float measurement, float& filteredInput, float& pidOutput, float& command, float outputLimit);
+	float pidAuthority;
+
+	float frontScale;
+	float rearScale;
 
 	float pitchInput;
 	float yawInput;
@@ -60,17 +65,8 @@ private:
 	float quickYawCommand;
 	float quickRollCommand;
 
-
-	// PID constants
-	double dt = 0.001;
-
 	double m1;
 	double m2;
 	double m3;
 	double m4;
-
-	// Error tracking
-	float errorPitch, errorRoll, errorYaw;
-	float integralPitch = 0, integralRoll = 0, integralYaw = 0;
-	float lastErrorPitch = 0, lastErrorRoll = 0, lastErrorYaw = 0;
 };
