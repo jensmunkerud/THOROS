@@ -60,9 +60,9 @@ void ICM20948::loop() {
 
 		fusion.MahonyUpdate(gyr.x, gyr.y, gyr.z, acc.x, acc.y, acc.z, dt);  //mahony is suggested if there isn't the mag and the mcu is slow
 		// fusion.MadgwickUpdate(gyr.x, gyr.y, gyr.z, acc.x, acc.y, acc.z, mag.x, mag.y, mag.z, deltat);  //else use the magwick, it is slower but more accurate
-		status.attitude.pitch = fusion.getPitch();
-		status.attitude.roll  = fusion.getRoll();
-		status.attitude.yaw   = fusion.getYaw();
+		status.attitude.pitch = -fusion.getRoll();
+		status.attitude.roll  = fusion.getPitch();
+		status.attitude.yaw   = fusion.getYaw() - 184.0f;
 
 		// Print: 9axis_debug
 		// Serial.print(acc.x, 4); Serial.print("/");
@@ -95,8 +95,13 @@ void ICM20948::calibrateIMU() {
 		acc.y += icm20948.accY();
 		acc.z += icm20948.accZ();
 
+		// dt = fusion.deltatUpdate();
+		// fusion.MahonyUpdate(gyr.x, gyr.y, gyr.z, acc.x, acc.y, acc.z, dt);
+
 		delayMicroseconds(1000);
 	}
+
+	// yawOffset = fusion.getYaw();
 
 	gyroBias.x = gyr.x / samples;
 	gyroBias.y = gyr.y / samples;
