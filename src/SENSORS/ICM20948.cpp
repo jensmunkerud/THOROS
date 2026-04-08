@@ -1,4 +1,38 @@
 #include "ICM20948.h"
+
+static Vec3 bodyToWorldAccel(Vec3 body, float rollDeg, float pitchDeg, float yawDeg) {
+	float roll = rollDeg * DEG2RAD;
+	float pitch = pitchDeg * DEG2RAD;
+	float yaw = yawDeg * DEG2RAD;
+
+	float cr = cosf(roll);
+	float sr = sinf(roll);
+	float cp = cosf(pitch);
+	float sp = sinf(pitch);
+	float cy = cosf(yaw);
+	float sy = sinf(yaw);
+
+	return {
+		cy * cp * body.x + (cy * sp * sr - sy * cr) * body.y + (cy * sp * cr + sy * sr) * body.z,
+		sy * cp * body.x + (sy * sp * sr + cy * cr) * body.y + (sy * sp * cr - cy * sr) * body.z,
+		-sp * body.x + cp * sr * body.y + cp * cr * body.z
+	};
+}
+
+static Vec3 gravityBodyFromAttitude(float rollDeg, float pitchDeg) {
+	float roll = rollDeg * DEG2RAD;
+	float pitch = pitchDeg * DEG2RAD;
+	float cr = cosf(roll);
+	float sr = sinf(roll);
+	float cp = cosf(pitch);
+	float sp = sinf(pitch);
+
+	return {
+		-sp,
+		cp * sr,
+		cp * cr
+	};
+}
  
 ICM20948::ICM20948(Status& status) : status{status} {
 	sampleRate.a = (1000 / ICM_SAMPLERATE) - 1;
@@ -63,6 +97,18 @@ void ICM20948::loop() {
 		status.attitude.pitch = -fusion.getRoll();
 		status.attitude.roll  = fusion.getPitch();
 		status.attitude.yaw   = fusion.getYaw() - 184.0f;
+
+		// Remove gravity using current attitude, then convert to world frame.
+		Vec3 gBody = gravityBodyFromAttitude(status.attitude.roll, status.attitude.pitch);
+		Vec3 linBody = {
+			acc.x - gBody.x,
+			acc.y - gBody.y,
+			acc.z - gBody.z
+		};
+		Vec3 worldLinAcc = bodyToWorldAccel(linBody, status.attitude.roll, status.attitude.pitch, status.attitude.yaw);
+		status.linearAccel.x = worldLinAcc.x;
+		status.linearAccel.y = worldLinAcc.y;
+		status.linearAccel.z = worldLinAcc.z;
 
 		// Print: 9axis_debug
 		// Serial.print(acc.x, 4); Serial.print("/");

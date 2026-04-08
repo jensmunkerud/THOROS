@@ -19,12 +19,15 @@ struct Attitude {
 	float roll;
 };
 
+// Rename existing status -> telemetry, then make a new struct for ONLY INTERNAL properties, like attitude & linearaccel etc.
+
 struct __attribute__((packed)) Status {
 	int8_t BEGIN;
 	int16_t altitude;
 	int16_t speed;
 
 	Attitude attitude;
+	Vec3 linearAccel;
 
 	int16_t temp;
 	int16_t pressure;
@@ -58,6 +61,7 @@ struct __attribute__((packed)) Status {
 		speed(0),
 		// accelX(0), accelY(0), accelZ(0),
 		attitude{0.0, 0.0, 0.0},
+		linearAccel{0.0, 0.0, 0.0},
 		temp(0), pressure(0),
 		batteryVoltage(0),
 		latitude(0), longitude(0),
