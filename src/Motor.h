@@ -15,9 +15,9 @@ constexpr int INITILIZE_ESC_TIME (40); // 4000
 constexpr int MINIMUM_MOTOR_SPEED (70);
 constexpr int MAXIMUM_MOTOR_SPEED (1000);
 constexpr int AXIS_PID_SAMPLE_US (2000);
-constexpr int PITCH_PID_OUTPUT_LIMIT (500);
-constexpr int YAW_PID_OUTPUT_LIMIT (300);
-constexpr int ROLL_PID_OUTPUT_LIMIT (500);
+constexpr int PITCH_PID_OUTPUT_LIMIT (200);
+constexpr int YAW_PID_OUTPUT_LIMIT (200);
+constexpr int ROLL_PID_OUTPUT_LIMIT (200);
 constexpr float AXIS_INPUT_LPF_ALPHA (0.15f);
 constexpr float AXIS_OUTPUT_SLEW_PER_LOOP (12.0f);
 
@@ -29,9 +29,9 @@ public:
 	void begin();
 	void loop();
 
-	PID pitchPid{5, 0, 1};
-	PID yawPid{10, 0, 5};
-	PID rollPid{10, 0, 10};
+	PID pitchPid{5, 0, 2};
+	PID yawPid{5, 0, 2};
+	PID rollPid{5, 0, 2};
 
 private:
 	MovementController& movementController;

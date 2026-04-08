@@ -19,8 +19,8 @@ quickPitchCommand{0},
 quickRollCommand{0},
 quickYawCommand{0},
 pitchQuickPID{&pitchInput, &quickPitchOUT, &target.pitch, pitchPid.P, pitchPid.I, pitchPid.D, QuickPID::Action::direct},
-rollQuickPID{&rollInput, &quickRollOUT, &target.roll, rollPid.P, rollPid.I, rollPid.D, QuickPID::Action::direct},
-yawQuickPID{&yawInput, &quickYawOUT, &target.yaw, yawPid.P, yawPid.I, yawPid.D, QuickPID::Action::direct}
+yawQuickPID{&yawInput, &quickYawOUT, &target.yaw, yawPid.P, yawPid.I, yawPid.D, QuickPID::Action::direct},
+rollQuickPID{&rollInput, &quickRollOUT, &target.roll, rollPid.P, rollPid.I, rollPid.D, QuickPID::Action::reverse}
 {}
 
 void Motor::begin() {
@@ -29,9 +29,9 @@ void Motor::begin() {
 	motor3.begin(DSHOT_TYPE, NO_BIDIRECTION, 14);
 	motor4.begin(DSHOT_TYPE, NO_BIDIRECTION, 14);
 
-	pitchQuickPID.SetMode(QuickPID::Control::timer);
-	rollQuickPID.SetMode(QuickPID::Control::timer);
-	yawQuickPID.SetMode(QuickPID::Control::timer);
+	pitchQuickPID.SetMode(QuickPID::Control::automatic);
+	rollQuickPID.SetMode(QuickPID::Control::automatic);
+	yawQuickPID.SetMode(QuickPID::Control::automatic);
 
 	pitchQuickPID.SetSampleTimeUs(AXIS_PID_SAMPLE_US);
 	rollQuickPID.SetSampleTimeUs(AXIS_PID_SAMPLE_US);
