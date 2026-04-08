@@ -11,7 +11,7 @@ constexpr int MOTOR2 {14}; // BACK RIGHT	CW
 constexpr int MOTOR3 {12}; // FRONT LEFT	CW
 constexpr int MOTOR4 {13}; // BACK LEFT		CCW
 
-constexpr int INITILIZE_ESC_TIME (4000); // 4000
+constexpr int INITILIZE_ESC_TIME (40); // 4000
 constexpr int MINIMUM_MOTOR_SPEED (70);
 constexpr int MAXIMUM_MOTOR_SPEED (1000);
 constexpr int PID_MAX_EFFECT_AFTER_SPEED (200);
@@ -25,7 +25,9 @@ constexpr float FRONT_BIAS = 0.11f;
 constexpr float XY_ACCEL_DEADBAND_G = 0.02f;
 constexpr float XY_VELOCITY_DECAY_PER_SEC = 1.0f;
 constexpr float XY_VELOCITY_TO_COMMAND = 500.0f;
-constexpr float XY_COMMAND_LIMIT = 500.0f;
+constexpr float XY_COMMAND_LIMIT = 200.0f;
+constexpr float XY_PITCH_FROM_Y_SIGN = -1.0f;
+constexpr float XY_ROLL_FROM_X_SIGN = 1.0f;
 
 constexpr dshot_mode_e DSHOT_TYPE{DSHOT300};
 

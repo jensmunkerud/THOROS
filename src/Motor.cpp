@@ -81,8 +81,8 @@ void Motor::updateMotionCorrection(float dtSeconds, float pidAuthority) {
 	xVelocity *= decay;
 	yVelocity *= decay;
 
-	float worldPitch = constrain(-xVelocity * XY_VELOCITY_TO_COMMAND, -XY_COMMAND_LIMIT, XY_COMMAND_LIMIT);
-	float worldRoll  = constrain(-yVelocity * XY_VELOCITY_TO_COMMAND, -XY_COMMAND_LIMIT, XY_COMMAND_LIMIT);
+	float worldPitch = constrain(XY_PITCH_FROM_Y_SIGN * yVelocity * XY_VELOCITY_TO_COMMAND, -XY_COMMAND_LIMIT, XY_COMMAND_LIMIT);
+	float worldRoll  = constrain(XY_ROLL_FROM_X_SIGN * xVelocity * XY_VELOCITY_TO_COMMAND, -XY_COMMAND_LIMIT, XY_COMMAND_LIMIT);
 
 	float yawRad = radians(status.attitude.yaw);
 	xyPitchCommand = worldPitch * cosf(yawRad) + worldRoll * sinf(yawRad);
@@ -105,18 +105,18 @@ void Motor::updateAxisPid(QuickPID& pid, float measurement, float& filteredInput
 
 
 void Motor::loop() {
-	// if (status.RFD900 != 1 || status.motorArmed == 0) {
-	// 	xVelocity = 0.0f;
-	// 	yVelocity = 0.0f;
-	// 	xyPitchCommand = 0.0f;
-	// 	xyRollCommand = 0.0f;
-	// 	lastMotionUpdateMs = millis();
-	// 	motor1.send_dshot_value(0);
-	// 	motor2.send_dshot_value(0);
-	// 	motor3.send_dshot_value(0);
-	// 	motor4.send_dshot_value(0);
-	// 	return;
-	// }
+	if (status.RFD900 != 1 || status.motorArmed == 0) {
+		xVelocity = 0.0f;
+		yVelocity = 0.0f;
+		xyPitchCommand = 0.0f;
+		xyRollCommand = 0.0f;
+		lastMotionUpdateMs = millis();
+		motor1.send_dshot_value(0);
+		motor2.send_dshot_value(0);
+		motor3.send_dshot_value(0);
+		motor4.send_dshot_value(0);
+		return;
+	}
 
 	updateAxisPid(pitchQuickPID, status.attitude.pitch, pitchInput, quickPitchOUT, quickPitchCommand, PITCH_PID_OUTPUT_LIMIT);
 	updateAxisPid(rollQuickPID, status.attitude.roll, rollInput, quickRollOUT, quickRollCommand, ROLL_PID_OUTPUT_LIMIT);
@@ -127,7 +127,7 @@ void Motor::loop() {
 	lastMotionUpdateMs = now;
 	
 	// QuickPID Setup
-	float throttleBase = movementController.currentInput.throttle + 350;
+	float throttleBase = movementController.currentInput.throttle;
 	pidAuthority = constrain(
 			(throttleBase - (float)MINIMUM_MOTOR_SPEED) / (float)(PID_MAX_EFFECT_AFTER_SPEED - MINIMUM_MOTOR_SPEED),
 			0.0f,
@@ -143,17 +143,24 @@ void Motor::loop() {
 	pitchCmd += xyPitchCommand;
 	rollCmd += xyRollCommand;
 
-	m1 = constrain(throttleBase * frontScale + pitchCmd * frontScale * 0 - rollCmd * 0 + yawCmd * 0 + xyPitchCommand - xyRollCommand, 0, MAXIMUM_MOTOR_SPEED);
-	m2 = constrain(throttleBase * rearScale  - pitchCmd * rearScale  * 0 - rollCmd * 0 - yawCmd * 0 - xyPitchCommand - xyRollCommand, 0, MAXIMUM_MOTOR_SPEED);
-	m3 = constrain(throttleBase * frontScale + pitchCmd * frontScale * 0 + rollCmd * 0 - yawCmd * 0 + xyPitchCommand + xyRollCommand, 0, MAXIMUM_MOTOR_SPEED);
-	m4 = constrain(throttleBase * rearScale  - pitchCmd * rearScale  * 0 + rollCmd * 0 + yawCmd * 0 - xyPitchCommand + xyRollCommand, 0, MAXIMUM_MOTOR_SPEED);
+	// ATTITUDE AND ACCELERATION CORRECTION
+	m1 = constrain(throttleBase * frontScale + pitchCmd * frontScale - rollCmd + yawCmd, 0, MAXIMUM_MOTOR_SPEED);
+	m2 = constrain(throttleBase * rearScale  - pitchCmd * rearScale  - rollCmd - yawCmd, 0, MAXIMUM_MOTOR_SPEED);
+	m3 = constrain(throttleBase * frontScale + pitchCmd * frontScale + rollCmd - yawCmd, 0, MAXIMUM_MOTOR_SPEED);
+	m4 = constrain(throttleBase * rearScale  - pitchCmd * rearScale  + rollCmd + yawCmd, 0, MAXIMUM_MOTOR_SPEED);
+
+	// ONLY ACCELERATION CORRECTION
+	// m1 = constrain(throttleBase * frontScale + pitchCmd * frontScale * 0 - rollCmd * 0 + yawCmd * 0 - xyPitchCommand - xyRollCommand, 0, MAXIMUM_MOTOR_SPEED);
+	// m2 = constrain(throttleBase * rearScale  - pitchCmd * rearScale  * 0 - rollCmd * 0 - yawCmd * 0 + xyPitchCommand - xyRollCommand, 0, MAXIMUM_MOTOR_SPEED);
+	// m3 = constrain(throttleBase * frontScale + pitchCmd * frontScale * 0 + rollCmd * 0 - yawCmd * 0 - xyPitchCommand + xyRollCommand, 0, MAXIMUM_MOTOR_SPEED);
+	// m4 = constrain(throttleBase * rearScale  - pitchCmd * rearScale  * 0 + rollCmd * 0 + yawCmd * 0 + xyPitchCommand + xyRollCommand, 0, MAXIMUM_MOTOR_SPEED);
 
 	motor1.send_dshot_value((int)m1);
 	motor2.send_dshot_value((int)m2);
 	motor3.send_dshot_value((int)m3);
 	motor4.send_dshot_value((int)m4);
 
-	// return;
+	return;
 	Serial.print(status.attitude.pitch);
 	Serial.print("/");
 	Serial.print(status.attitude.yaw);
