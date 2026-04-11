@@ -33,7 +33,9 @@ frontScale{1.0f + FRONT_BIAS},
 rearScale{1.0f - FRONT_BIAS},
 xVelocity{0},
 yVelocity{0},
-lastMotionUpdateMs{0}
+lastMotionUpdateMs{0},
+lastOuterLoopUs{0},
+lastInnerLoopUs{0}
 {}
 
 void Motor::begin() {
@@ -48,11 +50,11 @@ void Motor::begin() {
 	velocityXQuickPID.SetMode(QuickPID::Control::automatic);
 	velocityYQuickPID.SetMode(QuickPID::Control::automatic);
 
-	pitchQuickPID.SetSampleTimeUs(AXIS_PID_SAMPLE_US);
-	rollQuickPID.SetSampleTimeUs(AXIS_PID_SAMPLE_US);
-	yawQuickPID.SetSampleTimeUs(AXIS_PID_SAMPLE_US);
-	velocityXQuickPID.SetSampleTimeUs(AXIS_PID_SAMPLE_US);
-	velocityYQuickPID.SetSampleTimeUs(AXIS_PID_SAMPLE_US);
+	pitchQuickPID.SetSampleTimeUs(ATTITUDE_PID_SAMPLE_US);
+	rollQuickPID.SetSampleTimeUs(ATTITUDE_PID_SAMPLE_US);
+	yawQuickPID.SetSampleTimeUs(ATTITUDE_PID_SAMPLE_US);
+	velocityXQuickPID.SetSampleTimeUs(VELOCITY_PID_SAMPLE_US);
+	velocityYQuickPID.SetSampleTimeUs(VELOCITY_PID_SAMPLE_US);
 
 	pitchQuickPID.SetOutputLimits(-PITCH_PID_OUTPUT_LIMIT, PITCH_PID_OUTPUT_LIMIT);
 	rollQuickPID.SetOutputLimits(-ROLL_PID_OUTPUT_LIMIT, ROLL_PID_OUTPUT_LIMIT);
@@ -60,6 +62,8 @@ void Motor::begin() {
 	velocityXQuickPID.SetOutputLimits(-VELOCITY_PID_OUTPUT_LIMIT, VELOCITY_PID_OUTPUT_LIMIT);
 	velocityYQuickPID.SetOutputLimits(-VELOCITY_PID_OUTPUT_LIMIT, VELOCITY_PID_OUTPUT_LIMIT);
 	lastMotionUpdateMs = millis();
+	lastOuterLoopUs = micros();
+	lastInnerLoopUs = lastOuterLoopUs;
 	
 	for(int i = 0; i < INITILIZE_ESC_TIME; i++) {
 		motor1.send_dshot_value(0);
@@ -71,6 +75,7 @@ void Motor::begin() {
 }
 
 
+// Estimate x y velocity from x y acceleration (Drone space)
 void Motor::updateMotionCorrection(float dtSeconds, float pidAuthority) {
 	if (dtSeconds <= 0.0f) {
 		return;
@@ -79,10 +84,10 @@ void Motor::updateMotionCorrection(float dtSeconds, float pidAuthority) {
 	float accelX = status.linearAccel.x;
 	float accelY = status.linearAccel.y;
 
-	if (fabsf(accelX) < XY_ACCEL_DEADBAND_G) {
+	if (fabsf(accelX) < ACCEL_DEADBAND_G) {
 		accelX = 0.0f;
 	}
-	if (fabsf(accelY) < XY_ACCEL_DEADBAND_G) {
+	if (fabsf(accelY) < ACCEL_DEADBAND_G) {
 		accelY = 0.0f;
 	}
 
@@ -91,12 +96,13 @@ void Motor::updateMotionCorrection(float dtSeconds, float pidAuthority) {
 	yVelocity += accelY * 9.81f * dtSeconds;
 
 	// Apply velocity decay to prevent drift
-	float decay = constrain(1.0f - XY_VELOCITY_DECAY_PER_SEC * dtSeconds, 0.0f, 1.0f);
+	float decay = constrain(1.0f - VELOCITY_DECAY_PER_SEC * dtSeconds, 0.0f, 1.0f);
 	xVelocity *= decay;
 	yVelocity *= decay;
 }
 
 
+// Perform PID calculation, with slew limiter on output
 void Motor::updateAxisPid(QuickPID& pid, float measurement, float& filteredInput, float& pidOutput, float& command, float outputLimit) {
 	filteredInput += AXIS_INPUT_LPF_ALPHA * (measurement - filteredInput);
 	pid.Compute();
@@ -109,49 +115,64 @@ void Motor::updateAxisPid(QuickPID& pid, float measurement, float& filteredInput
 
 
 void Motor::loop() {
-	if (status.RFD900 != 1) {
-		xVelocity = 0.0f;
-		yVelocity = 0.0f;
-		lastMotionUpdateMs = millis();
-		motor1.send_dshot_value(0);
-		motor2.send_dshot_value(0);
-		motor3.send_dshot_value(0);
-		motor4.send_dshot_value(0);
-		return;
-	}
+	// if (status.RFD900 != 1) {
+	// 	xVelocity = 0.0f;
+	// 	yVelocity = 0.0f;
+	// 	lastMotionUpdateMs = millis();
+	// 	lastOuterLoopUs = micros();
+	// 	lastInnerLoopUs = lastOuterLoopUs;
+	// 	motor1.send_dshot_value(0);
+	// 	motor2.send_dshot_value(0);
+	// 	motor3.send_dshot_value(0);
+	// 	motor4.send_dshot_value(0);
+	// 	return;
+	// }
 
-	unsigned long now = millis();
-	float dtSeconds = (lastMotionUpdateMs == 0) ? 0.0f : (now - lastMotionUpdateMs) / 1000.0f;
-	lastMotionUpdateMs = now;
+	unsigned long nowUs = micros();
+	bool runOuter = (lastOuterLoopUs == 0) || ((unsigned long)(nowUs - lastOuterLoopUs) >= (unsigned long)VELOCITY_PID_SAMPLE_US);
+	bool runInner = (lastInnerLoopUs == 0) || ((unsigned long)(nowUs - lastInnerLoopUs) >= (unsigned long)ATTITUDE_PID_SAMPLE_US);
+
+	float dtSeconds = 0.0f;
+	if (runOuter) {
+		unsigned long elapsedOuterUs = (lastOuterLoopUs == 0) ? 0 : (unsigned long)(nowUs - lastOuterLoopUs);
+		dtSeconds = elapsedOuterUs / 1000000.0f;
+		lastOuterLoopUs = nowUs;
+		lastMotionUpdateMs = millis();
+	}
 	
-	float throttleBase = movementController.currentInput.throttle;
+	float throttleBase = movementController.currentInput.throttle + 350;
 	pidAuthority = constrain(
 			(throttleBase - (float)MINIMUM_MOTOR_SPEED) / (float)(PID_MAX_EFFECT_AFTER_SPEED - MINIMUM_MOTOR_SPEED),
 			0.0f,
 			1.0f
 	);
 
-	// OUTER LOOP: Velocity Control
-	// Integrate acceleration to estimate velocity
-	updateMotionCorrection(dtSeconds, pidAuthority);
+	if (runOuter) {
+		// OUTER LOOP: Velocity Control
+		// Integrate acceleration to estimate velocity
+		updateMotionCorrection(dtSeconds, pidAuthority);
 
-	// Rotate world-frame velocity into drone body frame so X/Y commands stay
-	// relative to drone orientation at any yaw angle.
-	float yawRad = radians(status.attitude.yaw);
-	float bodyVelocityX = xVelocity * cosf(yawRad) + yVelocity * sinf(yawRad);
-	float bodyVelocityY = -xVelocity * sinf(yawRad) + yVelocity * cosf(yawRad);
+		// Rotate world-frame velocity into drone body frame so X/Y commands stay
+		// relative to drone orientation at any yaw angle.
+		// float yawRad = radians(status.attitude.yaw);
+		// float bodyVelocityX = xVelocity * cosf(yawRad) + yVelocity * sinf(yawRad);
+		// float bodyVelocityY = -xVelocity * sinf(yawRad) + yVelocity * cosf(yawRad);
 
-	// Update velocity PIDs - these output target pitch and roll angles
-	// velocityXOUT controls the target roll for X velocity
-	// velocityYOUT controls the target pitch for Y velocity
-	updateAxisPid(velocityXQuickPID, bodyVelocityX, velocityXInput, velocityXOUT, target.roll, VELOCITY_PID_OUTPUT_LIMIT);
-	updateAxisPid(velocityYQuickPID, bodyVelocityY, velocityYInput, velocityYOUT, target.pitch, VELOCITY_PID_OUTPUT_LIMIT);
+		// Update velocity PIDs - these output target pitch and roll angles
+		// velocityXOUT controls the target roll for X velocity
+		// velocityYOUT controls the target pitch for Y velocity
+		updateAxisPid(velocityXQuickPID, xVelocity, velocityXInput, velocityXOUT, target.roll, VELOCITY_PID_OUTPUT_LIMIT);
+		updateAxisPid(velocityYQuickPID, yVelocity, velocityYInput, velocityYOUT, target.pitch, VELOCITY_PID_OUTPUT_LIMIT);
+	}
 
-	// INNER LOOP: Attitude Stabilization
-	// Filter and control attitude to the targets set by velocity PIDs
-	updateAxisPid(pitchQuickPID, status.attitude.pitch, pitchInput, quickPitchOUT, quickPitchCommand, PITCH_PID_OUTPUT_LIMIT);
-	updateAxisPid(rollQuickPID, status.attitude.roll, rollInput, quickRollOUT, quickRollCommand, ROLL_PID_OUTPUT_LIMIT);
-	updateAxisPid(yawQuickPID, status.attitude.yaw, yawInput, quickYawOUT, quickYawCommand, YAW_PID_OUTPUT_LIMIT);
+	if (runInner) {
+		lastInnerLoopUs = nowUs;
+		// INNER LOOP: Attitude Stabilization
+		// Filter and control attitude to the targets set by velocity PIDs
+		updateAxisPid(pitchQuickPID, status.attitude.pitch, pitchInput, quickPitchOUT, quickPitchCommand, PITCH_PID_OUTPUT_LIMIT);
+		updateAxisPid(rollQuickPID, status.attitude.roll, rollInput, quickRollOUT, quickRollCommand, ROLL_PID_OUTPUT_LIMIT);
+		updateAxisPid(yawQuickPID, status.attitude.yaw, yawInput, quickYawOUT, quickYawCommand, YAW_PID_OUTPUT_LIMIT);
+	}
 
 	// Scale attitude commands by PID authority
 	float pitchCmd = quickPitchCommand * pidAuthority;
@@ -164,16 +185,17 @@ void Motor::loop() {
 	yawCmd = 0.0f;
 	
 	// Apply motor mix
-	m1 = constrain(throttleBase * frontScale + pitchCmd * frontScale - rollCmd + yawCmd * 0, 0, MAXIMUM_MOTOR_SPEED);
-	m2 = constrain(throttleBase * rearScale  - pitchCmd * rearScale  - rollCmd - yawCmd * 0, 0, MAXIMUM_MOTOR_SPEED);
-	m3 = constrain(throttleBase * frontScale + pitchCmd * frontScale + rollCmd - yawCmd * 0, 0, MAXIMUM_MOTOR_SPEED);
-	m4 = constrain(throttleBase * rearScale  - pitchCmd * rearScale  + rollCmd + yawCmd * 0, 0, MAXIMUM_MOTOR_SPEED);
+	m1 = constrain(throttleBase * frontScale + pitchCmd - rollCmd + yawCmd * 0, 0, MAXIMUM_MOTOR_SPEED);
+	m2 = constrain(throttleBase * rearScale  - pitchCmd - rollCmd - yawCmd * 0, 0, MAXIMUM_MOTOR_SPEED);
+	m3 = constrain(throttleBase * frontScale + pitchCmd + rollCmd - yawCmd * 0, 0, MAXIMUM_MOTOR_SPEED);
+	m4 = constrain(throttleBase * rearScale  - pitchCmd + rollCmd + yawCmd * 0, 0, MAXIMUM_MOTOR_SPEED);
 
 	motor1.send_dshot_value((int)m1);
 	motor2.send_dshot_value((int)m2);
 	motor3.send_dshot_value((int)m3);
 	motor4.send_dshot_value((int)m4);
-
+	
+	Serial.println(pitchCmd);
 	return;
 	Serial.print(status.attitude.pitch);
 	Serial.print("/");
