@@ -115,7 +115,7 @@ void Motor::updateAxisPid(QuickPID& pid, float measurement, float& filteredInput
 
 
 void Motor::loop() {
-	if (status.RFD900 != 1) {
+	if (status.Communication != 1) {
 		xVelocity = 0.0f;
 		yVelocity = 0.0f;
 		lastMotionUpdateMs = millis();

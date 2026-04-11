@@ -48,7 +48,7 @@ struct __attribute__((packed)) Status {
 		uint8_t BMP390			: 1;
 		uint8_t ICM20948		: 1;
 		uint8_t RFD900			: 1;
-		uint8_t reserved		: 1;
+		uint8_t Communication	: 1;
 	};
 	};
 

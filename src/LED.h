@@ -21,7 +21,7 @@ LED::LED(Status& s, MovementController& mc) : status{s}, mc{mc}, state{false} {
 }
 
 void LED::loop() {
-	if (status.RFD900 == 1) {
+	if (status.Communication == 1) {
 		// CONSTANT LIGHT IF COMMS CONNECTED
 		digitalWrite(LEDPIN, HIGH);
 	} else {
