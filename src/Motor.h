@@ -23,7 +23,7 @@ constexpr int ROLL_PID_OUTPUT_LIMIT (200);
 constexpr int VELOCITY_PID_OUTPUT_LIMIT (100);
 constexpr float AXIS_INPUT_LPF_ALPHA (0.15f);
 constexpr float AXIS_OUTPUT_SLEW_PER_LOOP (12.0f);
-constexpr float FRONT_BIAS (0.11f);
+constexpr float FRONT_BIAS (1.2f);
 constexpr float ACCEL_DEADBAND_G (0.02f);
 constexpr float VELOCITY_DECAY_PER_SEC (0.1f);
 
@@ -59,8 +59,6 @@ private:
 	void updateMotionCorrection(float dtSeconds, float pidAuthority);
 	float pidAuthority;
 
-	float frontScale;
-	float rearScale;
 
 	float pitchInput;
 	float yawInput;
