@@ -109,10 +109,13 @@ void ICM20948::loop() {
 			acc.y - gBody.y,
 			acc.z - gBody.z
 		};
-		Vec3 worldLinAcc = bodyToWorldAccel(linBody, fusedRoll, fusedPitch, fusedYaw);
-		status.linearAccel.x = worldLinAcc.x;
-		status.linearAccel.y = worldLinAcc.y;
-		status.linearAccel.z = worldLinAcc.z;
+		// Vec3 worldLinAcc = bodyToWorldAccel(linBody, fusedRoll, fusedPitch, fusedYaw);
+		// status.linearAccel.x = worldLinAcc.x;
+		// status.linearAccel.y = worldLinAcc.y;
+		// status.linearAccel.z = worldLinAcc.z;
+		status.linearAccel.x = linBody.x;
+		status.linearAccel.y = linBody.y;
+		status.linearAccel.z = linBody.z;
 
 		// Print: 9axis_debug
 		// Serial.print(acc.x, 4); Serial.print("/");

@@ -15,21 +15,17 @@ constexpr int INITILIZE_ESC_TIME (40); // 4000
 constexpr int MINIMUM_MOTOR_SPEED (70);
 constexpr int MAXIMUM_MOTOR_SPEED (1000);
 constexpr int PID_MAX_EFFECT_AFTER_SPEED (200);
-constexpr int AXIS_PID_SAMPLE_US (1000);
+constexpr int VELOCITY_PID_SAMPLE_US (10000);	// Outer PID loop
+constexpr int ATTITUDE_PID_SAMPLE_US (1000);	// Inner PID loop
 constexpr int PITCH_PID_OUTPUT_LIMIT (200);
 constexpr int YAW_PID_OUTPUT_LIMIT (200);
 constexpr int ROLL_PID_OUTPUT_LIMIT (200);
-constexpr int XY_PID_OUTPUT_LIMIT (50);
 constexpr int VELOCITY_PID_OUTPUT_LIMIT (100);
 constexpr float AXIS_INPUT_LPF_ALPHA (0.15f);
 constexpr float AXIS_OUTPUT_SLEW_PER_LOOP (12.0f);
-constexpr float FRONT_BIAS = 0.11f;
-constexpr float XY_ACCEL_DEADBAND_G = 0.02f;
-constexpr float XY_VELOCITY_DECAY_PER_SEC = 1.0f;
-constexpr float XY_VELOCITY_TO_COMMAND = 500.0f;
-constexpr float XY_COMMAND_LIMIT = 200.0f;
-constexpr float XY_PITCH_FROM_Y_SIGN = 1.0f;
-constexpr float XY_ROLL_FROM_X_SIGN = 1.0f;
+constexpr float FRONT_BIAS (0.11f);
+constexpr float ACCEL_DEADBAND_G (0.02f);
+constexpr float VELOCITY_DECAY_PER_SEC (0.1f);
 
 constexpr dshot_mode_e DSHOT_TYPE{DSHOT300};
 
@@ -42,8 +38,8 @@ public:
 	PID pitchPid{8, 0, 1};
 	PID yawPid{8, 0, 1};
 	PID rollPid{8, 0, 1};
-	PID velocityXPid{100, 10, 20};
-	PID velocityYPid{100, 10, 20};
+	PID velocityXPid{50, 0, 30};
+	PID velocityYPid{50, 0, 30};
 
 private:
 	MovementController& movementController;
@@ -74,6 +70,8 @@ private:
 	float xVelocity;
 	float yVelocity;
 	unsigned long lastMotionUpdateMs;
+	unsigned long lastOuterLoopUs;
+	unsigned long lastInnerLoopUs;
 
 	float quickPitchOUT;
 	float quickYawOUT;
