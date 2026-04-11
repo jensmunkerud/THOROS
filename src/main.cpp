@@ -26,19 +26,24 @@ MovementController movementController(status, rfd900);
 LED led(status, movementController);
 Motor motor(movementController, status);
 
+void initDevice(const char* name, uint8_t statusFlag, std::function<void()> beginFunc) {
+	beginFunc();
+	Serial.print(name);
+	Serial.println(statusFlag ? " Success" : " Failed");
+	while (!statusFlag) {}
+}
 
 // ----------------- //
 //       SETUP       //
 // ----------------- //
 void setup() {
 	Serial.begin(115200);
-	Serial.println("SETUP BEGUN!");
-	icm20948.begin();
-	Serial.print("ICM20948 "); Serial.println(status.ICM20948 ? "Success" : "Failed");
-	while(!status.ICM20948){}
-	// bmp390.begin();
-	rfd900.begin();
-	motor.begin();
+	Serial.println("==== SETUP BEGUN! ====");
+	initDevice("ICM20948", status.ICM20948, [](){ icm20948.begin(); });
+	// initDevice("BMP390", status.BMP390, [](){ bmp390.begin(); });
+	initDevice("RFD900", status.RFD900, [](){ rfd900.begin(); });
+	initDevice("Motor", status.motorArmed, [](){ motor.begin(); });
+	Serial.println("==== SETUP COMPLETE ====");
 }
 
 // ---------------- //
