@@ -34,6 +34,8 @@ void setup() {
 	Serial.begin(115200);
 	Serial.println("SETUP BEGUN!");
 	icm20948.begin();
+	Serial.print("ICM20948 "); Serial.println(status.ICM20948 ? "Success" : "Failed");
+	while(!status.ICM20948){}
 	// bmp390.begin();
 	rfd900.begin();
 	motor.begin();
@@ -53,6 +55,7 @@ void loop() {
 		// bmp390.loop(); // This thing is SUPER SLOW
 		movementController.update();
 		motor.loop();
+		Serial.println("we looped");
 	}
 
 	if (current - prevSLOW >= SENSOR_INTERVAL_SLOW) {

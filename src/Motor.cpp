@@ -1,6 +1,8 @@
 #include "Motor.h"
 
-Motor::Motor(MovementController& mc, Status& s) : movementController{mc}, status{s}, 
+Motor::Motor(MovementController& mc, Status& s) : 
+movementController{mc},
+status{s},
 motor1(MOTOR1),
 motor2(MOTOR2),
 motor3(MOTOR3),
@@ -29,8 +31,6 @@ yawQuickPID{&yawInput, &quickYawOUT, &target.yaw, yawPid.P, yawPid.I, yawPid.D, 
 rollQuickPID{&rollInput, &quickRollOUT, &target.roll, rollPid.P, rollPid.I, rollPid.D, QuickPID::Action::reverse},
 velocityXQuickPID{&velocityXInput, &velocityXOUT, &velocityXTarget, velocityXPid.P, velocityXPid.I, velocityXPid.D, QuickPID::Action::direct},
 velocityYQuickPID{&velocityYInput, &velocityYOUT, &velocityYTarget, velocityYPid.P, velocityYPid.I, velocityYPid.D, QuickPID::Action::direct},
-frontScale{1.0f + FRONT_BIAS},
-rearScale{1.0f - FRONT_BIAS},
 xVelocity{0},
 yVelocity{0},
 lastMotionUpdateMs{0},
@@ -161,6 +161,8 @@ void Motor::loop() {
 		// Update velocity PIDs - these output target pitch and roll angles
 		// velocityXOUT controls the target roll for X velocity
 		// velocityYOUT controls the target pitch for Y velocity
+		xVelocity = 0;
+		yVelocity = 0;
 		updateAxisPid(velocityXQuickPID, xVelocity, velocityXInput, velocityXOUT, target.roll, VELOCITY_PID_OUTPUT_LIMIT);
 		updateAxisPid(velocityYQuickPID, yVelocity, velocityYInput, velocityYOUT, target.pitch, VELOCITY_PID_OUTPUT_LIMIT);
 	}
@@ -180,23 +182,22 @@ void Motor::loop() {
 	float yawCmd = quickYawCommand * pidAuthority;
 
 	// Apply only the velocity loop mix (outer loop output only)
-	pitchCmd = target.pitch * pidAuthority;
-	rollCmd = - target.roll * pidAuthority;
-	yawCmd = 0.0f;
+	// float pitchCmd = target.pitch * pidAuthority;
+	// float rollCmd = - target.roll * pidAuthority;
+	// float yawCmd = 0.0f;
 	
 	// Apply motor mix
-	m1 = constrain(throttleBase * frontScale + pitchCmd - rollCmd + yawCmd * 0, 0, MAXIMUM_MOTOR_SPEED);
-	m2 = constrain(throttleBase * rearScale  - pitchCmd - rollCmd - yawCmd * 0, 0, MAXIMUM_MOTOR_SPEED);
-	m3 = constrain(throttleBase * frontScale + pitchCmd + rollCmd - yawCmd * 0, 0, MAXIMUM_MOTOR_SPEED);
-	m4 = constrain(throttleBase * rearScale  - pitchCmd + rollCmd + yawCmd * 0, 0, MAXIMUM_MOTOR_SPEED);
+	m1 = constrain(throttleBase * FRONT_BIAS + pitchCmd - rollCmd + yawCmd * 0, 0, MAXIMUM_MOTOR_SPEED);
+	m2 = constrain(throttleBase              - pitchCmd - rollCmd - yawCmd * 0, 0, MAXIMUM_MOTOR_SPEED);
+	m3 = constrain(throttleBase * FRONT_BIAS + pitchCmd + rollCmd - yawCmd * 0, 0, MAXIMUM_MOTOR_SPEED);
+	m4 = constrain(throttleBase              - pitchCmd + rollCmd + yawCmd * 0, 0, MAXIMUM_MOTOR_SPEED);
 
 	motor1.send_dshot_value((int)m1);
 	motor2.send_dshot_value((int)m2);
 	motor3.send_dshot_value((int)m3);
 	motor4.send_dshot_value((int)m4);
 	
-	Serial.println(pitchCmd);
-	return;
+	// return;f
 	Serial.print(status.attitude.pitch);
 	Serial.print("/");
 	Serial.print(status.attitude.yaw);

@@ -42,7 +42,13 @@ ICM20948::ICM20948(Status& status) : status{status} {
 void ICM20948::begin() {
 	SPI.begin();
 	status.ICM20948 = icm20948.begin(ICM20948_CS, SPI) == ICM_20948_Stat_Ok;
-	status.ICM20948 &= icm20948.startupMagnetometer();
+	if (!status.ICM20948) {
+		return;
+	}
+	status.ICM20948 = icm20948.startupMagnetometer() == ICM_20948_Stat_Ok;
+	if (!status.ICM20948) {
+		return;
+	}
 	ICM_20948_fss_t fss;
 	fss.a = gpm8;
 	fss.g = dps2000;
@@ -130,14 +136,22 @@ void ICM20948::loop() {
 	}
 }
 
-// Sensor calibration sequence, also compensates mountingRotation - Time: 1000ms
+// Sensor calibration sequence, also compensates mountingRotation - Time: 2000ms
 void ICM20948::calibrateIMU() {
-	const int samples = 1000;
+	const int samples = 2000;
+	const unsigned long sampleTimeoutUs = 20000;
 	Vec3 gyr = {0, 0, 0};
 	Vec3 acc = {0, 0, 0};
 
 	for (int i = 0; i < samples; i++) {
-		while (!icm20948.dataReady());
+		unsigned long waitStartUs = micros();
+		while (!icm20948.dataReady()) {
+			if ((unsigned long)(micros() - waitStartUs) > sampleTimeoutUs) {
+				status.ICM20948 = 0;
+				return;
+			}
+			delayMicroseconds(100);
+		}
 		icm20948.getAGMT();
 
 		gyr.x += icm20948.gyrX();
@@ -153,6 +167,9 @@ void ICM20948::calibrateIMU() {
 
 		delayMicroseconds(1000);
 	}
+
+		// Reset the fusion timer so the first runtime update uses a normal dt.
+	fusion.deltatUpdate();
 
 	// yawOffset = fusion.getYaw();
 
