@@ -23,7 +23,7 @@ constexpr int ROLL_PID_OUTPUT_LIMIT (200);
 constexpr int VELOCITY_PID_OUTPUT_LIMIT (100);
 constexpr float AXIS_INPUT_LPF_ALPHA (0.15f);
 constexpr float AXIS_OUTPUT_SLEW_PER_LOOP (12.0f);
-constexpr float FRONT_BIAS (1.2f);
+constexpr float FRONT_BIAS (1.14f);
 constexpr float ACCEL_DEADBAND_G (0.02f);
 constexpr float VELOCITY_DECAY_PER_SEC (0.1f);
 
@@ -34,12 +34,14 @@ public:
 	Motor(MovementController& mc, Status& s);
 	void begin();
 	void loop();
-
-	PID pitchPid{8, 0, 1};
-	PID yawPid{8, 0, 1};
-	PID rollPid{8, 0, 1};
-	PID velocityXPid{50, 0, 30};
-	PID velocityYPid{50, 0, 30};
+	// D -> 2 for lite, 4 for mye
+	// 
+	// 
+	PID pitchPid{4, 0, 2};
+	PID yawPid{4, 0, 3};
+	PID rollPid{4, 0, 3};
+	PID velocityXPid{5, 0, 30};
+	PID velocityYPid{5, 0, 30};
 
 private:
 	MovementController& movementController;
