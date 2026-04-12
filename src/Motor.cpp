@@ -72,6 +72,14 @@ void Motor::begin() {
 		motor4.send_dshot_value(0);
 		delay(1);
 	}
+	status.motorArmed = 1;
+}
+
+
+void Motor::setAttitudePidTunings(const PID& pitch, const PID& roll, const PID& yaw) {
+	pitchQuickPID.SetTunings(pitch.P, pitch.I, pitch.D);
+	rollQuickPID.SetTunings(roll.P, roll.I, roll.D);
+	yawQuickPID.SetTunings(yaw.P, yaw.I, yaw.D);
 }
 
 
@@ -115,18 +123,18 @@ void Motor::updateAxisPid(QuickPID& pid, float measurement, float& filteredInput
 
 
 void Motor::loop() {
-	if (status.Communication != 1) {
-		xVelocity = 0.0f;
-		yVelocity = 0.0f;
-		lastMotionUpdateMs = millis();
-		lastOuterLoopUs = micros();
-		lastInnerLoopUs = lastOuterLoopUs;
-		motor1.send_dshot_value(0);
-		motor2.send_dshot_value(0);
-		motor3.send_dshot_value(0);
-		motor4.send_dshot_value(0);
-		return;
-	}
+	// if (status.Communication != 1) {
+	// 	xVelocity = 0.0f;
+	// 	yVelocity = 0.0f;
+	// 	lastMotionUpdateMs = millis();
+	// 	lastOuterLoopUs = micros();
+	// 	lastInnerLoopUs = lastOuterLoopUs;
+	// 	motor1.send_dshot_value(0);
+	// 	motor2.send_dshot_value(0);
+	// 	motor3.send_dshot_value(0);
+	// 	motor4.send_dshot_value(0);
+	// 	return;
+	// }
 
 	unsigned long nowUs = micros();
 	bool runOuter = (lastOuterLoopUs == 0) || ((unsigned long)(nowUs - lastOuterLoopUs) >= (unsigned long)VELOCITY_PID_SAMPLE_US);
@@ -140,7 +148,7 @@ void Motor::loop() {
 		lastMotionUpdateMs = millis();
 	}
 	
-	float throttleBase = movementController.currentInput.throttle;
+	float throttleBase = movementController.currentInput.throttle+350;
 	pidAuthority = constrain(
 			(throttleBase - (float)MINIMUM_MOTOR_SPEED) / (float)(PID_MAX_EFFECT_AFTER_SPEED - MINIMUM_MOTOR_SPEED),
 			0.0f,
@@ -197,7 +205,7 @@ void Motor::loop() {
 	motor3.send_dshot_value((int)m3);
 	motor4.send_dshot_value((int)m4);
 	
-	return;
+	// return;
 	Serial.print(status.attitude.pitch);
 	Serial.print("/");
 	Serial.print(status.attitude.yaw);

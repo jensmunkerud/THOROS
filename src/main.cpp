@@ -8,6 +8,7 @@
 #include "COMMS/RFD900.h"
 #include "LED.h"
 #include "Motor.h"
+#include "COMMS/PidTuningReceiver.h"
 
 // PARAMETERS
 constexpr unsigned long SENSOR_INTERVAL_FAST = 1000/1000;
@@ -26,11 +27,14 @@ MovementController movementController(status, rfd900);
 LED led(status, movementController);
 Motor motor(movementController, status);
 
-void initDevice(const char* name, uint8_t statusFlag, std::function<void()> beginFunc) {
+PidTuningReceiver pidTuningReceiver(Serial, applyPidTuningsToMotor, &motor);
+
+void initDevice(const char* name, std::function<uint8_t()> statusGetter, std::function<void()> beginFunc) {
 	beginFunc();
+	uint8_t statusFlag = statusGetter();
 	Serial.print(name);
 	Serial.println(statusFlag ? " Success" : " Failed");
-	while (!statusFlag) {}
+	while (!statusGetter()) {}
 }
 
 // ----------------- //
@@ -39,10 +43,10 @@ void initDevice(const char* name, uint8_t statusFlag, std::function<void()> begi
 void setup() {
 	Serial.begin(115200);
 	Serial.println("==== SETUP BEGUN! ====");
-	initDevice("ICM20948", status.ICM20948, [](){ icm20948.begin(); });
-	// initDevice("BMP390", status.BMP390, [](){ bmp390.begin(); });
-	initDevice("RFD900", status.RFD900, [](){ rfd900.begin(); });
-	initDevice("Motor", status.motorArmed, [](){ motor.begin(); });
+	initDevice("ICM20948", [](){ return status.ICM20948; }, [](){ icm20948.begin(); });
+	// initDevice("BMP390", [](){ return status.BMP390; }, [](){ bmp390.begin(); });
+	initDevice("RFD900", [](){ return status.RFD900; }, [](){ rfd900.begin(); });
+	initDevice("Motor", [](){ return status.motorArmed; }, [](){ motor.begin(); });
 	Serial.println("==== SETUP COMPLETE ====");
 }
 
@@ -59,8 +63,8 @@ void loop() {
 		// Serial.println("Hz");
 		// bmp390.loop(); // This thing is SUPER SLOW
 		movementController.update();
+		pidTuningReceiver.loop();
 		motor.loop();
-		Serial.println("we looped");
 	}
 
 	if (current - prevSLOW >= SENSOR_INTERVAL_SLOW) {

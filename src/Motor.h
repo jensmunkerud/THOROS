@@ -34,6 +34,7 @@ public:
 	Motor(MovementController& mc, Status& s);
 	void begin();
 	void loop();
+	void setAttitudePidTunings(const PID& pitch, const PID& roll, const PID& yaw);
 	// D -> 2 for lite, 4 for mye
 	// 
 	// 
