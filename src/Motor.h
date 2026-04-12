@@ -29,7 +29,7 @@ constexpr float ATTITUDE_I_BLEED_MAX_PER_LOOP (0.01f);
 constexpr float VELOCITY_I_BLEED_ZERO_ERROR (0.05f);
 constexpr float VELOCITY_I_BLEED_FULL_ERROR (0.50f);
 constexpr float VELOCITY_I_BLEED_MAX_PER_LOOP (0.02f);
-constexpr float FRONT_BIAS (1.12f);
+constexpr float FRONT_BIAS (1.1f);
 constexpr float ACCEL_DEADBAND_G (0.02f);
 constexpr float VELOCITY_DECAY_PER_SEC (0.1f);
 
@@ -41,11 +41,8 @@ public:
 	void begin();
 	void loop();
 	void setAttitudePidTunings(const PID& pitch, const PID& roll, const PID& yaw);
-	// D -> 2 for lite, 4 for mye
-	// 
-	// 
 	PID pitchPid{8, 4, 0.7};
-	PID yawPid{3, 0, 0.7};
+	PID yawPid{2, 4, 1};
 	PID rollPid{5, 4, 0.6};
 	PID velocityXPid{5, 0, 30};
 	PID velocityYPid{5, 0, 30};
