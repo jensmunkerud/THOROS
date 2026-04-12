@@ -43,10 +43,12 @@ void ICM20948::begin() {
 	SPI.begin();
 	status.ICM20948 = icm20948.begin(ICM20948_CS, SPI) == ICM_20948_Stat_Ok;
 	if (!status.ICM20948) {
+		Serial.println("failed first");
 		return;
 	}
 	status.ICM20948 = icm20948.startupMagnetometer() == ICM_20948_Stat_Ok;
 	if (!status.ICM20948) {
+		Serial.println("failed first");
 		return;
 	}
 	ICM_20948_fss_t fss;
@@ -61,6 +63,7 @@ void ICM20948::begin() {
 
 	delay(500);
 	calibrateIMU();
+	status.ICM20948 = 1;
 }
 
 void ICM20948::loop() {
