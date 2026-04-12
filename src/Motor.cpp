@@ -77,9 +77,12 @@ void Motor::begin() {
 
 
 void Motor::setAttitudePidTunings(const PID& pitch, const PID& roll, const PID& yaw) {
-	pitchQuickPID.SetTunings(pitch.P, pitch.I, pitch.D);
-	rollQuickPID.SetTunings(roll.P, roll.I, roll.D);
-	yawQuickPID.SetTunings(yaw.P, yaw.I, yaw.D);
+	pitchPid = pitch;
+	rollPid = roll;
+	yawPid = yaw;
+	pitchQuickPID.SetTunings(pitchPid.P, pitchPid.I, pitchPid.D);
+	rollQuickPID.SetTunings(rollPid.P, rollPid.I, rollPid.D);
+	yawQuickPID.SetTunings(yawPid.P, yawPid.I, yawPid.D);
 }
 
 
@@ -111,9 +114,34 @@ void Motor::updateMotionCorrection(float dtSeconds, float pidAuthority) {
 
 
 // Perform PID calculation, with slew limiter on output
-void Motor::updateAxisPid(QuickPID& pid, float measurement, float& filteredInput, float& pidOutput, float& command, float outputLimit) {
+float Motor::computeIntegralBleed(float errorAbs, float zeroError, float fullError, float maxBleedPerLoop) const {
+	if (maxBleedPerLoop <= 0.0f) {
+		return 0.0f;
+	}
+	if (fullError <= zeroError) {
+		return maxBleedPerLoop;
+	}
+	if (errorAbs <= zeroError) {
+		return maxBleedPerLoop;
+	}
+	if (errorAbs >= fullError) {
+		return 0.0f;
+	}
+	float x = (errorAbs - zeroError) / (fullError - zeroError);
+	float smooth = x * x * (3.0f - 2.0f * x);
+	return maxBleedPerLoop * (1.0f - smooth);
+}
+
+void Motor::updateAxisPid(QuickPID& pid, float setpoint, float measurement, float& filteredInput, float& pidOutput, float& command, float outputLimit, float iBleedZeroError, float iBleedFullError, float iBleedMaxPerLoop) {
 	filteredInput += AXIS_INPUT_LPF_ALPHA * (measurement - filteredInput);
+	float errorAbs = fabsf(setpoint - filteredInput);
 	pid.Compute();
+
+	float iBleed = computeIntegralBleed(errorAbs, iBleedZeroError, iBleedFullError, iBleedMaxPerLoop);
+	if (iBleed > 0.0f) {
+		pid.SetOutputSum(pid.GetOutputSum() * (1.0f - iBleed));
+	}
+
 	command = constrain(
 		command + constrain(pidOutput - command, -AXIS_OUTPUT_SLEW_PER_LOOP, AXIS_OUTPUT_SLEW_PER_LOOP),
 		-outputLimit,
@@ -123,18 +151,18 @@ void Motor::updateAxisPid(QuickPID& pid, float measurement, float& filteredInput
 
 
 void Motor::loop() {
-	// if (status.Communication != 1) {
-	// 	xVelocity = 0.0f;
-	// 	yVelocity = 0.0f;
-	// 	lastMotionUpdateMs = millis();
-	// 	lastOuterLoopUs = micros();
-	// 	lastInnerLoopUs = lastOuterLoopUs;
-	// 	motor1.send_dshot_value(0);
-	// 	motor2.send_dshot_value(0);
-	// 	motor3.send_dshot_value(0);
-	// 	motor4.send_dshot_value(0);
-	// 	return;
-	// }
+	if (status.Communication != 1) {
+		xVelocity = 0.0f;
+		yVelocity = 0.0f;
+		lastMotionUpdateMs = millis();
+		lastOuterLoopUs = micros();
+		lastInnerLoopUs = lastOuterLoopUs;
+		motor1.send_dshot_value(0);
+		motor2.send_dshot_value(0);
+		motor3.send_dshot_value(0);
+		motor4.send_dshot_value(0);
+		return;
+	}
 
 	unsigned long nowUs = micros();
 	bool runOuter = (lastOuterLoopUs == 0) || ((unsigned long)(nowUs - lastOuterLoopUs) >= (unsigned long)VELOCITY_PID_SAMPLE_US);
@@ -148,7 +176,7 @@ void Motor::loop() {
 		lastMotionUpdateMs = millis();
 	}
 	
-	float throttleBase = movementController.currentInput.throttle+350;
+	float throttleBase = movementController.currentInput.throttle;
 	pidAuthority = constrain(
 			(throttleBase - (float)MINIMUM_MOTOR_SPEED) / (float)(PID_MAX_EFFECT_AFTER_SPEED - MINIMUM_MOTOR_SPEED),
 			0.0f,
@@ -171,17 +199,17 @@ void Motor::loop() {
 		// velocityYOUT controls the target pitch for Y velocity
 		xVelocity = 0;
 		yVelocity = 0;
-		updateAxisPid(velocityXQuickPID, xVelocity, velocityXInput, velocityXOUT, target.roll, VELOCITY_PID_OUTPUT_LIMIT);
-		updateAxisPid(velocityYQuickPID, yVelocity, velocityYInput, velocityYOUT, target.pitch, VELOCITY_PID_OUTPUT_LIMIT);
+		updateAxisPid(velocityXQuickPID, velocityXTarget, xVelocity, velocityXInput, velocityXOUT, target.roll, VELOCITY_PID_OUTPUT_LIMIT, VELOCITY_I_BLEED_ZERO_ERROR, VELOCITY_I_BLEED_FULL_ERROR, VELOCITY_I_BLEED_MAX_PER_LOOP);
+		updateAxisPid(velocityYQuickPID, velocityYTarget, yVelocity, velocityYInput, velocityYOUT, target.pitch, VELOCITY_PID_OUTPUT_LIMIT, VELOCITY_I_BLEED_ZERO_ERROR, VELOCITY_I_BLEED_FULL_ERROR, VELOCITY_I_BLEED_MAX_PER_LOOP);
 	}
 
 	if (runInner) {
 		lastInnerLoopUs = nowUs;
 		// INNER LOOP: Attitude Stabilization
 		// Filter and control attitude to the targets set by velocity PIDs
-		updateAxisPid(pitchQuickPID, status.attitude.pitch, pitchInput, quickPitchOUT, quickPitchCommand, PITCH_PID_OUTPUT_LIMIT);
-		updateAxisPid(rollQuickPID, status.attitude.roll, rollInput, quickRollOUT, quickRollCommand, ROLL_PID_OUTPUT_LIMIT);
-		updateAxisPid(yawQuickPID, status.attitude.yaw, yawInput, quickYawOUT, quickYawCommand, YAW_PID_OUTPUT_LIMIT);
+		updateAxisPid(pitchQuickPID, target.pitch, status.attitude.pitch, pitchInput, quickPitchOUT, quickPitchCommand, PITCH_PID_OUTPUT_LIMIT, ATTITUDE_I_BLEED_ZERO_ERROR, ATTITUDE_I_BLEED_FULL_ERROR, ATTITUDE_I_BLEED_MAX_PER_LOOP);
+		updateAxisPid(rollQuickPID, target.roll, status.attitude.roll, rollInput, quickRollOUT, quickRollCommand, ROLL_PID_OUTPUT_LIMIT, ATTITUDE_I_BLEED_ZERO_ERROR, ATTITUDE_I_BLEED_FULL_ERROR, ATTITUDE_I_BLEED_MAX_PER_LOOP);
+		updateAxisPid(yawQuickPID, target.yaw, status.attitude.yaw, yawInput, quickYawOUT, quickYawCommand, YAW_PID_OUTPUT_LIMIT, ATTITUDE_I_BLEED_ZERO_ERROR, ATTITUDE_I_BLEED_FULL_ERROR, ATTITUDE_I_BLEED_MAX_PER_LOOP);
 	}
 
 	// Scale attitude commands by PID authority

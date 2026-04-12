@@ -61,6 +61,14 @@ void ICM20948::begin() {
 	icm20948.setSampleRate(ICM_20948_Internal_Acc, sampleRate);
 	icm20948.setSampleRate(ICM_20948_Internal_Gyr, sampleRate);
 
+	ICM_20948_dlpcfg_t dlpfCfg;
+	dlpfCfg.a = acc_d23bw9_n34bw4;
+	dlpfCfg.g = gyr_d23bw9_n35bw9;
+	icm20948.setDLPFcfg(ICM_20948_Internal_Acc, dlpfCfg);
+	icm20948.setDLPFcfg(ICM_20948_Internal_Gyr, dlpfCfg);
+	icm20948.enableDLPF(ICM_20948_Internal_Acc, true);
+	icm20948.enableDLPF(ICM_20948_Internal_Gyr, true);
+
 	delay(500);
 	calibrateIMU();
 	status.ICM20948 = 1;
@@ -93,6 +101,26 @@ void ICM20948::loop() {
 		gyr = compensateForMountingRotation(gyr);
 		acc = compensateForMountingRotation(acc);
 		mag = compensateForMountingRotation(mag);
+
+		if (!accelFilterInitialized) {
+			accelFiltered = acc;
+			accelFilterInitialized = true;
+		} else {
+			accelFiltered.x += ACCEL_LPF_ALPHA * (acc.x - accelFiltered.x);
+			accelFiltered.y += ACCEL_LPF_ALPHA * (acc.y - accelFiltered.y);
+			accelFiltered.z += ACCEL_LPF_ALPHA * (acc.z - accelFiltered.z);
+		}
+		acc = accelFiltered;
+
+		if (!gyroFilterInitialized) {
+			gyroFiltered = gyr;
+			gyroFilterInitialized = true;
+		} else {
+			gyroFiltered.x += GYRO_LPF_ALPHA * (gyr.x - gyroFiltered.x);
+			gyroFiltered.y += GYRO_LPF_ALPHA * (gyr.y - gyroFiltered.y);
+			gyroFiltered.z += GYRO_LPF_ALPHA * (gyr.z - gyroFiltered.z);
+		}
+		gyr = gyroFiltered;
 
 		// ============================================
 		// RAW SENSOR DATA IS TUNED FROM THIS POINT ON
