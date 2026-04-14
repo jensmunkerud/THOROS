@@ -8,7 +8,7 @@
 static constexpr int ICM20948_CS {15};
 static constexpr int ICM_SAMPLERATE {1000};
 static constexpr float DEG2RAD = 0.01745329251f;
-static constexpr float ACCEL_LPF_ALPHA = 0.01f;
+static constexpr float ACCEL_LPF_ALPHA = 0.005f;
 static constexpr float GYRO_LPF_ALPHA = 1.0f;
 
 // Drone yaw drifts around -1deg per 45sec

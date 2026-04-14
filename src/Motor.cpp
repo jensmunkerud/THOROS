@@ -1,5 +1,26 @@
 #include "Motor.h"
 
+static inline float degToRad(float deg) {
+	return deg * DEG_TO_RAD;
+}
+
+static void bodyAccelToWorldHorizontal(float axBody, float ayBody, float azBody, float rollDeg, float pitchDeg, float yawDeg, float& axWorld, float& ayWorld) {
+	const float roll = degToRad(rollDeg);
+	const float pitch = degToRad(pitchDeg);
+	const float yaw = degToRad(yawDeg);
+
+	const float cr = cosf(roll);
+	const float sr = sinf(roll);
+	const float cp = cosf(pitch);
+	const float sp = sinf(pitch);
+	const float cy = cosf(yaw);
+	const float sy = sinf(yaw);
+
+	// R_b2w = Rz(yaw) * Ry(pitch) * Rx(roll)
+	axWorld = (cy * cp) * axBody + (cy * sp * sr - sy * cr) * ayBody + (cy * sp * cr + sy * sr) * azBody;
+	ayWorld = (sy * cp) * axBody + (sy * sp * sr + cy * cr) * ayBody + (sy * sp * cr - cy * sr) * azBody;
+}
+
 Motor::Motor(MovementController& mc, Status& s) : 
 movementController{mc},
 status{s},
@@ -31,6 +52,10 @@ yawQuickPID{&yawInput, &quickYawOUT, &target.yaw, yawPid.P, yawPid.I, yawPid.D, 
 rollQuickPID{&rollInput, &quickRollOUT, &target.roll, rollPid.P, rollPid.I, rollPid.D, QuickPID::Action::reverse},
 velocityXQuickPID{&velocityXInput, &velocityXOUT, &velocityXTarget, velocityXPid.P, velocityXPid.I, velocityXPid.D, QuickPID::Action::direct},
 velocityYQuickPID{&velocityYInput, &velocityYOUT, &velocityYTarget, velocityYPid.P, velocityYPid.I, velocityYPid.D, QuickPID::Action::direct},
+accelX{0},
+accelY{0},
+worldVelocityX{0},
+worldVelocityY{0},
 xVelocity{0},
 yVelocity{0},
 lastMotionUpdateMs{0},
@@ -92,8 +117,8 @@ void Motor::updateMotionCorrection(float dtSeconds, float pidAuthority) {
 		return;
 	}
 
-	float accelX = status.linearAccel.x;
-	float accelY = status.linearAccel.y;
+	accelX = status.linearAccel.x;
+	accelY = status.linearAccel.y;
 
 	if (fabsf(accelX) < ACCEL_DEADBAND_G) {
 		accelX = 0.0f;
@@ -102,14 +127,40 @@ void Motor::updateMotionCorrection(float dtSeconds, float pidAuthority) {
 		accelY = 0.0f;
 	}
 
-	// Integrate acceleration to velocity
-	xVelocity += accelX * 9.81f * dtSeconds;
-	yVelocity += accelY * 9.81f * dtSeconds;
+	// Integrate horizontal acceleration in world frame, then project back to body frame.
+	float axWorld = 0.0f;
+	float ayWorld = 0.0f;
+	bodyAccelToWorldHorizontal(
+		accelX,
+		accelY,
+		accelRawZ,
+		status.attitude.roll,
+		status.attitude.pitch,
+		status.attitude.yaw,
+		axWorld,
+		ayWorld
+	);
+
+	worldVelocityX += axWorld * 9.81f * dt;
+	worldVelocityY += ayWorld * 9.81f * dt;
 
 	// Apply velocity decay to prevent drift
-	float decay = constrain(1.0f - VELOCITY_DECAY_PER_SEC * dtSeconds, 0.0f, 1.0f);
-	xVelocity *= decay;
-	yVelocity *= decay;
+	float decay = constrain(1.0f - VELOCITY_DECAY_PER_SEC * dt, 0.0f, 1.0f);
+	worldVelocityX *= decay;
+	worldVelocityY *= decay;
+
+	const float yaw = degToRad(status.attitude.yaw);
+	const float cy = cosf(yaw);
+	const float sy = sinf(yaw);
+	xVelocity = cy * worldVelocityX + sy * worldVelocityY;
+	yVelocity = -sy * worldVelocityX + cy * worldVelocityY;
+
+	if (fabsf(xVelocity) < VELOCITY_ZERO_CLAMP_MPS) {
+		xVelocity = 0.0f;
+	}
+	if (fabsf(yVelocity) < VELOCITY_ZERO_CLAMP_MPS) {
+		yVelocity = 0.0f;
+	}
 }
 
 
@@ -132,9 +183,9 @@ float Motor::computeIntegralBleed(float errorAbs, float zeroError, float fullErr
 	return maxBleedPerLoop * (1.0f - smooth);
 }
 
-void Motor::updateAxisPid(QuickPID& pid, float setpoint, float measurement, float& filteredInput, float& pidOutput, float& command, float outputLimit, float iBleedZeroError, float iBleedFullError, float iBleedMaxPerLoop) {
-	filteredInput += AXIS_INPUT_LPF_ALPHA * (measurement - filteredInput);
-	float errorAbs = fabsf(setpoint - filteredInput);
+void Motor::updateAxisPid(QuickPID& pid, float setpoint, float measuredRaw, float& measuredFiltered, float& commandUnfiltered, float& commandFiltered, float outputLimit, float iBleedZeroError, float iBleedFullError, float iBleedMaxPerLoop) {
+	measuredFiltered += AXIS_INPUT_LPF_ALPHA * (measuredRaw - measuredFiltered);
+	float errorAbs = fabsf(setpoint - measuredFiltered);
 	pid.Compute();
 
 	float iBleed = computeIntegralBleed(errorAbs, iBleedZeroError, iBleedFullError, iBleedMaxPerLoop);
@@ -142,8 +193,8 @@ void Motor::updateAxisPid(QuickPID& pid, float setpoint, float measurement, floa
 		pid.SetOutputSum(pid.GetOutputSum() * (1.0f - iBleed));
 	}
 
-	command = constrain(
-		command + constrain(pidOutput - command, -AXIS_OUTPUT_SLEW_PER_LOOP, AXIS_OUTPUT_SLEW_PER_LOOP),
+	commandFiltered = constrain(
+		commandFiltered + constrain(commandUnfiltered - commandFiltered, -AXIS_OUTPUT_SLEW_PER_LOOP, AXIS_OUTPUT_SLEW_PER_LOOP),
 		-outputLimit,
 		outputLimit
 	);
@@ -188,17 +239,9 @@ void Motor::loop() {
 		// Integrate acceleration to estimate velocity
 		updateMotionCorrection(dtSeconds, pidAuthority);
 
-		// Rotate world-frame velocity into drone body frame so X/Y commands stay
-		// relative to drone orientation at any yaw angle.
-		// float yawRad = radians(status.attitude.yaw);
-		// float bodyVelocityX = xVelocity * cosf(yawRad) + yVelocity * sinf(yawRad);
-		// float bodyVelocityY = -xVelocity * sinf(yawRad) + yVelocity * cosf(yawRad);
-
 		// Update velocity PIDs - these output target pitch and roll angles
 		// velocityXOUT controls the target roll for X velocity
 		// velocityYOUT controls the target pitch for Y velocity
-		xVelocity = 0;
-		yVelocity = 0;
 		updateAxisPid(velocityXQuickPID, velocityXTarget, xVelocity, velocityXInput, velocityXOUT, target.roll, VELOCITY_PID_OUTPUT_LIMIT, VELOCITY_I_BLEED_ZERO_ERROR, VELOCITY_I_BLEED_FULL_ERROR, VELOCITY_I_BLEED_MAX_PER_LOOP);
 		updateAxisPid(velocityYQuickPID, velocityYTarget, yVelocity, velocityYInput, velocityYOUT, target.pitch, VELOCITY_PID_OUTPUT_LIMIT, VELOCITY_I_BLEED_ZERO_ERROR, VELOCITY_I_BLEED_FULL_ERROR, VELOCITY_I_BLEED_MAX_PER_LOOP);
 	}
@@ -233,6 +276,8 @@ void Motor::loop() {
 	motor3.send_dshot_value((int)m3);
 	motor4.send_dshot_value((int)m4);
 	
+	Serial.println(xVelocity, 8);
+	return;
 	Serial.print(status.attitude.pitch);
 	Serial.print("/");
 	Serial.print(status.attitude.yaw);
