@@ -30,8 +30,9 @@ constexpr float VELOCITY_I_BLEED_ZERO_ERROR (0.05f);
 constexpr float VELOCITY_I_BLEED_FULL_ERROR (0.50f);
 constexpr float VELOCITY_I_BLEED_MAX_PER_LOOP (0.02f);
 constexpr float FRONT_BIAS (1.1f);
-constexpr float ACCEL_DEADBAND_G (0.02f);
-constexpr float VELOCITY_DECAY_PER_SEC (0.1f);
+constexpr float ACCEL_DEADBAND_G (0.0f);
+constexpr float VELOCITY_ZERO_CLAMP_MPS (0.02f);
+constexpr float VELOCITY_DECAY_PER_SEC (0.001f);
 
 constexpr dshot_mode_e DSHOT_TYPE{DSHOT300};
 
@@ -66,14 +67,19 @@ private:
 	void updateMotionCorrection(float dtSeconds, float pidAuthority);
 	float pidAuthority;
 
-
+	// Make these next 7 part of some "tilstandsvariabel"
 	float pitchInput;
 	float yawInput;
 	float rollInput;
 	float velocityXInput;
 	float velocityYInput;
+	float accelX;
+	float accelY;
+	float worldVelocityX;
+	float worldVelocityY;
 	float xVelocity;
 	float yVelocity;
+	
 	unsigned long lastMotionUpdateMs;
 	unsigned long lastOuterLoopUs;
 	unsigned long lastInnerLoopUs;

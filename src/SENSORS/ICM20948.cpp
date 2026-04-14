@@ -1,24 +1,5 @@
 #include "ICM20948.h"
 
-static Vec3 bodyToWorldAccel(Vec3 body, float rollDeg, float pitchDeg, float yawDeg) {
-	float roll = rollDeg * DEG2RAD;
-	float pitch = pitchDeg * DEG2RAD;
-	float yaw = yawDeg * DEG2RAD;
-
-	float cr = cosf(roll);
-	float sr = sinf(roll);
-	float cp = cosf(pitch);
-	float sp = sinf(pitch);
-	float cy = cosf(yaw);
-	float sy = sinf(yaw);
-
-	return {
-		cy * cp * body.x + (cy * sp * sr - sy * cr) * body.y + (cy * sp * cr + sy * sr) * body.z,
-		sy * cp * body.x + (sy * sp * sr + cy * cr) * body.y + (sy * sp * cr - cy * sr) * body.z,
-		-sp * body.x + cp * sr * body.y + cp * cr * body.z
-	};
-}
-
 static Vec3 gravityBodyFromAttitude(float rollDeg, float pitchDeg) {
 	float roll = rollDeg * DEG2RAD;
 	float pitch = pitchDeg * DEG2RAD;
@@ -146,10 +127,6 @@ void ICM20948::loop() {
 			acc.y - gBody.y,
 			acc.z - gBody.z
 		};
-		// Vec3 worldLinAcc = bodyToWorldAccel(linBody, fusedRoll, fusedPitch, fusedYaw);
-		// status.linearAccel.x = worldLinAcc.x;
-		// status.linearAccel.y = worldLinAcc.y;
-		// status.linearAccel.z = worldLinAcc.z;
 		status.linearAccel.x = linBody.x;
 		status.linearAccel.y = linBody.y;
 		status.linearAccel.z = linBody.z;
