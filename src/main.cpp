@@ -59,6 +59,8 @@ void loop() {
 	if (current - prevFAST >= SENSOR_INTERVAL_FAST) {
 		prevFAST = current;
 		icm20948.loop();
+		// Serial.print(1000/(current-prevFAST));
+		// Serial.println("Hz");
 		// bmp390.loop(); // This thing is SUPER SLOW
 		movementController.update();
 		pidTuningReceiver.loop();
