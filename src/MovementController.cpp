@@ -8,7 +8,9 @@ rfd900{rfd900},
 isToggled{false},
 canApplyFailSafe{true},
 canChangeSpeed(true),
-movementSpeed{400} {
+movementSpeed{400},
+isKilling{false}
+{
 	updateCommandMap();
 }
 
@@ -115,7 +117,7 @@ void MovementController::update() {
 	deltaTime = millis() - lastTime;
 	lastTime = millis();
 	uint8_t packet[2];
-	if (xQueueReceive(rfd900.getCommandQueue(), &received, 0) == pdTRUE) {
+	if (xQueueReceive(rfd900.getCommandQueue(), &received, 0) == pdTRUE && !isKilling) {
 		newCommands.clear();
 		// Build map of all incoming commands
 		for (int i = 0; i < received.numCmds; i++) {
@@ -135,10 +137,10 @@ void MovementController::update() {
 	currentInput.throttle  = constrain(smooth(currentInput.throttle,  targetInput.throttle,	movementSpeed, deltaTime), 0, 2000);
 	currentInput.yaw       = constrain(smooth(currentInput.yaw,       targetInput.yaw,		movementSpeed, deltaTime), -1000, 1000);
 	status.speed = static_cast<int>(currentInput.throttle);
-	// Serial.print("Target: ");
-	// Serial.print(targetInput.throttle);
-	// Serial.print(" Current: ");
-	// Serial.println(currentInput.throttle);
+
+	if (isKilling && currentInput.pitch == 0 && currentInput.roll == 0 && currentInput.throttle == 0) {
+		isKilling = false;
+	}
 	applyFailsafeIfTimedOut();
 }
 
@@ -155,8 +157,10 @@ ControlInput MovementController::getInput() const {
 }
 
 
-void MovementController::clearInputs(bool clearThrottle) {
+void MovementController::clearInputs(bool clearThrottle, bool quick) {
 	if (canApplyFailSafe) {
+		isKilling = true;
+		movementSpeed;
 		targetInput.pitch = 0;
 		targetInput.roll = 0;
 		targetInput.yaw = 0;

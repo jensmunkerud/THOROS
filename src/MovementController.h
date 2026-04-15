@@ -8,6 +8,7 @@
 #include "set"
 
 constexpr int SENSITIVITY {50};
+constexpr int KILLSPEED {800};
 static constexpr int MOVEMENT_TIMEOUT_MS {55}; // 2x 80ms which is the sending interval
 
 
@@ -50,7 +51,7 @@ public:
 	ControlInput getInput() const;
 	bool isToggled;
 	double Kp = 1, Ki = 0, Kd = 1;
-	void clearInputs(bool clearThrottle = false);
+	void clearInputs(bool clearThrottle = false, bool quick = true);
 	
 	
 private:
@@ -101,6 +102,7 @@ private:
 
 	bool canApplyFailSafe;
 	bool canChangeSpeed;
+	bool isKilling;
 
 	int movementSpeed;
 };
