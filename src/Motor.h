@@ -35,11 +35,11 @@ public:
 	void begin();
 	void loop();
 	void setAttitudePidTunings(const PID& pitch, const PID& roll, const PID& yaw);
-	PID pitchPid{8, 4, 0.7};
-	PID yawPid{2, 4, 1};
-	PID rollPid{5, 4, 0.6};
-
+	
 private:
+	PID pitchPid{6, 0.2, 0.7};
+	PID yawPid{2, 4, 1};
+	PID rollPid{3, 0.2, 0.6};
 	MovementController& movementController;
 	Status& status;
 	DShotRMT motor1;
@@ -59,6 +59,7 @@ private:
 	float pitchInput;
 	float yawInput;
 	float rollInput;
+	float throttleBase;
 
 	float quickPitchOUT;
 	float quickYawOUT;

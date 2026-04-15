@@ -50,12 +50,12 @@ public:
 	ControlInput getInput() const;
 	bool isToggled;
 	double Kp = 1, Ki = 0, Kd = 1;
-	ControlInput currentInput;
 	void clearInputs(bool clearThrottle = false);
-
-
+	
+	
 private:
-
+	
+	ControlInput currentInput;
 	Status& status;
 	RFD900& rfd900;
 	std::unordered_map<CommandID, std::function<void(uint8_t)>> commandMap;
