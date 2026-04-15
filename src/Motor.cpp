@@ -14,6 +14,7 @@ m4{0},
 pitchInput{0},
 rollInput{0},
 yawInput{0},
+throttleBase{0},
 quickPitchOUT{0},
 quickRollOUT{0},
 quickYawOUT{0},
@@ -109,12 +110,12 @@ void Motor::loop() {
 		return;
 	}
 
-	const ControlInput controlInput = movementController.currentInput;
-	target.pitch = controlInput.pitch * ATTITUDE_COMMAND_SCALE;
-	target.roll = controlInput.roll * ATTITUDE_COMMAND_SCALE;
-	target.yaw = controlInput.yaw * ATTITUDE_COMMAND_SCALE;
-	
-	float throttleBase = controlInput.throttle;
+	const ControlInput controlInput = movementController.getInput();
+	// target.pitch = controlInput.pitch;
+	// target.roll = controlInput.roll;
+	target.yaw = controlInput.yaw;
+	throttleBase = controlInput.throttle;
+
 	pidAuthority = constrain(
 			(throttleBase - (float)MINIMUM_MOTOR_SPEED) / (float)(PID_MAX_EFFECT_AFTER_SPEED - MINIMUM_MOTOR_SPEED),
 			0.0f,
@@ -142,6 +143,7 @@ void Motor::loop() {
 	motor3.send_dshot_value((int)m3);
 	motor4.send_dshot_value((int)m4);
 	
+
 	Serial.print(status.attitude.pitch);
 	Serial.print("/");
 	Serial.print(status.attitude.yaw);

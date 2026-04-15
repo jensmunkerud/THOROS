@@ -8,3 +8,6 @@ build
 .VSCodeCounter/
 tempCodeRunnerFile.python
 .vscode/
+THORCommander.exe
+.Graphics/
+._internal/

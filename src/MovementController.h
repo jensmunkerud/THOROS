@@ -50,7 +50,6 @@ public:
 	ControlInput getInput() const;
 	bool isToggled;
 	double Kp = 1, Ki = 0, Kd = 1;
-	ControlInput currentInput;
 	void clearInputs(bool clearThrottle = false);
 
 
@@ -59,7 +58,8 @@ private:
 	Status& status;
 	RFD900& rfd900;
 	std::unordered_map<CommandID, std::function<void(uint8_t)>> commandMap;
-	ControlInput targetInput;
+	ControlInput targetInput;	// infiltered target controlinput
+	ControlInput currentInput;	// filtered controlinput to act upon
 	std::chrono::steady_clock::time_point lastCommandTime;
 	RFDCommandPacket received;
 	std::unordered_map<CommandID, uint8_t> newCommands;
@@ -103,5 +103,6 @@ private:
 	bool canChangeSpeed;
 
 	int movementSpeed;
+	int panSpeed;
 };
 

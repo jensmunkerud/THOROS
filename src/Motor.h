@@ -19,7 +19,6 @@ constexpr int ATTITUDE_PID_SAMPLE_US (1000);	// Inner PID loop
 constexpr int PITCH_PID_OUTPUT_LIMIT (200);
 constexpr int YAW_PID_OUTPUT_LIMIT (200);
 constexpr int ROLL_PID_OUTPUT_LIMIT (200);
-constexpr float ATTITUDE_COMMAND_SCALE (0.05f);
 constexpr float AXIS_INPUT_LPF_ALPHA (0.05f);
 constexpr float AXIS_OUTPUT_SLEW_PER_LOOP (12.0f);
 constexpr float ATTITUDE_I_BLEED_ZERO_ERROR (3.0f);
@@ -35,11 +34,11 @@ public:
 	void begin();
 	void loop();
 	void setAttitudePidTunings(const PID& pitch, const PID& roll, const PID& yaw);
+	
+private:
 	PID pitchPid{8, 4, 0.7};
 	PID yawPid{2, 4, 1};
-	PID rollPid{5, 4, 0.6};
-
-private:
+	PID rollPid{3, 1, 0.6};
 	MovementController& movementController;
 	Status& status;
 	DShotRMT motor1;
@@ -59,6 +58,7 @@ private:
 	float pitchInput;
 	float yawInput;
 	float rollInput;
+	float throttleBase;
 
 	float quickPitchOUT;
 	float quickYawOUT;

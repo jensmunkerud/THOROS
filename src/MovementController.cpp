@@ -8,7 +8,9 @@ rfd900{rfd900},
 isToggled{false},
 canApplyFailSafe{true},
 canChangeSpeed(true),
-movementSpeed{400} {
+movementSpeed{400},
+panSpeed{100}
+{
 	updateCommandMap();
 }
 
@@ -75,8 +77,8 @@ void MovementController::handleForward(uint8_t v)  { targetInput.pitch =	targetI
 void MovementController::handleBackward(uint8_t v) { targetInput.pitch =	targetInput.pitch < 0 ? -v : 0;}
 void MovementController::handleLeft(uint8_t v)     { targetInput.roll =		targetInput.roll < 0 ? -v : 0;}
 void MovementController::handleRight(uint8_t v)    { targetInput.roll =		targetInput.roll > 0 ? v : 0;}
-void MovementController::handlePanLeft(uint8_t v)  { targetInput.yaw =		targetInput.yaw < 0 ? -v : 0;}
-void MovementController::handlePanRight(uint8_t v) { targetInput.yaw =		targetInput.yaw > 0 ? v : 0;}
+void MovementController::handlePanLeft(uint8_t v)  { targetInput.yaw =		v/2;}
+void MovementController::handlePanRight(uint8_t v) { targetInput.yaw =		-v/2;}
 void MovementController::handleUp(uint8_t v)       { targetInput.throttle = v > 0 ? 2000 : 0;}
 void MovementController::handleDown(uint8_t v)     { targetInput.throttle = v > 0 ? 0 : targetInput.throttle;}
 void MovementController::toggle(uint8_t v) {isToggled = not isToggled; return; Serial.print("Toggled , it is now: "); Serial.println(isToggled);}
@@ -133,12 +135,8 @@ void MovementController::update() {
 	currentInput.pitch     = constrain(smooth(currentInput.pitch,     targetInput.pitch,	movementSpeed, deltaTime), -1000, 1000);
 	currentInput.roll      = constrain(smooth(currentInput.roll,      targetInput.roll,		movementSpeed, deltaTime), -1000, 1000);
 	currentInput.throttle  = constrain(smooth(currentInput.throttle,  targetInput.throttle,	movementSpeed, deltaTime), 0, 2000);
-	currentInput.yaw       = constrain(smooth(currentInput.yaw,       targetInput.yaw,		movementSpeed, deltaTime), -1000, 1000);
+	currentInput.yaw       = constrain(smooth(currentInput.yaw,       targetInput.yaw,		panSpeed, deltaTime), -1000, 1000);
 	status.speed = static_cast<int>(currentInput.throttle);
-	// Serial.print("Target: ");
-	// Serial.print(targetInput.throttle);
-	// Serial.print(" Current: ");
-	// Serial.println(currentInput.throttle);
 	applyFailsafeIfTimedOut();
 }
 
