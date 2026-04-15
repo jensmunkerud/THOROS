@@ -59,7 +59,6 @@ private:
 	float pitchInput;
 	float yawInput;
 	float rollInput;
-	unsigned long lastInnerLoopUs;
 
 	float quickPitchOUT;
 	float quickYawOUT;
