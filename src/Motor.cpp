@@ -22,8 +22,7 @@ quickRollCommand{0},
 quickYawCommand{0},
 pitchQuickPID{&pitchInput, &quickPitchOUT, &target.pitch, pitchPid.P, pitchPid.I, pitchPid.D, QuickPID::Action::direct},
 yawQuickPID{&yawInput, &quickYawOUT, &target.yaw, yawPid.P, yawPid.I, yawPid.D, QuickPID::Action::direct},
-rollQuickPID{&rollInput, &quickRollOUT, &target.roll, rollPid.P, rollPid.I, rollPid.D, QuickPID::Action::reverse},
-lastInnerLoopUs{0}
+rollQuickPID{&rollInput, &quickRollOUT, &target.roll, rollPid.P, rollPid.I, rollPid.D, QuickPID::Action::reverse}
 {}
 
 void Motor::begin() {
@@ -43,7 +42,6 @@ void Motor::begin() {
 	pitchQuickPID.SetOutputLimits(-PITCH_PID_OUTPUT_LIMIT, PITCH_PID_OUTPUT_LIMIT);
 	rollQuickPID.SetOutputLimits(-ROLL_PID_OUTPUT_LIMIT, ROLL_PID_OUTPUT_LIMIT);
 	yawQuickPID.SetOutputLimits(-YAW_PID_OUTPUT_LIMIT, YAW_PID_OUTPUT_LIMIT);
-	lastInnerLoopUs = micros();
 	
 	for(int i = 0; i < INITILIZE_ESC_TIME; i++) {
 		motor1.send_dshot_value(0);
@@ -103,49 +101,36 @@ void Motor::updateAxisPid(QuickPID& pid, float setpoint, float measuredRaw, floa
 
 
 void Motor::loop() {
-	// if (status.Communication != 1) {
-	// 	xVelocity = 0.0f;
-	// 	yVelocity = 0.0f;
-	// 	lastMotionUpdateMs = millis();
-	// 	lastOuterLoopUs = micros();
-	// 	lastInnerLoopUs = lastOuterLoopUs;
-	// 	motor1.send_dshot_value(0);
-	// 	motor2.send_dshot_value(0);
-	// 	motor3.send_dshot_value(0);
-	// 	motor4.send_dshot_value(0);
-	// 	return;
-	// }
+	if (status.Communication != 1) {
+		motor1.send_dshot_value(0);
+		motor2.send_dshot_value(0);
+		motor3.send_dshot_value(0);
+		motor4.send_dshot_value(0);
+		return;
+	}
 
-	unsigned long nowUs = micros();
-	bool runInner = (lastInnerLoopUs == 0) || ((unsigned long)(nowUs - lastInnerLoopUs) >= (unsigned long)ATTITUDE_PID_SAMPLE_US);
 	const ControlInput controlInput = movementController.currentInput;
 	target.pitch = controlInput.pitch * ATTITUDE_COMMAND_SCALE;
 	target.roll = controlInput.roll * ATTITUDE_COMMAND_SCALE;
 	target.yaw = controlInput.yaw * ATTITUDE_COMMAND_SCALE;
 	
-	float throttleBase = controlInput.throttle + 350;
+	float throttleBase = controlInput.throttle;
 	pidAuthority = constrain(
 			(throttleBase - (float)MINIMUM_MOTOR_SPEED) / (float)(PID_MAX_EFFECT_AFTER_SPEED - MINIMUM_MOTOR_SPEED),
 			0.0f,
 			1.0f
 	);
 
-	if (runInner) {
-		lastInnerLoopUs = nowUs;
-		// INNER LOOP: Attitude Stabilization
-		// Filter and control attitude to the targets set by the movement controller
-		updateAxisPid(pitchQuickPID, target.pitch, status.attitude.pitch, pitchInput, quickPitchOUT, quickPitchCommand, PITCH_PID_OUTPUT_LIMIT, ATTITUDE_I_BLEED_ZERO_ERROR, ATTITUDE_I_BLEED_FULL_ERROR, ATTITUDE_I_BLEED_MAX_PER_LOOP);
-		updateAxisPid(rollQuickPID, target.roll, status.attitude.roll, rollInput, quickRollOUT, quickRollCommand, ROLL_PID_OUTPUT_LIMIT, ATTITUDE_I_BLEED_ZERO_ERROR, ATTITUDE_I_BLEED_FULL_ERROR, ATTITUDE_I_BLEED_MAX_PER_LOOP);
-		updateAxisPid(yawQuickPID, target.yaw, status.attitude.yaw, yawInput, quickYawOUT, quickYawCommand, YAW_PID_OUTPUT_LIMIT, ATTITUDE_I_BLEED_ZERO_ERROR, ATTITUDE_I_BLEED_FULL_ERROR, ATTITUDE_I_BLEED_MAX_PER_LOOP);
-	}
+	// Attitude stabilization
+	updateAxisPid(pitchQuickPID, target.pitch, status.attitude.pitch, pitchInput, quickPitchOUT, quickPitchCommand, PITCH_PID_OUTPUT_LIMIT, ATTITUDE_I_BLEED_ZERO_ERROR, ATTITUDE_I_BLEED_FULL_ERROR, ATTITUDE_I_BLEED_MAX_PER_LOOP);
+	updateAxisPid(rollQuickPID, target.roll, status.attitude.roll, rollInput, quickRollOUT, quickRollCommand, ROLL_PID_OUTPUT_LIMIT, ATTITUDE_I_BLEED_ZERO_ERROR, ATTITUDE_I_BLEED_FULL_ERROR, ATTITUDE_I_BLEED_MAX_PER_LOOP);
+	updateAxisPid(yawQuickPID, target.yaw, status.attitude.yaw, yawInput, quickYawOUT, quickYawCommand, YAW_PID_OUTPUT_LIMIT, ATTITUDE_I_BLEED_ZERO_ERROR, ATTITUDE_I_BLEED_FULL_ERROR, ATTITUDE_I_BLEED_MAX_PER_LOOP);
 
 	// Scale attitude commands by PID authority
 	float pitchCmd = quickPitchCommand * pidAuthority;
 	float rollCmd = quickRollCommand * pidAuthority;
 	float yawCmd = quickYawCommand * pidAuthority;
 
-	// Apply the attitude PID outputs to the motor mix.
-	
 	// Apply motor mix
 	m1 = constrain(throttleBase * FRONT_BIAS + pitchCmd - rollCmd - yawCmd, 0, MAXIMUM_MOTOR_SPEED);
 	m2 = constrain(throttleBase              - pitchCmd - rollCmd + yawCmd, 0, MAXIMUM_MOTOR_SPEED);
@@ -157,7 +142,6 @@ void Motor::loop() {
 	motor3.send_dshot_value((int)m3);
 	motor4.send_dshot_value((int)m4);
 	
-	// return;
 	Serial.print(status.attitude.pitch);
 	Serial.print("/");
 	Serial.print(status.attitude.yaw);
