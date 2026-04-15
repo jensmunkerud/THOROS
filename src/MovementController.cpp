@@ -1,9 +1,14 @@
-#include <set>
 #include "MovementController.h"
 #include <Arduino.h>
 
 
-MovementController::MovementController(Status& s, RFD900& rfd900) : status{s}, rfd900{rfd900} , isToggled{false}, canApplyFailSafe{true}, canChangeSpeed(true), movementSpeed{200} {
+MovementController::MovementController(Status& s, RFD900& rfd900) : 
+status{s},
+rfd900{rfd900},
+isToggled{false},
+canApplyFailSafe{true},
+canChangeSpeed(true),
+movementSpeed{400} {
 	updateCommandMap();
 }
 

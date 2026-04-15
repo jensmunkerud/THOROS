@@ -1,4 +1,19 @@
 #include "ICM20948.h"
+
+static Vec3 gravityBodyFromAttitude(float rollDeg, float pitchDeg) {
+	float roll = rollDeg * DEG2RAD;
+	float pitch = pitchDeg * DEG2RAD;
+	float cr = cosf(roll);
+	float sr = sinf(roll);
+	float cp = cosf(pitch);
+	float sp = sinf(pitch);
+
+	return {
+		-sp,
+		cp * sr,
+		cp * cr
+	};
+}
  
 ICM20948::ICM20948(Status& status) : status{status} {
 	sampleRate.a = (1000 / ICM_SAMPLERATE) - 1;
@@ -8,7 +23,15 @@ ICM20948::ICM20948(Status& status) : status{status} {
 void ICM20948::begin() {
 	SPI.begin();
 	status.ICM20948 = icm20948.begin(ICM20948_CS, SPI) == ICM_20948_Stat_Ok;
-	status.ICM20948 &= icm20948.startupMagnetometer();
+	if (!status.ICM20948) {
+		Serial.println("failed first");
+		return;
+	}
+	status.ICM20948 = icm20948.startupMagnetometer() == ICM_20948_Stat_Ok;
+	if (!status.ICM20948) {
+		Serial.println("failed first");
+		return;
+	}
 	ICM_20948_fss_t fss;
 	fss.a = gpm8;
 	fss.g = dps2000;
@@ -19,8 +42,17 @@ void ICM20948::begin() {
 	icm20948.setSampleRate(ICM_20948_Internal_Acc, sampleRate);
 	icm20948.setSampleRate(ICM_20948_Internal_Gyr, sampleRate);
 
+	ICM_20948_dlpcfg_t dlpfCfg;
+	dlpfCfg.a = acc_d23bw9_n34bw4;
+	dlpfCfg.g = gyr_d23bw9_n35bw9;
+	icm20948.setDLPFcfg(ICM_20948_Internal_Acc, dlpfCfg);
+	icm20948.setDLPFcfg(ICM_20948_Internal_Gyr, dlpfCfg);
+	icm20948.enableDLPF(ICM_20948_Internal_Acc, true);
+	icm20948.enableDLPF(ICM_20948_Internal_Gyr, true);
+
 	delay(500);
 	calibrateIMU();
+	status.ICM20948 = 1;
 }
 
 void ICM20948::loop() {
@@ -51,6 +83,26 @@ void ICM20948::loop() {
 		acc = compensateForMountingRotation(acc);
 		mag = compensateForMountingRotation(mag);
 
+		if (!accelFilterInitialized) {
+			accelFiltered = acc;
+			accelFilterInitialized = true;
+		} else {
+			accelFiltered.x += ACCEL_LPF_ALPHA * (acc.x - accelFiltered.x);
+			accelFiltered.y += ACCEL_LPF_ALPHA * (acc.y - accelFiltered.y);
+			accelFiltered.z += ACCEL_LPF_ALPHA * (acc.z - accelFiltered.z);
+		}
+		acc = accelFiltered;
+
+		if (!gyroFilterInitialized) {
+			gyroFiltered = gyr;
+			gyroFilterInitialized = true;
+		} else {
+			gyroFiltered.x += GYRO_LPF_ALPHA * (gyr.x - gyroFiltered.x);
+			gyroFiltered.y += GYRO_LPF_ALPHA * (gyr.y - gyroFiltered.y);
+			gyroFiltered.z += GYRO_LPF_ALPHA * (gyr.z - gyroFiltered.z);
+		}
+		gyr = gyroFiltered;
+
 		// ============================================
 		// RAW SENSOR DATA IS TUNED FROM THIS POINT ON
 		// Gyro -> rad/s
@@ -60,9 +112,24 @@ void ICM20948::loop() {
 
 		fusion.MahonyUpdate(gyr.x, gyr.y, gyr.z, acc.x, acc.y, acc.z, dt);  //mahony is suggested if there isn't the mag and the mcu is slow
 		// fusion.MadgwickUpdate(gyr.x, gyr.y, gyr.z, acc.x, acc.y, acc.z, mag.x, mag.y, mag.z, deltat);  //else use the magwick, it is slower but more accurate
-		status.attitude.pitch = fusion.getPitch();
-		status.attitude.roll  = fusion.getRoll();
-		status.attitude.yaw   = fusion.getYaw();
+		float fusedRoll = fusion.getRoll();
+		float fusedPitch = fusion.getPitch();
+		float fusedYaw = fusion.getYaw() - 184.0f;
+
+		status.attitude.pitch = -fusedRoll;
+		status.attitude.roll  = fusedPitch;
+		status.attitude.yaw   = fusedYaw;
+
+		// Remove gravity using current attitude, then convert to world frame.
+		Vec3 gBody = gravityBodyFromAttitude(fusedRoll, fusedPitch);
+		Vec3 linBody = {
+			acc.x - gBody.x,
+			acc.y - gBody.y,
+			acc.z - gBody.z
+		};
+		status.linearAccel.x = linBody.x;
+		status.linearAccel.y = linBody.y;
+		status.linearAccel.z = linBody.z;
 
 		// Print: 9axis_debug
 		// Serial.print(acc.x, 4); Serial.print("/");
@@ -77,14 +144,22 @@ void ICM20948::loop() {
 	}
 }
 
-// Sensor calibration sequence, also compensates mountingRotation - Time: 1000ms
+// Sensor calibration sequence, also compensates mountingRotation - Time: 2000ms
 void ICM20948::calibrateIMU() {
-	const int samples = 1000;
+	const int samples = 2000;
+	const unsigned long sampleTimeoutUs = 20000;
 	Vec3 gyr = {0, 0, 0};
 	Vec3 acc = {0, 0, 0};
 
 	for (int i = 0; i < samples; i++) {
-		while (!icm20948.dataReady());
+		unsigned long waitStartUs = micros();
+		while (!icm20948.dataReady()) {
+			if ((unsigned long)(micros() - waitStartUs) > sampleTimeoutUs) {
+				status.ICM20948 = 0;
+				return;
+			}
+			delayMicroseconds(100);
+		}
 		icm20948.getAGMT();
 
 		gyr.x += icm20948.gyrX();
@@ -95,8 +170,16 @@ void ICM20948::calibrateIMU() {
 		acc.y += icm20948.accY();
 		acc.z += icm20948.accZ();
 
+		// dt = fusion.deltatUpdate();
+		// fusion.MahonyUpdate(gyr.x, gyr.y, gyr.z, acc.x, acc.y, acc.z, dt);
+
 		delayMicroseconds(1000);
 	}
+
+		// Reset the fusion timer so the first runtime update uses a normal dt.
+	fusion.deltatUpdate();
+
+	// yawOffset = fusion.getYaw();
 
 	gyroBias.x = gyr.x / samples;
 	gyroBias.y = gyr.y / samples;

@@ -9,11 +9,17 @@ struct Vec3 {
 	float x, y, z;
 };
 
+struct PID {
+	float P, I, D;
+};
+
 struct Attitude {
 	float pitch;
 	float yaw;
 	float roll;
 };
+
+// Rename existing status -> telemetry, then make a new struct for ONLY INTERNAL properties, like attitude & linearaccel etc.
 
 struct __attribute__((packed)) Status {
 	int8_t BEGIN;
@@ -21,11 +27,8 @@ struct __attribute__((packed)) Status {
 	int16_t speed;
 
 	Attitude attitude;
+	Vec3 linearAccel;
 
-	double P;
-	double I;
-	double D;
-	
 	int16_t temp;
 	int16_t pressure;
 
@@ -45,7 +48,7 @@ struct __attribute__((packed)) Status {
 		uint8_t BMP390			: 1;
 		uint8_t ICM20948		: 1;
 		uint8_t RFD900			: 1;
-		uint8_t reserved		: 1;
+		uint8_t Communication	: 1;
 	};
 	};
 
@@ -58,7 +61,7 @@ struct __attribute__((packed)) Status {
 		speed(0),
 		// accelX(0), accelY(0), accelZ(0),
 		attitude{0.0, 0.0, 0.0},
-		P(0), I(0), D(0),
+		linearAccel{0.0, 0.0, 0.0},
 		temp(0), pressure(0),
 		batteryVoltage(0),
 		latitude(0), longitude(0),
