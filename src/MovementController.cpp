@@ -1,5 +1,6 @@
 #include "MovementController.h"
 #include <Arduino.h>
+#include <cmath>
 
 
 MovementController::MovementController(Status& s, RFD900& rfd900) : 
@@ -23,14 +24,7 @@ void MovementController::updateRunningCommands() {
 	// Detect commands that were active but are now gone
 	for (const auto& oldCmd : oldCommands) {
 		if (newCommands.find(oldCmd) == newCommands.end()) {
-			// Command was released → zero it once
-			// Special handling for GO_UP (throttle up)
-			// Serial.println("ENDED COMMAND: " + String(static_cast<int>(oldCmd)));
-			if (oldCmd == CommandID::GO_UP || oldCmd == CommandID::GO_DOWN) {
-				targetInput.throttle = currentInput.throttle;
-			} else {
-				executeCommand(oldCmd, 0);
-			}
+			executeCommand(oldCmd, 0);
 		}
 	}
 
@@ -73,14 +67,14 @@ void MovementController::executeCommand(CommandID id, uint8_t rawValue) {
 }
 
 // === Command Handlers ===
-void MovementController::handleForward(uint8_t v)  { targetInput.pitch =	targetInput.pitch > 0 ? v : 0;}
-void MovementController::handleBackward(uint8_t v) { targetInput.pitch =	targetInput.pitch < 0 ? -v : 0;}
-void MovementController::handleLeft(uint8_t v)     { targetInput.roll =		targetInput.roll < 0 ? -v : 0;}
-void MovementController::handleRight(uint8_t v)    { targetInput.roll =		targetInput.roll > 0 ? v : 0;}
-void MovementController::handlePanLeft(uint8_t v)  { targetInput.yaw =		v/2;}
-void MovementController::handlePanRight(uint8_t v) { targetInput.yaw =		-v/2;}
-void MovementController::handleUp(uint8_t v)       { targetInput.throttle = v > 0 ? 2000 : 0;}
-void MovementController::handleDown(uint8_t v)     { targetInput.throttle = v > 0 ? 0 : targetInput.throttle;}
+void MovementController::handleForward(uint8_t v)  { targetInput.pitch = static_cast<float>(v); }
+void MovementController::handleBackward(uint8_t v) { targetInput.pitch = -static_cast<float>(v); }
+void MovementController::handleLeft(uint8_t v)     { targetInput.roll = -static_cast<float>(v); }
+void MovementController::handleRight(uint8_t v)    { targetInput.roll = static_cast<float>(v); }
+void MovementController::handlePanLeft(uint8_t v)  { targetInput.yaw = v > 0 ? 1.0f : 0.0f; }
+void MovementController::handlePanRight(uint8_t v) { targetInput.yaw = v > 0 ? -1.0f : 0.0f; }
+void MovementController::handleUp(uint8_t v)       { targetInput.throttle = v > 0 ? 1.0f : 0.0f; }
+void MovementController::handleDown(uint8_t v)     { targetInput.throttle = v > 0 ? -1.0f : 0.0f; }
 void MovementController::toggle(uint8_t v) {isToggled = not isToggled; return; Serial.print("Toggled , it is now: "); Serial.println(isToggled);}
 void MovementController::speedUp(uint8_t v) {if (canChangeSpeed && v > 0) {movementSpeed = constrain(movementSpeed + SENSITIVITY, 50, 500); canChangeSpeed = false;} Serial.print("Sped up, speed: "); Serial.println(movementSpeed); if (v == 0) {canChangeSpeed = true;}}
 void MovementController::speedDown(uint8_t v) {if (canChangeSpeed && v > 0) {movementSpeed = constrain(movementSpeed - SENSITIVITY, 50, 500); canChangeSpeed = false;} if (v == 0) {canChangeSpeed = true;}}
@@ -116,8 +110,12 @@ float MovementController::smooth(float current, float target, float sensitivity,
 void MovementController::update() {
 	deltaTime = millis() - lastTime;
 	lastTime = millis();
-	uint8_t packet[2];
-	if (xQueueReceive(rfd900.getCommandQueue(), &received, 0) == pdTRUE && !isKilling) {
+
+	if (isKilling) {
+		while (xQueueReceive(rfd900.getCommandQueue(), &received, 0) == pdTRUE) {
+			// discard
+		}
+	} else if (xQueueReceive(rfd900.getCommandQueue(), &received, 0) == pdTRUE) {
 		newCommands.clear();
 		// Build map of all incoming commands
 		for (int i = 0; i < received.numCmds; i++) {
@@ -128,18 +126,43 @@ void MovementController::update() {
 		}
 		updateRunningCommands();
 		if (received.numCmds > 0) {
-		lastCommandTime = std::chrono::steady_clock::now();
+			lastCommandTime = std::chrono::steady_clock::now();
 		}
 	}
-	// Smooth the current input toward the target
-	currentInput.pitch     = constrain(smooth(currentInput.pitch,     targetInput.pitch,	movementSpeed, deltaTime), -1000, 1000);
-	currentInput.roll      = constrain(smooth(currentInput.roll,      targetInput.roll,		movementSpeed, deltaTime), -1000, 1000);
-	currentInput.throttle  = constrain(smooth(currentInput.throttle,  targetInput.throttle,	movementSpeed, deltaTime), 0, 2000);
-	currentInput.yaw       = constrain(smooth(currentInput.yaw,       targetInput.yaw,		movementSpeed, deltaTime), -1000, 1000);
+
+	// Pitch and roll move toward the requested target values.
+	currentInput.pitch = constrain(
+		smooth(currentInput.pitch, targetInput.pitch, movementSpeed, deltaTime),
+		-MAX_TILT_ANGLE, MAX_TILT_ANGLE
+	);
+	currentInput.roll = constrain(
+		smooth(currentInput.roll, targetInput.roll, movementSpeed, deltaTime),
+		-MAX_TILT_ANGLE, MAX_TILT_ANGLE
+	);
+
+	// Yaw and throttle keep moving while their target is nonzero.
+	if (targetInput.yaw != 0.0f) {
+		currentInput.yaw += deltaTime * PAN_SPEED * targetInput.yaw;
+	} else {
+		currentInput.yaw = smooth(currentInput.yaw, 0.0f, PAN_SPEED, deltaTime);
+	}
+	if (targetInput.throttle != 0.0f) {
+		currentInput.throttle += deltaTime * THROTTLE_SPEED * targetInput.throttle;
+	} else {
+		currentInput.throttle = smooth(currentInput.throttle, 0.0f, THROTTLE_SPEED, deltaTime);
+	}
+
+	currentInput.yaw = constrain(currentInput.yaw, -180.0f, 180.0f);
+	currentInput.throttle = constrain(currentInput.throttle, 0.0f, 1500.0f);
 	status.speed = static_cast<int>(currentInput.throttle);
 
-	if (isKilling && currentInput.pitch == 0 && currentInput.roll == 0 && currentInput.throttle == 0) {
+	if (isKilling &&
+		std::fabs(currentInput.pitch) < 0.01f &&
+		std::fabs(currentInput.roll) < 0.01f &&
+		std::fabs(currentInput.throttle) < 0.01f &&
+		std::fabs(currentInput.yaw) < 0.01f) {
 		isKilling = false;
+		movementSpeed = constrain(movementSpeed - KILLSPEED, 50, 500);
 	}
 	applyFailsafeIfTimedOut();
 }
@@ -158,16 +181,13 @@ ControlInput MovementController::getInput() const {
 
 
 void MovementController::clearInputs(bool clearThrottle, bool quick) {
-	if (canApplyFailSafe) {
+	if (canApplyFailSafe && !isKilling) {
 		isKilling = true;
-		movementSpeed;
+		movementSpeed = constrain(movementSpeed + KILLSPEED, 50, 800);
 		targetInput.pitch = 0;
 		targetInput.roll = 0;
 		targetInput.yaw = 0;
-		targetInput.throttle = currentInput.throttle;
-		if (clearThrottle) {
-			targetInput.throttle = 0;
-		}
+		targetInput.throttle = 0;
 	}
 	canApplyFailSafe = false;
 }

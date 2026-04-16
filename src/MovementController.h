@@ -8,7 +8,10 @@
 #include "set"
 
 constexpr int SENSITIVITY {50};
-constexpr int KILLSPEED {800};
+constexpr int KILLSPEED {400};
+constexpr float MAX_TILT_ANGLE {30.0f};
+constexpr float PAN_SPEED {10.0f};
+constexpr float THROTTLE_SPEED {10.0f};
 static constexpr int MOVEMENT_TIMEOUT_MS {55}; // 2x 80ms which is the sending interval
 
 
@@ -57,10 +60,10 @@ public:
 private:
 	
 	ControlInput currentInput;
+	ControlInput targetInput;
 	Status& status;
 	RFD900& rfd900;
 	std::unordered_map<CommandID, std::function<void(uint8_t)>> commandMap;
-	ControlInput targetInput;
 	std::chrono::steady_clock::time_point lastCommandTime;
 	RFDCommandPacket received;
 	std::unordered_map<CommandID, uint8_t> newCommands;
