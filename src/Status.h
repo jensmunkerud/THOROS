@@ -37,6 +37,14 @@ struct __attribute__((packed)) Status {
 	int32_t latitude;   // scaled by 1e7
 	int32_t longitude;  // scaled by 1e7
 
+	enum class FlightMode {
+		DISARMED,
+		ARMED,
+		LANDED,
+		FLYING,
+		KILLED,
+	};
+
 	// System flags (packed into 1 byte)
 	union {
 	uint8_t flags;
