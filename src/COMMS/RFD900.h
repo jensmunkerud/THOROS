@@ -1,5 +1,5 @@
 #pragma once
-#include "Status.h"
+#include "Datatypes.h"
 #include <Arduino.h>
 #include <functional>
 #include "freertos/queue.h"
@@ -12,17 +12,18 @@ constexpr uint8_t RFD_SERIAL {2};
 
 
 class RFD900 {
-	public:
-	RFD900(Telemetry& tel);
+public:
+	RFD900(Telemetry& tel, DroneState& droneState);
 	void begin();
 	void loop();
 	void sendStatus();
 	void ping();
 	QueueHandle_t getCommandQueue() const;
 
-	private:
+private:
 	static void RFD900Task(void* parameter);
 	Telemetry& telemetry;
+	DroneState& droneState;
 	byte buffer[32];
 	byte numPackets;
 	unsigned long lastCommand;

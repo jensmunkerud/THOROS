@@ -3,8 +3,9 @@
 #include <cmath>
 
 
-MovementController::MovementController(Telemetry& tel, RFD900& rfd900) : 
+MovementController::MovementController(Telemetry& tel, DroneState& droneState, RFD900& rfd900) : 
 telemetry{tel},
+droneState{droneState},
 rfd900{rfd900},
 isToggled{false},
 canApplyFailSafe{true},
@@ -149,7 +150,7 @@ void MovementController::update() {
 
 	currentInput.yaw = constrain(currentInput.yaw, -180.0f, 180.0f);
 	currentInput.throttle = constrain(currentInput.throttle, 0.0f, 1500.0f);
-	telemetry.speed = static_cast<int>(currentInput.throttle);
+	droneState.controlInput = currentInput;
 
 	applyFailsafeIfTimedOut();
 }

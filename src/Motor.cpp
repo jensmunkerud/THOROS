@@ -1,8 +1,9 @@
 #include "Motor.h"
 
-Motor::Motor(MovementController& mc, Telemetry& tel) : 
+Motor::Motor(MovementController& mc, Telemetry& tel, DroneState& droneState) : 
 movementController{mc},
 telemetry{tel},
+droneState{droneState},
 motor1(MOTOR1),
 motor2(MOTOR2),
 motor3(MOTOR3),
@@ -110,7 +111,7 @@ void Motor::loop() {
 		return;
 	}
 
-	const ControlInput controlInput = movementController.getInput();
+	const ControlInput controlInput = droneState.controlInput;
 	target.pitch = controlInput.pitch;
 	target.roll = controlInput.roll;
 	target.yaw = controlInput.yaw;

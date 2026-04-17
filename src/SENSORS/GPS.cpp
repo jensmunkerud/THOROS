@@ -1,6 +1,9 @@
 #include "GPS.h"
 
-GPS::GPS(Telemetry& tel) : telemetry{tel}, SerialGPS(1)
+GPS::GPS(Telemetry& tel, DroneState& droneState) : 
+telemetry{tel},
+droneState{droneState},
+SerialGPS(1)
 {
 	SerialGPS.begin(9600, SERIAL_8N1, GPS_RX, GPS_TX);
 }

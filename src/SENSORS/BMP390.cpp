@@ -2,10 +2,13 @@
 #include <SPI.h>
 #include <Adafruit_Sensor.h>
 #include <Adafruit_BMP3XX.h>
-#include "Status.h"
+#include "Datatypes.h"
 
 
-BMP390::BMP390(Telemetry& tel) : telemetry{tel} {}
+BMP390::BMP390(Telemetry& tel, DroneState& droneState) : 
+telemetry{tel},
+droneState{droneState}
+{}
 
 void BMP390::begin() {
 	if (!bmp.begin_SPI(BMP390_CS)) {

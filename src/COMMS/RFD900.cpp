@@ -1,7 +1,14 @@
 #include "RFD900.h"
 
 
-RFD900::RFD900(Telemetry& tel) : telemetry{tel}, numPackets{0}, rfdTaskHandle{nullptr}, pingProgress{0}, SerialRFD(RFD_SERIAL) {
+RFD900::RFD900(Telemetry& tel, DroneState& droneState) : 
+telemetry{tel},
+droneState{droneState},
+numPackets{0},
+rfdTaskHandle{nullptr},
+pingProgress{0},
+SerialRFD(RFD_SERIAL)
+{
 	commandQueue = xQueueCreate(5, sizeof(RFDCommandPacket));
 }
 

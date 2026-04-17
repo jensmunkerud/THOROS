@@ -3,7 +3,7 @@
 #include <DShotRMT.h>
 #include <QuickPID.h>
 #include "MovementController.h"
-#include "Status.h"
+#include "Datatypes.h"
 
 // CONFIGURATION
 constexpr int MOTOR1 {27}; // FRONT RIGHT	CCW
@@ -31,7 +31,7 @@ constexpr dshot_mode_e DSHOT_TYPE{DSHOT300};
 
 class Motor {
 public:
-	Motor(MovementController& mc, Telemetry& tel);
+	Motor(MovementController& mc, Telemetry& tel, DroneState& droneState);
 	void begin();
 	void loop();
 	void setAttitudePidTunings(const PID& pitch, const PID& roll, const PID& yaw);
@@ -42,6 +42,7 @@ private:
 	PID rollPid{3, 0.2, 0.6};
 	MovementController& movementController;
 	Telemetry& telemetry;
+	DroneState& droneState;
 	DShotRMT motor1;
 	DShotRMT motor2;
 	DShotRMT motor3;

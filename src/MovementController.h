@@ -3,7 +3,7 @@
 #include <unordered_map>
 #include <functional>
 #include <chrono>
-#include "Status.h"
+#include "Datatypes.h"
 #include "COMMS/RFD900.h"
 #include "set"
 
@@ -35,19 +35,10 @@ enum CommandID : uint8_t {
 	SPEED_DOWN	= 110,
 	KILL		= 254,
 };
-
-
-struct ControlInput {
-	float pitch		{0};	// forward/backward
-	float roll		{0};	// left/right
-	float yaw 		{0};	// rotation (optional)
-	float throttle	{0};	// up/down
-};
-
 // Main control manager
 class MovementController {
 public:
-	MovementController(Telemetry& tel, RFD900& rfd900);
+	MovementController(Telemetry& tel, DroneState& droneState, RFD900& rfd900);
 	void begin();
 	void update();
 	ControlInput getInput() const;
@@ -60,6 +51,7 @@ private:
 	ControlInput currentInput;
 	ControlInput targetInput;
 	Telemetry& telemetry;
+	DroneState& droneState;
 	RFD900& rfd900;
 	std::unordered_map<CommandID, std::function<void(uint8_t)>> commandMap;
 	std::chrono::steady_clock::time_point lastCommandTime;

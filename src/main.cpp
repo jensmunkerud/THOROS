@@ -1,6 +1,6 @@
 #include <Arduino.h>
 #include <SPI.h>
-#include "Status.h"
+#include "Datatypes.h"
 #include "SENSORS/ICM20948.h"
 #include "SENSORS/BMP390.h"
 #include "SENSORS/GPS.h"
@@ -18,13 +18,14 @@ unsigned long prevFAST = 0;
 unsigned long prevSLOW = 0;
 
 Telemetry telemetry;
-ICM20948 icm20948(telemetry);
-BMP390 bmp390(telemetry);
+DroneState droneState;
+ICM20948 icm20948(telemetry, droneState);
+BMP390 bmp390(telemetry, droneState);
 // GPS gps(telemetry);
-RFD900 rfd900(telemetry);
-MovementController movementController(telemetry, rfd900);
-LED led(telemetry, movementController);
-Motor motor(movementController, telemetry);
+RFD900 rfd900(telemetry, droneState);
+MovementController movementController(telemetry, droneState, rfd900);
+LED led(telemetry, droneState, movementController);
+Motor motor(movementController, telemetry, droneState);
 
 PidTuningReceiver pidTuningReceiver(Serial, applyPidTuningsToMotor, &motor);
 

@@ -1,7 +1,7 @@
 #pragma once
 
 #include <Arduino.h>
-#include "Status.h"
+#include "Datatypes.h"
 
 // Reusable callback for applying parsed PID values to a Motor instance passed via context.
 void applyPidTuningsToMotor(const PID& pitch, const PID& roll, const PID& yaw, void* context);
@@ -15,7 +15,6 @@ public:
 
 private:
 	bool handleLine();
-
 	Stream& serial;
 	ApplyCallback callback;
 	void* context;

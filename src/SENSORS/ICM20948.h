@@ -3,7 +3,7 @@
 #include <SPI.h>
 #include <ICM_20948.h>
 #include <SensorFusion.h>
-#include "Status.h"
+#include "Datatypes.h"
 
 static constexpr int ICM20948_CS {15};
 static constexpr int ICM_SAMPLERATE {1000};
@@ -14,13 +14,14 @@ static constexpr float GYRO_LPF_ALPHA = 1.0f;
 // Drone yaw drifts around -1deg per 45sec
 
 class ICM20948 {
-	public:
-	ICM20948(Telemetry& tel);
+public:
+	ICM20948(Telemetry& tel, DroneState& droneState);
 	void begin();
 	void loop();
 
-	private:
+private:
 	Telemetry& telemetry;
+	DroneState& droneState;
 	SF fusion;
 	float dt;
 	ICM_20948_SPI icm20948;

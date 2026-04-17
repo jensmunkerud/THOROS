@@ -3,7 +3,6 @@
 
 #define START_MARKER 0xAB
 #define END_MARKER 0xCD
-#define HANDSHAKE 0x10
 
 struct Vec3 {
 	float x, y, z;
@@ -27,7 +26,29 @@ enum class FlightMode {
 		MOVING,
 };
 
-// Rename existing telemetry -> telemetry, then make a new struct for ONLY INTERNAL properties, like attitude & linearaccel etc.
+struct ControlInput {
+	float pitch		{0};
+	float roll		{0};
+	float yaw 		{0};
+	float throttle	{0};
+};
+
+struct DroneState {
+	FlightMode mode;
+	ControlInput controlInput;
+	int16_t altitude;
+
+	bool gpsFix;
+	bool motorArmed;
+	bool BMP390;
+	bool ICM20948;
+	bool RFD900;
+	bool Communication;
+
+	DroneState() :
+		mode(FlightMode::DISARMED),
+		controlInput{} {}
+};
 
 struct __attribute__((packed)) Telemetry {
 	int8_t BEGIN;
@@ -45,20 +66,6 @@ struct __attribute__((packed)) Telemetry {
 	int32_t latitude;   // scaled by 1e7
 	int32_t longitude;  // scaled by 1e7
 
-	// System flags (packed into 1 byte)
-	union {
-	uint8_t flags;
-	struct {
-		uint8_t systemsOk		: 1;
-		uint8_t criticalOk		: 1;
-		uint8_t gpsFix			: 1;
-		uint8_t motorArmed		: 1;
-		uint8_t BMP390			: 1;
-		uint8_t ICM20948		: 1;
-		uint8_t RFD900			: 1;
-		uint8_t Communication	: 1;
-	};
-	};
 
 	uint16_t timestamp; // unused
 	int8_t END;
@@ -73,7 +80,6 @@ struct __attribute__((packed)) Telemetry {
 		temp(0), pressure(0),
 		batteryVoltage(0),
 		latitude(0), longitude(0),
-		flags(0),
 		timestamp(0),
 		END(END_MARKER) {}
 };

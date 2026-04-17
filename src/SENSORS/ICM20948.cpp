@@ -1,21 +1,10 @@
 #include "ICM20948.h"
 
-static Vec3 gravityBodyFromAttitude(float rollDeg, float pitchDeg) {
-	float roll = rollDeg * DEG2RAD;
-	float pitch = pitchDeg * DEG2RAD;
-	float cr = cosf(roll);
-	float sr = sinf(roll);
-	float cp = cosf(pitch);
-	float sp = sinf(pitch);
 
-	return {
-		-sp,
-		cp * sr,
-		cp * cr
-	};
-}
- 
-ICM20948::ICM20948(Telemetry& tel) : telemetry{tel} {
+ICM20948::ICM20948(Telemetry& tel, DroneState& droneState) : 
+telemetry{tel},
+droneState{droneState}
+{
 	sampleRate.a = (1000 / ICM_SAMPLERATE) - 1;
 	sampleRate.g = (1000 / ICM_SAMPLERATE) - 1;
 }
@@ -53,6 +42,21 @@ void ICM20948::begin() {
 	delay(500);
 	calibrateIMU();
 	telemetry.ICM20948 = 1;
+}
+
+static Vec3 gravityBodyFromAttitude(float rollDeg, float pitchDeg) {
+	float roll = rollDeg * DEG2RAD;
+	float pitch = pitchDeg * DEG2RAD;
+	float cr = cosf(roll);
+	float sr = sinf(roll);
+	float cp = cosf(pitch);
+	float sp = sinf(pitch);
+
+	return {
+		-sp,
+		cp * sr,
+		cp * cr
+	};
 }
 
 void ICM20948::loop() {
