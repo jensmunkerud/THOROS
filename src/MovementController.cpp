@@ -9,10 +9,13 @@ rfd900{rfd900},
 isToggled{false},
 canApplyFailSafe{true},
 canChangeSpeed(true),
-movementSpeed{400},
-isKilling{false}
+movementSpeed{400}
 {
-	updateCommandMap();
+	generateCommandMap();
+}
+
+void MovementController::begin() {
+	lastCommandTime = std::chrono::steady_clock::now();
 }
 
 void MovementController::updateRunningCommands() {
@@ -35,11 +38,7 @@ void MovementController::updateRunningCommands() {
 	}
 }
 
-void MovementController::begin() {
-	lastCommandTime = std::chrono::steady_clock::now();
-}
-
-void MovementController::updateCommandMap() {
+void MovementController::generateCommandMap() {
 	commandMap[CommandID::FORWARD]			= [this](uint8_t v){ handleForward(v); };
 	commandMap[CommandID::BACKWARD]			= [this](uint8_t v){ handleBackward(v); };
 	commandMap[CommandID::LEFT]				= [this](uint8_t v){ handleLeft(v); };
@@ -56,8 +55,8 @@ void MovementController::updateCommandMap() {
 	commandMap[CommandID::D]				= [this](uint8_t v){ D(v); };
 	commandMap[CommandID::Dd]				= [this](uint8_t v){ Dd(v); };
 	commandMap[CommandID::KILL]				= [this](uint8_t v){ clearInputs(true); canApplyFailSafe = false; };
-	commandMap[CommandID::SPEED_UP]			= [this](uint8_t v){ speedUp(v); };
-	commandMap[CommandID::SPEED_DOWN]		= [this](uint8_t v){ speedDown(v); };
+	commandMap[CommandID::SPEED_UP]			= [this](uint8_t v){ increaseSpeed(v); };
+	commandMap[CommandID::SPEED_DOWN]		= [this](uint8_t v){ decreaseSpeed(v); };
 }
 
 void MovementController::executeCommand(CommandID id, uint8_t rawValue) {
@@ -76,8 +75,8 @@ void MovementController::handlePanRight(uint8_t v) { targetInput.yaw = v > 0 ? -
 void MovementController::handleUp(uint8_t v)       { targetInput.throttle = v > 0 ? 1.0f : 0.0f; }
 void MovementController::handleDown(uint8_t v)     { targetInput.throttle = v > 0 ? -1.0f : 0.0f; }
 void MovementController::toggle(uint8_t v) {isToggled = not isToggled; return; Serial.print("Toggled , it is now: "); Serial.println(isToggled);}
-void MovementController::speedUp(uint8_t v) {if (canChangeSpeed && v > 0) {movementSpeed = constrain(movementSpeed + SENSITIVITY, 50, 500); canChangeSpeed = false;} Serial.print("Sped up, speed: "); Serial.println(movementSpeed); if (v == 0) {canChangeSpeed = true;}}
-void MovementController::speedDown(uint8_t v) {if (canChangeSpeed && v > 0) {movementSpeed = constrain(movementSpeed - SENSITIVITY, 50, 500); canChangeSpeed = false;} if (v == 0) {canChangeSpeed = true;}}
+void MovementController::increaseSpeed(uint8_t v) {if (canChangeSpeed && v > 0) {movementSpeed = constrain(movementSpeed + SENSITIVITY, 50, 500); canChangeSpeed = false;} Serial.print("Sped up, speed: "); Serial.println(movementSpeed); if (v == 0) {canChangeSpeed = true;}}
+void MovementController::decreaseSpeed(uint8_t v) {if (canChangeSpeed && v > 0) {movementSpeed = constrain(movementSpeed - SENSITIVITY, 50, 500); canChangeSpeed = false;} if (v == 0) {canChangeSpeed = true;}}
 void MovementController::P(uint8_t v) {Kp = max(0, (int)Kp + v);}
 void MovementController::Pd(uint8_t v) {Kp = max(0, (int)Kp - v);}
 void MovementController::I(uint8_t v) {Ki = max(0, (int)Ki + v);}
@@ -111,21 +110,17 @@ void MovementController::update() {
 	deltaTime = millis() - lastTime;
 	lastTime = millis();
 
-	if (isKilling) {
-		while (xQueueReceive(rfd900.getCommandQueue(), &received, 0) == pdTRUE) {
-			// discard
-		}
-	} else if (xQueueReceive(rfd900.getCommandQueue(), &received, 0) == pdTRUE) {
+	if (xQueueReceive(rfd900.getCommandQueue(), &received, 0) == pdTRUE) {
 		newCommands.clear();
 		// Build map of all incoming commands
 		for (int i = 0; i < received.numCmds; i++) {
-			canApplyFailSafe = true;
 			CommandID id = static_cast<CommandID>(received.commands[i].command);
 			uint8_t val = received.commands[i].value;
 			newCommands[id] = val;
 		}
 		updateRunningCommands();
 		if (received.numCmds > 0) {
+			canApplyFailSafe = true;
 			lastCommandTime = std::chrono::steady_clock::now();
 		}
 	}
@@ -156,14 +151,6 @@ void MovementController::update() {
 	currentInput.throttle = constrain(currentInput.throttle, 0.0f, 1500.0f);
 	status.speed = static_cast<int>(currentInput.throttle);
 
-	if (isKilling &&
-		std::fabs(currentInput.pitch) < 0.01f &&
-		std::fabs(currentInput.roll) < 0.01f &&
-		std::fabs(currentInput.throttle) < 0.01f &&
-		std::fabs(currentInput.yaw) < 0.01f) {
-		isKilling = false;
-		movementSpeed = constrain(movementSpeed - KILLSPEED, 50, 500);
-	}
 	applyFailsafeIfTimedOut();
 }
 
@@ -180,10 +167,8 @@ ControlInput MovementController::getInput() const {
 }
 
 
-void MovementController::clearInputs(bool clearThrottle, bool quick) {
-	if (canApplyFailSafe && !isKilling) {
-		isKilling = true;
-		movementSpeed = constrain(movementSpeed + KILLSPEED, 50, 800);
+void MovementController::clearInputs(bool clearThrottle) {
+	if (canApplyFailSafe) {
 		targetInput.pitch = 0;
 		targetInput.roll = 0;
 		targetInput.yaw = 0;

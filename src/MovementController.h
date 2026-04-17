@@ -8,7 +8,6 @@
 #include "set"
 
 constexpr int SENSITIVITY {50};
-constexpr int KILLSPEED {400};
 constexpr float MAX_TILT_ANGLE {30.0f};
 constexpr float PAN_SPEED {10.0f};
 constexpr float THROTTLE_SPEED {10.0f};
@@ -54,7 +53,7 @@ public:
 	ControlInput getInput() const;
 	bool isToggled;
 	double Kp = 1, Ki = 0, Kd = 1;
-	void clearInputs(bool clearThrottle = false, bool quick = true);
+	void clearInputs(bool clearThrottle = false);
 	
 	
 private:
@@ -78,8 +77,8 @@ private:
 	void handleDown(uint8_t value);
 	void handlePanLeft(uint8_t value);
 	void handlePanRight(uint8_t value);
-	void speedUp(uint8_t value);
-	void speedDown(uint8_t value);
+	void increaseSpeed(uint8_t value);
+	void decreaseSpeed(uint8_t value);
 	
 	void toggle(uint8_t value);
 	void P(uint8_t value);
@@ -98,14 +97,13 @@ private:
 	void controlTimeouts();
 
 	// Helpers
-	void updateCommandMap();
+	void generateCommandMap();
 	void applyFailsafeIfTimedOut();
 	int16_t mapInput(uint8_t rawValue);
 	float smooth(float current, float target, float sensitivity, float deltaTime);
 
 	bool canApplyFailSafe;
 	bool canChangeSpeed;
-	bool isKilling;
 
 	int movementSpeed;
 };
