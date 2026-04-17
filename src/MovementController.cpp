@@ -3,8 +3,8 @@
 #include <cmath>
 
 
-MovementController::MovementController(Status& s, RFD900& rfd900) : 
-status{s},
+MovementController::MovementController(Telemetry& tel, RFD900& rfd900) : 
+telemetry{tel},
 rfd900{rfd900},
 isToggled{false},
 canApplyFailSafe{true},
@@ -149,7 +149,7 @@ void MovementController::update() {
 
 	currentInput.yaw = constrain(currentInput.yaw, -180.0f, 180.0f);
 	currentInput.throttle = constrain(currentInput.throttle, 0.0f, 1500.0f);
-	status.speed = static_cast<int>(currentInput.throttle);
+	telemetry.speed = static_cast<int>(currentInput.throttle);
 
 	applyFailsafeIfTimedOut();
 }

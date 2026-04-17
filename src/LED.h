@@ -4,24 +4,27 @@
 #include "MovementController.h"
 
 constexpr int LEDPIN {2};
+constexpr unsigned long FAST_INTERVAL = 1000/1;
+constexpr unsigned long SLOW_INTERVAL = 1000/10;
 
 class LED {
 	public:
-	LED(Status& s, MovementController& mc);
+	LED(Telemetry& tel, MovementController& mc);
 	void loop();
 
 	private:
-	Status& status;
+	Telemetry& telemetry;
 	bool state;
 	MovementController& mc;
+
 };
 
-LED::LED(Status& s, MovementController& mc) : status{s}, mc{mc}, state{false} {
+LED::LED(Telemetry& tel, MovementController& mc) : telemetry{tel}, mc{mc}, state{false} {
 	pinMode(LEDPIN, OUTPUT);
 }
 
 void LED::loop() {
-	if (status.Communication == 1) {
+	if (telemetry.Communication == 1) {
 		// CONSTANT LIGHT IF COMMS CONNECTED
 		digitalWrite(LEDPIN, HIGH);
 	} else {

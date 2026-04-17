@@ -47,20 +47,19 @@ struct ControlInput {
 // Main control manager
 class MovementController {
 public:
-	MovementController(Status& s, RFD900& rfd900);
+	MovementController(Telemetry& tel, RFD900& rfd900);
 	void begin();
 	void update();
 	ControlInput getInput() const;
 	bool isToggled;
 	double Kp = 1, Ki = 0, Kd = 1;
 	void clearInputs(bool clearThrottle = false);
-	
-	
+
 private:
 	
 	ControlInput currentInput;
 	ControlInput targetInput;
-	Status& status;
+	Telemetry& telemetry;
 	RFD900& rfd900;
 	std::unordered_map<CommandID, std::function<void(uint8_t)>> commandMap;
 	std::chrono::steady_clock::time_point lastCommandTime;

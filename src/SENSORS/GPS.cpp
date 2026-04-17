@@ -1,6 +1,6 @@
 #include "GPS.h"
 
-GPS::GPS(Status& status) : status{status}, SerialGPS(1)
+GPS::GPS(Telemetry& tel) : telemetry{tel}, SerialGPS(1)
 {
 	SerialGPS.begin(9600, SERIAL_8N1, GPS_RX, GPS_TX);
 }
@@ -13,11 +13,11 @@ void GPS::loop() {
 	}
 
 	if (gps.location.isValid()) {
-		status.gpsFix = 1;
-		status.latitude  = gps.location.lat() * 1e7;
-		status.longitude = gps.location.lng() * 1e7;
+		telemetry.gpsFix = 1;
+		telemetry.latitude  = gps.location.lat() * 1e7;
+		telemetry.longitude = gps.location.lng() * 1e7;
 	} else {
-		status.gpsFix = 0;
+		telemetry.gpsFix = 0;
 	}
 
 }

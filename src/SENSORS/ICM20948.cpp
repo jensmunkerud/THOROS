@@ -15,20 +15,20 @@ static Vec3 gravityBodyFromAttitude(float rollDeg, float pitchDeg) {
 	};
 }
  
-ICM20948::ICM20948(Status& status) : status{status} {
+ICM20948::ICM20948(Telemetry& tel) : telemetry{tel} {
 	sampleRate.a = (1000 / ICM_SAMPLERATE) - 1;
 	sampleRate.g = (1000 / ICM_SAMPLERATE) - 1;
 }
 
 void ICM20948::begin() {
 	SPI.begin();
-	status.ICM20948 = icm20948.begin(ICM20948_CS, SPI) == ICM_20948_Stat_Ok;
-	if (!status.ICM20948) {
+	telemetry.ICM20948 = icm20948.begin(ICM20948_CS, SPI) == ICM_20948_Stat_Ok;
+	if (!telemetry.ICM20948) {
 		Serial.println("failed first");
 		return;
 	}
-	status.ICM20948 = icm20948.startupMagnetometer() == ICM_20948_Stat_Ok;
-	if (!status.ICM20948) {
+	telemetry.ICM20948 = icm20948.startupMagnetometer() == ICM_20948_Stat_Ok;
+	if (!telemetry.ICM20948) {
 		Serial.println("failed first");
 		return;
 	}
@@ -52,7 +52,7 @@ void ICM20948::begin() {
 
 	delay(500);
 	calibrateIMU();
-	status.ICM20948 = 1;
+	telemetry.ICM20948 = 1;
 }
 
 void ICM20948::loop() {
@@ -116,9 +116,9 @@ void ICM20948::loop() {
 		float fusedPitch = fusion.getPitch();
 		float fusedYaw = fusion.getYaw() - 184.0f;
 
-		status.attitude.pitch = -fusedRoll;
-		status.attitude.roll  = fusedPitch;
-		status.attitude.yaw   = fusedYaw;
+		telemetry.attitude.pitch = -fusedRoll;
+		telemetry.attitude.roll  = fusedPitch;
+		telemetry.attitude.yaw   = fusedYaw;
 
 		// Remove gravity using current attitude, then convert to world frame.
 		Vec3 gBody = gravityBodyFromAttitude(fusedRoll, fusedPitch);
@@ -127,9 +127,9 @@ void ICM20948::loop() {
 			acc.y - gBody.y,
 			acc.z - gBody.z
 		};
-		status.linearAccel.x = linBody.x;
-		status.linearAccel.y = linBody.y;
-		status.linearAccel.z = linBody.z;
+		telemetry.linearAccel.x = linBody.x;
+		telemetry.linearAccel.y = linBody.y;
+		telemetry.linearAccel.z = linBody.z;
 
 		// Print: 9axis_debug
 		// Serial.print(acc.x, 4); Serial.print("/");
@@ -155,7 +155,7 @@ void ICM20948::calibrateIMU() {
 		unsigned long waitStartUs = micros();
 		while (!icm20948.dataReady()) {
 			if ((unsigned long)(micros() - waitStartUs) > sampleTimeoutUs) {
-				status.ICM20948 = 0;
+				telemetry.ICM20948 = 0;
 				return;
 			}
 			delayMicroseconds(100);

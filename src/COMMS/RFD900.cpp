@@ -1,7 +1,7 @@
 #include "RFD900.h"
 
 
-RFD900::RFD900(Status& s) : status{s}, numPackets{0}, rfdTaskHandle{nullptr}, pingProgress{0}, SerialRFD(RFD_SERIAL) {
+RFD900::RFD900(Telemetry& tel) : telemetry{tel}, numPackets{0}, rfdTaskHandle{nullptr}, pingProgress{0}, SerialRFD(RFD_SERIAL) {
 	commandQueue = xQueueCreate(5, sizeof(RFDCommandPacket));
 }
 
@@ -12,7 +12,7 @@ void RFD900::RFD900Task(void* parameter) {
 	if (!rfd) {
 		vTaskDelete(NULL); // safety check
 	}
-	rfd->status.RFD900 = 1;
+	rfd->telemetry.RFD900 = 1;
 	for (;;) {
 		rfd->loop();
 		vTaskDelay(1); // 1ms
@@ -45,11 +45,11 @@ void RFD900::begin() {
 
 void RFD900::loop() {
 	if (millis() - lastCommand > RFD_TIMEOUT_MS) {
-		if (status.Communication == 1) {
+		if (telemetry.Communication == 1) {
 			RFDCommandPacket killCommand{1, { {254, 0} }};
 			xQueueSendToBack(commandQueue, &killCommand, pdMS_TO_TICKS(10));
 		}
-		status.Communication = 0;
+		telemetry.Communication = 0;
 	}
 
 	while (SerialRFD.available() > 0) {
@@ -71,7 +71,7 @@ void RFD900::loop() {
 		// SOMETIMES they are bundled together, hence END_MARKER and START_MARKER skips inside
 		// (it might send too fast for SerialRFD to timeout or we receive next packet while inside for loop below)
 		if (incoming == END_MARKER) {
-			status.Communication = 1;
+			telemetry.Communication = 1;
 			lastCommand = millis();
 			RFDCommandPacket packet;
 			packet.numCmds = 0;
@@ -92,8 +92,8 @@ void RFD900::loop() {
 
 
 void RFD900::sendStatus() {
-	if (status.Communication == 1) {
-		SerialRFD.write((uint8_t*)&status, sizeof(Status));
+	if (telemetry.Communication == 1) {
+		SerialRFD.write((uint8_t*)&telemetry, sizeof(Telemetry));
 	}
 }
 

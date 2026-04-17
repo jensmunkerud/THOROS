@@ -13,19 +13,18 @@
 // PARAMETERS
 constexpr unsigned long SENSOR_INTERVAL_FAST = 1000/1000;
 constexpr unsigned long SENSOR_INTERVAL_SLOW = 1000/1;
-constexpr unsigned long interval2 = 1000/10;
 
 unsigned long prevFAST = 0;
 unsigned long prevSLOW = 0;
 
-Status status;
-ICM20948 icm20948(status);
-BMP390 bmp390(status);
-// GPS gps(status);
-RFD900 rfd900(status);
-MovementController movementController(status, rfd900);
-LED led(status, movementController);
-Motor motor(movementController, status);
+Telemetry telemetry;
+ICM20948 icm20948(telemetry);
+BMP390 bmp390(telemetry);
+// GPS gps(telemetry);
+RFD900 rfd900(telemetry);
+MovementController movementController(telemetry, rfd900);
+LED led(telemetry, movementController);
+Motor motor(movementController, telemetry);
 
 PidTuningReceiver pidTuningReceiver(Serial, applyPidTuningsToMotor, &motor);
 
@@ -43,10 +42,10 @@ void initDevice(const char* name, std::function<uint8_t()> statusGetter, std::fu
 void setup() {
 	Serial.begin(115200);
 	Serial.println("==== SETUP BEGUN! ====");
-	initDevice("ICM20948", [](){ return status.ICM20948; }, [](){ icm20948.begin(); });
-	// initDevice("BMP390", [](){ return status.BMP390; }, [](){ bmp390.begin(); });
-	initDevice("RFD900", [](){ return status.RFD900; }, [](){ rfd900.begin(); });
-	initDevice("Motor", [](){ return status.motorArmed; }, [](){ motor.begin(); });
+	initDevice("ICM20948", [](){ return telemetry.ICM20948; }, [](){ icm20948.begin(); });
+	// initDevice("BMP390", [](){ return telemetry.BMP390; }, [](){ bmp390.begin(); });
+	initDevice("RFD900", [](){ return telemetry.RFD900; }, [](){ rfd900.begin(); });
+	initDevice("Motor", [](){ return telemetry.motorArmed; }, [](){ motor.begin(); });
 	Serial.println("==== SETUP COMPLETE ====");
 }
 
@@ -70,8 +69,7 @@ void loop() {
 	if (current - prevSLOW >= SENSOR_INTERVAL_SLOW) {
 		prevSLOW = current;
 		// gps.loop();
-		led.loop();
 	}
-	// delayMicroseconds(1);
+	led.loop();
 }
 

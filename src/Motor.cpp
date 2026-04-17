@@ -1,8 +1,8 @@
 #include "Motor.h"
 
-Motor::Motor(MovementController& mc, Status& s) : 
+Motor::Motor(MovementController& mc, Telemetry& tel) : 
 movementController{mc},
-status{s},
+telemetry{tel},
 motor1(MOTOR1),
 motor2(MOTOR2),
 motor3(MOTOR3),
@@ -51,7 +51,7 @@ void Motor::begin() {
 		motor4.send_dshot_value(0);
 		delay(1);
 	}
-	status.motorArmed = 1;
+	telemetry.motorArmed = 1;
 }
 
 void Motor::setAttitudePidTunings(const PID& pitch, const PID& roll, const PID& yaw) {
@@ -102,7 +102,7 @@ void Motor::updateAxisPid(QuickPID& pid, float setpoint, float measuredRaw, floa
 
 
 void Motor::loop() {
-	if (status.Communication != 1) {
+	if (telemetry.Communication != 1) {
 		motor1.send_dshot_value(0);
 		motor2.send_dshot_value(0);
 		motor3.send_dshot_value(0);
@@ -123,9 +123,9 @@ void Motor::loop() {
 	);
 
 	// Attitude stabilization
-	updateAxisPid(pitchQuickPID, target.pitch, status.attitude.pitch, pitchInput, quickPitchOUT, quickPitchCommand, PITCH_PID_OUTPUT_LIMIT, ATTITUDE_I_BLEED_ZERO_ERROR, ATTITUDE_I_BLEED_FULL_ERROR, ATTITUDE_I_BLEED_MAX_PER_LOOP);
-	updateAxisPid(rollQuickPID, target.roll, status.attitude.roll, rollInput, quickRollOUT, quickRollCommand, ROLL_PID_OUTPUT_LIMIT, ATTITUDE_I_BLEED_ZERO_ERROR, ATTITUDE_I_BLEED_FULL_ERROR, ATTITUDE_I_BLEED_MAX_PER_LOOP);
-	updateAxisPid(yawQuickPID, target.yaw, status.attitude.yaw, yawInput, quickYawOUT, quickYawCommand, YAW_PID_OUTPUT_LIMIT, ATTITUDE_I_BLEED_ZERO_ERROR, ATTITUDE_I_BLEED_FULL_ERROR, ATTITUDE_I_BLEED_MAX_PER_LOOP);
+	updateAxisPid(pitchQuickPID, target.pitch, telemetry.attitude.pitch, pitchInput, quickPitchOUT, quickPitchCommand, PITCH_PID_OUTPUT_LIMIT, ATTITUDE_I_BLEED_ZERO_ERROR, ATTITUDE_I_BLEED_FULL_ERROR, ATTITUDE_I_BLEED_MAX_PER_LOOP);
+	updateAxisPid(rollQuickPID, target.roll, telemetry.attitude.roll, rollInput, quickRollOUT, quickRollCommand, ROLL_PID_OUTPUT_LIMIT, ATTITUDE_I_BLEED_ZERO_ERROR, ATTITUDE_I_BLEED_FULL_ERROR, ATTITUDE_I_BLEED_MAX_PER_LOOP);
+	updateAxisPid(yawQuickPID, target.yaw, telemetry.attitude.yaw, yawInput, quickYawOUT, quickYawCommand, YAW_PID_OUTPUT_LIMIT, ATTITUDE_I_BLEED_ZERO_ERROR, ATTITUDE_I_BLEED_FULL_ERROR, ATTITUDE_I_BLEED_MAX_PER_LOOP);
 
 	// Scale attitude commands by PID authority
 	float pitchCmd = quickPitchCommand * pidAuthority;
@@ -143,11 +143,11 @@ void Motor::loop() {
 	motor3.send_dshot_value((int)m3);
 	motor4.send_dshot_value((int)m4);
 	
-	Serial.print(status.attitude.pitch);
+	Serial.print(telemetry.attitude.pitch);
 	Serial.print("/");
-	Serial.print(status.attitude.yaw);
+	Serial.print(telemetry.attitude.yaw);
 	Serial.print("/");
-	Serial.print(status.attitude.roll);
+	Serial.print(telemetry.attitude.roll);
 	Serial.print("/");
 	Serial.print((int)m1);
 	Serial.print("/");

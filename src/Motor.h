@@ -13,7 +13,7 @@ constexpr int MOTOR4 {13}; // BACK LEFT		CCW
 
 constexpr int INITILIZE_ESC_TIME (40); // 4000
 constexpr int MINIMUM_MOTOR_SPEED (70);
-constexpr int MAXIMUM_MOTOR_SPEED (1000);
+constexpr int MAXIMUM_MOTOR_SPEED (500);
 constexpr int PID_MAX_EFFECT_AFTER_SPEED (200);
 constexpr int ATTITUDE_PID_SAMPLE_US (1000);	// Inner PID loop
 constexpr int PITCH_PID_OUTPUT_LIMIT (200);
@@ -31,7 +31,7 @@ constexpr dshot_mode_e DSHOT_TYPE{DSHOT300};
 
 class Motor {
 public:
-	Motor(MovementController& mc, Status& s);
+	Motor(MovementController& mc, Telemetry& tel);
 	void begin();
 	void loop();
 	void setAttitudePidTunings(const PID& pitch, const PID& roll, const PID& yaw);
@@ -41,7 +41,7 @@ private:
 	PID yawPid{2, 4, 1};
 	PID rollPid{3, 0.2, 0.6};
 	MovementController& movementController;
-	Status& status;
+	Telemetry& telemetry;
 	DShotRMT motor1;
 	DShotRMT motor2;
 	DShotRMT motor3;

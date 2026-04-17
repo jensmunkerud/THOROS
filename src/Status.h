@@ -19,9 +19,17 @@ struct Attitude {
 	float roll;
 };
 
-// Rename existing status -> telemetry, then make a new struct for ONLY INTERNAL properties, like attitude & linearaccel etc.
+enum class FlightMode {
+		DISARMED,
+		ARMED,
+		LANDED,
+		HOVER,
+		MOVING,
+};
 
-struct __attribute__((packed)) Status {
+// Rename existing telemetry -> telemetry, then make a new struct for ONLY INTERNAL properties, like attitude & linearaccel etc.
+
+struct __attribute__((packed)) Telemetry {
 	int8_t BEGIN;
 	int16_t altitude;
 	int16_t speed;
@@ -36,14 +44,6 @@ struct __attribute__((packed)) Status {
 
 	int32_t latitude;   // scaled by 1e7
 	int32_t longitude;  // scaled by 1e7
-
-	enum class FlightMode {
-		DISARMED,
-		ARMED,
-		LANDED,
-		HOVER,
-		MOVING,
-	};
 
 	// System flags (packed into 1 byte)
 	union {
@@ -63,7 +63,7 @@ struct __attribute__((packed)) Status {
 	uint16_t timestamp; // unused
 	int8_t END;
 
-	Status() :
+	Telemetry() :
 		BEGIN(START_MARKER),
 		altitude(0),
 		speed(0),
