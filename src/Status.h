@@ -41,8 +41,8 @@ struct __attribute__((packed)) Status {
 		DISARMED,
 		ARMED,
 		LANDED,
-		FLYING,
-		KILLED,
+		HOVER,
+		MOVING,
 	};
 
 	// System flags (packed into 1 byte)
