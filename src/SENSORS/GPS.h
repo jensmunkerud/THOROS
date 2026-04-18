@@ -9,12 +9,12 @@ const int maxPacketLength = 300;
 
 class GPS {
 public:
-	GPS(Telemetry& tel, DroneState& droneState);
+	GPS(Telemetry& tel, Drone& drone);
 	void loop();
 
 private:
 	TinyGPSPlus gps;
 	Telemetry& telemetry;
-	DroneState& droneState;
+	Drone& drone;
 	HardwareSerial SerialGPS;
 };

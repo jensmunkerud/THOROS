@@ -1,9 +1,9 @@
 #include "ICM20948.h"
 
 
-ICM20948::ICM20948(Telemetry& tel, DroneState& droneState) : 
+ICM20948::ICM20948(Telemetry& tel, Drone& drone) : 
 telemetry{tel},
-droneState{droneState}
+drone{drone}
 {
 	sampleRate.a = (1000 / ICM_SAMPLERATE) - 1;
 	sampleRate.g = (1000 / ICM_SAMPLERATE) - 1;
@@ -11,16 +11,10 @@ droneState{droneState}
 
 void ICM20948::begin() {
 	SPI.begin();
-	telemetry.ICM20948 = icm20948.begin(ICM20948_CS, SPI) == ICM_20948_Stat_Ok;
-	if (!telemetry.ICM20948) {
-		Serial.println("failed first");
-		return;
-	}
-	telemetry.ICM20948 = icm20948.startupMagnetometer() == ICM_20948_Stat_Ok;
-	if (!telemetry.ICM20948) {
-		Serial.println("failed first");
-		return;
-	}
+	drone.IMU_OK = icm20948.begin(ICM20948_CS, SPI) == ICM_20948_Stat_Ok;
+	if (!drone.IMU_OK) {return;}
+	drone.IMU_OK = icm20948.startupMagnetometer() == ICM_20948_Stat_Ok;
+	if (!drone.IMU_OK) {return;}
 	ICM_20948_fss_t fss;
 	fss.a = gpm8;
 	fss.g = dps2000;
@@ -41,7 +35,7 @@ void ICM20948::begin() {
 
 	delay(500);
 	calibrateIMU();
-	telemetry.ICM20948 = 1;
+	drone.IMU_OK = true;
 }
 
 static Vec3 gravityBodyFromAttitude(float rollDeg, float pitchDeg) {
@@ -159,7 +153,7 @@ void ICM20948::calibrateIMU() {
 		unsigned long waitStartUs = micros();
 		while (!icm20948.dataReady()) {
 			if ((unsigned long)(micros() - waitStartUs) > sampleTimeoutUs) {
-				telemetry.ICM20948 = 0;
+				drone.IMU_OK = false;
 				return;
 			}
 			delayMicroseconds(100);

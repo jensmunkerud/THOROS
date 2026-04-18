@@ -9,12 +9,12 @@ constexpr int BMP390_CS {4};
 
 class BMP390 {
 public:
-	BMP390(Telemetry& telemetry, DroneState& droneState);
+	BMP390(Telemetry& telemetry, Drone& drone);
 	void begin();
 	void loop();
 
 private:
 	Telemetry& telemetry;
-	DroneState& droneState;
+	Drone& drone;
 	Adafruit_BMP3XX bmp;
 };

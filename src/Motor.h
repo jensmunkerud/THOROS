@@ -31,10 +31,11 @@ constexpr dshot_mode_e DSHOT_TYPE{DSHOT300};
 
 class Motor {
 public:
-	Motor(MovementController& mc, Telemetry& tel, DroneState& droneState);
+	Motor(MovementController& mc, Telemetry& tel, Drone& drone);
 	void begin();
 	void loop();
 	void setAttitudePidTunings(const PID& pitch, const PID& roll, const PID& yaw);
+	void arm();
 	
 private:
 	PID pitchPid{6, 0.2, 0.7};
@@ -42,7 +43,7 @@ private:
 	PID rollPid{3, 0.2, 0.6};
 	MovementController& movementController;
 	Telemetry& telemetry;
-	DroneState& droneState;
+	Drone& drone;
 	DShotRMT motor1;
 	DShotRMT motor2;
 	DShotRMT motor3;

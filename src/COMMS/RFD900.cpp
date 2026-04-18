@@ -1,7 +1,7 @@
 #include "RFD900.h"
 
 
-RFD900::RFD900(Telemetry& tel, DroneState& droneState) : 
+RFD900::RFD900(Telemetry& tel, Drone& droneState) : 
 telemetry{tel},
 droneState{droneState},
 numPackets{0},
@@ -19,7 +19,7 @@ void RFD900::RFD900Task(void* parameter) {
 	if (!rfd) {
 		vTaskDelete(NULL); // safety check
 	}
-	rfd->telemetry.RFD900 = 1;
+	rfd->droneState.RADIO_OK = true;
 	for (;;) {
 		rfd->loop();
 		vTaskDelay(1); // 1ms
@@ -52,11 +52,11 @@ void RFD900::begin() {
 
 void RFD900::loop() {
 	if (millis() - lastCommand > RFD_TIMEOUT_MS) {
-		if (telemetry.Communication == 1) {
+		if (droneState.GROUND_LINK_OK) {
 			RFDCommandPacket killCommand{1, { {254, 0} }};
 			xQueueSendToBack(commandQueue, &killCommand, pdMS_TO_TICKS(10));
 		}
-		telemetry.Communication = 0;
+		droneState.GROUND_LINK_OK = false;
 	}
 
 	while (SerialRFD.available() > 0) {
@@ -78,7 +78,7 @@ void RFD900::loop() {
 		// SOMETIMES they are bundled together, hence END_MARKER and START_MARKER skips inside
 		// (it might send too fast for SerialRFD to timeout or we receive next packet while inside for loop below)
 		if (incoming == END_MARKER) {
-			telemetry.Communication = 1;
+			droneState.GROUND_LINK_OK = true;
 			lastCommand = millis();
 			RFDCommandPacket packet;
 			packet.numCmds = 0;
@@ -99,7 +99,7 @@ void RFD900::loop() {
 
 
 void RFD900::sendStatus() {
-	if (telemetry.Communication == 1) {
+	if (droneState.GROUND_LINK_OK) {
 		SerialRFD.write((uint8_t*)&telemetry, sizeof(Telemetry));
 	}
 }

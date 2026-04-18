@@ -1,8 +1,8 @@
 #include "GPS.h"
 
-GPS::GPS(Telemetry& tel, DroneState& droneState) : 
+GPS::GPS(Telemetry& tel, Drone& drone) : 
 telemetry{tel},
-droneState{droneState},
+drone{drone},
 SerialGPS(1)
 {
 	SerialGPS.begin(9600, SERIAL_8N1, GPS_RX, GPS_TX);
@@ -16,11 +16,11 @@ void GPS::loop() {
 	}
 
 	if (gps.location.isValid()) {
-		telemetry.gpsFix = 1;
+		drone.GPS_OK = true;
 		telemetry.latitude  = gps.location.lat() * 1e7;
 		telemetry.longitude = gps.location.lng() * 1e7;
 	} else {
-		telemetry.gpsFix = 0;
+		drone.GPS_OK = false;
 	}
 
 }

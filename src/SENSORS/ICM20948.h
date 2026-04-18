@@ -15,13 +15,13 @@ static constexpr float GYRO_LPF_ALPHA = 1.0f;
 
 class ICM20948 {
 public:
-	ICM20948(Telemetry& tel, DroneState& droneState);
+	ICM20948(Telemetry& tel, Drone& drone);
 	void begin();
 	void loop();
 
 private:
 	Telemetry& telemetry;
-	DroneState& droneState;
+	Drone& drone;
 	SF fusion;
 	float dt;
 	ICM_20948_SPI icm20948;

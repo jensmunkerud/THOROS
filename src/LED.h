@@ -9,21 +9,21 @@ constexpr unsigned long SLOW_INTERVAL = 1000/10;
 
 class LED {
 public:
-	LED(Telemetry& tel, DroneState& droneState, MovementController& mc);
+	LED(Telemetry& tel, Drone& drone, MovementController& mc);
 	void loop();
 
 private:
 	Telemetry& telemetry;
-	DroneState& droneState;
+	Drone& drone;
 	bool state;
 	MovementController& mc;
 	long lastFast;
 	long lastSlow;
 };
 
-LED::LED(Telemetry& tel, DroneState& droneState, MovementController& mc) : 
+LED::LED(Telemetry& tel, Drone& drone, MovementController& mc) : 
 telemetry{tel},
-droneState{droneState},
+drone{drone},
 state{false},
 mc{mc}
 {
@@ -32,7 +32,7 @@ mc{mc}
 
 void LED::loop() {
 	
-	if (telemetry.Communication == 1) {
+	if (drone.GROUND_LINK_OK) {
 		// CONSTANT LIGHT IF COMMS CONNECTED
 		digitalWrite(LEDPIN, HIGH);
 	} else {

@@ -3,9 +3,9 @@
 #include <cmath>
 
 
-MovementController::MovementController(Telemetry& tel, DroneState& droneState, RFD900& rfd900) : 
+MovementController::MovementController(Telemetry& tel, Drone& drone, RFD900& rfd900) : 
 telemetry{tel},
-droneState{droneState},
+drone{drone},
 rfd900{rfd900},
 isToggled{false},
 canApplyFailSafe{true},
@@ -39,6 +39,12 @@ void MovementController::updateRunningCommands() {
 	}
 }
 
+void MovementController::executeCommand(CommandID id, uint8_t rawValue) {
+	auto it = commandMap.find(id);
+	if (it == commandMap.end()) {return;}
+	it->second(rawValue);
+}
+
 void MovementController::generateCommandMap() {
 	commandMap[CommandID::FORWARD]			= [this](uint8_t v){ handleForward(v); };
 	commandMap[CommandID::BACKWARD]			= [this](uint8_t v){ handleBackward(v); };
@@ -60,24 +66,19 @@ void MovementController::generateCommandMap() {
 	commandMap[CommandID::SPEED_DOWN]		= [this](uint8_t v){ decreaseSpeed(v); };
 }
 
-void MovementController::executeCommand(CommandID id, uint8_t rawValue) {
-	auto it = commandMap.find(id);
-	if (it == commandMap.end()) {return;}
-	it->second(rawValue);
-}
 
 // === Command Handlers ===
-void MovementController::handleForward(uint8_t v)  { targetInput.pitch = static_cast<float>(v); }
-void MovementController::handleBackward(uint8_t v) { targetInput.pitch = -static_cast<float>(v); }
-void MovementController::handleLeft(uint8_t v)     { targetInput.roll = -static_cast<float>(v); }
-void MovementController::handleRight(uint8_t v)    { targetInput.roll = static_cast<float>(v); }
-void MovementController::handlePanLeft(uint8_t v)  { targetInput.yaw = v > 0 ? 1.0f : 0.0f; }
-void MovementController::handlePanRight(uint8_t v) { targetInput.yaw = v > 0 ? -1.0f : 0.0f; }
-void MovementController::handleUp(uint8_t v)       { targetInput.throttle = v > 0 ? 1.0f : 0.0f; }
-void MovementController::handleDown(uint8_t v)     { targetInput.throttle = v > 0 ? -1.0f : 0.0f; }
+void MovementController::handleForward(uint8_t v)  { target.pitch = static_cast<float>(v); }
+void MovementController::handleBackward(uint8_t v) { target.pitch = -static_cast<float>(v); }
+void MovementController::handleLeft(uint8_t v)     { target.roll = -static_cast<float>(v); }
+void MovementController::handleRight(uint8_t v)    { target.roll = static_cast<float>(v); }
+void MovementController::handlePanLeft(uint8_t v)  { target.yaw = v > 0 ? v/255 : 0.0f; }
+void MovementController::handlePanRight(uint8_t v) { target.yaw = v > 0 ? -v/255 : 0.0f; }
+void MovementController::handleUp(uint8_t v)       { target.throttle = v > 0 ? v/255 : 0.0f; }
+void MovementController::handleDown(uint8_t v)     { target.throttle = v > 0 ? -v/255 : 0.0f; }
 void MovementController::toggle(uint8_t v) {isToggled = not isToggled; return; Serial.print("Toggled , it is now: "); Serial.println(isToggled);}
-void MovementController::increaseSpeed(uint8_t v) {if (canChangeSpeed && v > 0) {movementSpeed = constrain(movementSpeed + SENSITIVITY, 50, 500); canChangeSpeed = false;} Serial.print("Sped up, speed: "); Serial.println(movementSpeed); if (v == 0) {canChangeSpeed = true;}}
-void MovementController::decreaseSpeed(uint8_t v) {if (canChangeSpeed && v > 0) {movementSpeed = constrain(movementSpeed - SENSITIVITY, 50, 500); canChangeSpeed = false;} if (v == 0) {canChangeSpeed = true;}}
+void MovementController::increaseSpeed(uint8_t v) {if (canChangeSpeed && v > 0) {movementSpeed = constrain(movementSpeed + v, 50, 500); canChangeSpeed = false;} Serial.print("Sped up, speed: "); Serial.println(movementSpeed); if (v == 0) {canChangeSpeed = true;}}
+void MovementController::decreaseSpeed(uint8_t v) {if (canChangeSpeed && v > 0) {movementSpeed = constrain(movementSpeed - v, 50, 500); canChangeSpeed = false;} if (v == 0) {canChangeSpeed = true;}}
 void MovementController::P(uint8_t v) {Kp = max(0, (int)Kp + v);}
 void MovementController::Pd(uint8_t v) {Kp = max(0, (int)Kp - v);}
 void MovementController::I(uint8_t v) {Ki = max(0, (int)Ki + v);}
@@ -86,12 +87,12 @@ void MovementController::D(uint8_t v) {Kd = max(0, (int)Kd + v);}
 void MovementController::Dd(uint8_t v) {Kd = max(0, (int)Kd - v);}
 
 
-float MovementController::smooth(float current, float target, float sensitivity, float deltaTime)
+float MovementController::smooth(float current, float target, float sensitivity, float deltaMs)
 {
 	if (current == target)
 		return current;
 
-	float step = sensitivity * (deltaTime / 1000.0f);
+	float step = sensitivity * (deltaMs / 1000.0f);
 
 	// Prevents overshoot
 	if (current < target) {
@@ -108,7 +109,7 @@ float MovementController::smooth(float current, float target, float sensitivity,
 
 // === Update Loop ===
 void MovementController::update() {
-	deltaTime = millis() - lastTime;
+	deltaMs = millis() - lastTime;
 	lastTime = millis();
 
 	if (xQueueReceive(rfd900.getCommandQueue(), &received, 0) == pdTRUE) {
@@ -126,31 +127,31 @@ void MovementController::update() {
 		}
 	}
 
-	// Pitch and roll move toward the requested target values.
-	currentInput.pitch = constrain(
-		smooth(currentInput.pitch, targetInput.pitch, movementSpeed, deltaTime),
+	// Apply output signals from MovementController to drone flightControls state.
+	// Pitch & roll move and reach target
+	drone.flightControls.pitch = constrain(
+		smooth(drone.flightControls.pitch, target.pitch, TILT_SPEED, deltaMs),
 		-MAX_TILT_ANGLE, MAX_TILT_ANGLE
 	);
-	currentInput.roll = constrain(
-		smooth(currentInput.roll, targetInput.roll, movementSpeed, deltaTime),
+	drone.flightControls.roll = constrain(
+		smooth(drone.flightControls.roll, target.roll, TILT_SPEED, deltaMs),
 		-MAX_TILT_ANGLE, MAX_TILT_ANGLE
 	);
 
-	// Yaw and throttle keep moving while their target is nonzero.
-	if (targetInput.yaw != 0.0f) {
-		currentInput.yaw += deltaTime * PAN_SPEED * targetInput.yaw;
+	// Yaw and throttle continually add up
+	if (target.yaw != 0.0f) {
+		drone.flightControls.yaw += PAN_SPEED * target.yaw * deltaMs;
 	} else {
-		currentInput.yaw = smooth(currentInput.yaw, 0.0f, PAN_SPEED, deltaTime);
+		drone.flightControls.yaw = smooth(drone.flightControls.yaw, 0.0f, PAN_SPEED, deltaMs);
 	}
-	if (targetInput.throttle != 0.0f) {
-		currentInput.throttle += deltaTime * THROTTLE_SPEED * targetInput.throttle;
+	if (target.throttle != 0.0f) {
+		drone.flightControls.throttle += THROTTLE_SPEED * target.throttle * deltaMs;
 	} else {
-		currentInput.throttle = smooth(currentInput.throttle, 0.0f, THROTTLE_SPEED, deltaTime);
+		drone.flightControls.throttle = smooth(drone.flightControls.throttle, 0.0f, THROTTLE_SPEED, deltaMs);
 	}
 
-	currentInput.yaw = constrain(currentInput.yaw, -180.0f, 180.0f);
-	currentInput.throttle = constrain(currentInput.throttle, 0.0f, 1500.0f);
-	droneState.controlInput = currentInput;
+	drone.flightControls.yaw = constrain(drone.flightControls.yaw, -180.0f, 180.0f);
+	drone.flightControls.throttle = constrain(drone.flightControls.throttle, 0.0f, 1500.0f);
 
 	applyFailsafeIfTimedOut();
 }
@@ -163,17 +164,12 @@ void MovementController::applyFailsafeIfTimedOut() {
 	}
 }
 
-ControlInput MovementController::getInput() const {
-	return currentInput;
-}
-
-
 void MovementController::clearInputs(bool clearThrottle) {
 	if (canApplyFailSafe) {
-		targetInput.pitch = 0;
-		targetInput.roll = 0;
-		targetInput.yaw = 0;
-		targetInput.throttle = 0;
+		target.pitch = 0;
+		target.roll = 0;
+		target.yaw = 0;
+		target.throttle = 0;
 	}
 	canApplyFailSafe = false;
 }

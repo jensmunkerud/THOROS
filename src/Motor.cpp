@@ -1,9 +1,9 @@
 #include "Motor.h"
 
-Motor::Motor(MovementController& mc, Telemetry& tel, DroneState& droneState) : 
+Motor::Motor(MovementController& mc, Telemetry& tel, Drone& drone) : 
 movementController{mc},
 telemetry{tel},
-droneState{droneState},
+drone{drone},
 motor1(MOTOR1),
 motor2(MOTOR2),
 motor3(MOTOR3),
@@ -45,6 +45,10 @@ void Motor::begin() {
 	rollQuickPID.SetOutputLimits(-ROLL_PID_OUTPUT_LIMIT, ROLL_PID_OUTPUT_LIMIT);
 	yawQuickPID.SetOutputLimits(-YAW_PID_OUTPUT_LIMIT, YAW_PID_OUTPUT_LIMIT);
 	
+	arm();
+}
+
+void Motor::arm() {
 	for(int i = 0; i < INITILIZE_ESC_TIME; i++) {
 		motor1.send_dshot_value(0);
 		motor2.send_dshot_value(0);
@@ -52,7 +56,7 @@ void Motor::begin() {
 		motor4.send_dshot_value(0);
 		delay(1);
 	}
-	telemetry.motorArmed = 1;
+	drone.MOTOR_ARMED = true;
 }
 
 void Motor::setAttitudePidTunings(const PID& pitch, const PID& roll, const PID& yaw) {
@@ -103,15 +107,9 @@ void Motor::updateAxisPid(QuickPID& pid, float setpoint, float measuredRaw, floa
 
 
 void Motor::loop() {
-	if (telemetry.Communication != 1) {
-		motor1.send_dshot_value(0);
-		motor2.send_dshot_value(0);
-		motor3.send_dshot_value(0);
-		motor4.send_dshot_value(0);
-		return;
-	}
+	if (!drone.MOTOR_ARMED) {return;}
 
-	const ControlInput controlInput = droneState.controlInput;
+	const FlightControls controlInput = drone.flightControls;
 	target.pitch = controlInput.pitch;
 	target.roll = controlInput.roll;
 	target.yaw = controlInput.yaw;

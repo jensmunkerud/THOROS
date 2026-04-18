@@ -18,20 +18,20 @@ unsigned long prevFAST = 0;
 unsigned long prevSLOW = 0;
 
 Telemetry telemetry;
-DroneState droneState;
-ICM20948 icm20948(telemetry, droneState);
-BMP390 bmp390(telemetry, droneState);
+Drone drone;
+ICM20948 icm20948(telemetry, drone);
+BMP390 bmp390(telemetry, drone);
 // GPS gps(telemetry);
-RFD900 rfd900(telemetry, droneState);
-MovementController movementController(telemetry, droneState, rfd900);
-LED led(telemetry, droneState, movementController);
-Motor motor(movementController, telemetry, droneState);
+RFD900 rfd900(telemetry, drone);
+MovementController movementController(telemetry, drone, rfd900);
+LED led(telemetry, drone, movementController);
+Motor motor(movementController, telemetry, drone);
 
 PidTuningReceiver pidTuningReceiver(Serial, applyPidTuningsToMotor, &motor);
 
-void initDevice(const char* name, std::function<uint8_t()> statusGetter, std::function<void()> beginFunc) {
+void initDevice(const char* name, std::function<bool()> statusGetter, std::function<void()> beginFunc) {
 	beginFunc();
-	uint8_t statusFlag = statusGetter();
+	bool statusFlag = statusGetter();
 	Serial.print(name);
 	Serial.println(statusFlag ? " Success" : " Failed");
 	while (!statusGetter()) {}
@@ -43,10 +43,10 @@ void initDevice(const char* name, std::function<uint8_t()> statusGetter, std::fu
 void setup() {
 	Serial.begin(115200);
 	Serial.println("==== SETUP BEGUN! ====");
-	initDevice("ICM20948", [](){ return telemetry.ICM20948; }, [](){ icm20948.begin(); });
-	// initDevice("BMP390", [](){ return telemetry.BMP390; }, [](){ bmp390.begin(); });
-	initDevice("RFD900", [](){ return telemetry.RFD900; }, [](){ rfd900.begin(); });
-	initDevice("Motor", [](){ return telemetry.motorArmed; }, [](){ motor.begin(); });
+	initDevice("ICM20948", [](){ return drone.IMU_OK; }, [](){ icm20948.begin(); });
+	// initDevice("BMP390", [](){ return drone.BMP390; }, [](){ bmp390.begin(); });
+	initDevice("RFD900", [](){ return drone.RADIO_OK; }, [](){ rfd900.begin(); });
+	initDevice("Motor", [](){ return drone.MOTOR_ARMED; }, [](){ motor.begin(); });
 	Serial.println("==== SETUP COMPLETE ====");
 }
 

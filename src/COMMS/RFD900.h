@@ -13,7 +13,7 @@ constexpr uint8_t RFD_SERIAL {2};
 
 class RFD900 {
 public:
-	RFD900(Telemetry& tel, DroneState& droneState);
+	RFD900(Telemetry& tel, Drone& droneState);
 	void begin();
 	void loop();
 	void sendStatus();
@@ -23,7 +23,7 @@ public:
 private:
 	static void RFD900Task(void* parameter);
 	Telemetry& telemetry;
-	DroneState& droneState;
+	Drone& droneState;
 	byte buffer[32];
 	byte numPackets;
 	unsigned long lastCommand;

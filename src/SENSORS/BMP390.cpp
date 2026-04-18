@@ -5,27 +5,27 @@
 #include "Datatypes.h"
 
 
-BMP390::BMP390(Telemetry& tel, DroneState& droneState) : 
+BMP390::BMP390(Telemetry& tel, Drone& drone) : 
 telemetry{tel},
-droneState{droneState}
+drone{drone}
 {}
 
 void BMP390::begin() {
 	if (!bmp.begin_SPI(BMP390_CS)) {
-		telemetry.BMP390 = 0;
+		drone.PRESSURE_OK = false;
 		return;
 	}
 	bmp.setTemperatureOversampling(BMP3_OVERSAMPLING_8X);
 	bmp.setPressureOversampling(BMP3_OVERSAMPLING_4X);
 	bmp.setIIRFilterCoeff(BMP3_IIR_FILTER_COEFF_3);
 	bmp.setOutputDataRate(BMP3_ODR_200_HZ);
-	telemetry.BMP390 = 1;
+	drone.PRESSURE_OK = true;
 }
 
 void BMP390::loop() {
-	if (telemetry.BMP390 != 1) {return;}
+	if (!drone.PRESSURE_OK) {return;}
 	if (!bmp.performReading()) {
-		telemetry.BMP390 = 0;
+		drone.PRESSURE_OK = false;
 		return;
 	}
 	// float currentPressure = bmp.readPressure();

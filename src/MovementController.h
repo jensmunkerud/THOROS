@@ -10,6 +10,7 @@
 constexpr int SENSITIVITY {50};
 constexpr float MAX_TILT_ANGLE {30.0f};
 constexpr float PAN_SPEED {10.0f};
+constexpr float TILT_SPEED {10.0f};
 constexpr float THROTTLE_SPEED {10.0f};
 static constexpr int MOVEMENT_TIMEOUT_MS {55}; // 2x 80ms which is the sending interval
 
@@ -38,20 +39,18 @@ enum CommandID : uint8_t {
 // Main control manager
 class MovementController {
 public:
-	MovementController(Telemetry& tel, DroneState& droneState, RFD900& rfd900);
+	MovementController(Telemetry& tel, Drone& drone, RFD900& rfd900);
 	void begin();
 	void update();
-	ControlInput getInput() const;
 	bool isToggled;
 	double Kp = 1, Ki = 0, Kd = 1;
 	void clearInputs(bool clearThrottle = false);
 
 private:
 	
-	ControlInput currentInput;
-	ControlInput targetInput;
+	FlightControls target;
 	Telemetry& telemetry;
-	DroneState& droneState;
+	Drone& drone;
 	RFD900& rfd900;
 	std::unordered_map<CommandID, std::function<void(uint8_t)>> commandMap;
 	std::chrono::steady_clock::time_point lastCommandTime;
@@ -79,10 +78,8 @@ private:
 	void D(uint8_t value);
 	void Dd(uint8_t value);
 
-	int verticalSpeed {0};
-	int count {0};
 	long lastTime{0};
-	long deltaTime{0};
+	long deltaMs{0};
 	void executeCommand(CommandID id, uint8_t rawValue);
 	void updateRunningCommands();
 	void controlTimeouts();

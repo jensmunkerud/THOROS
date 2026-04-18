@@ -13,41 +13,48 @@ struct PID {
 };
 
 struct Attitude {
-	float pitch;
-	float yaw;
-	float roll;
+	float pitch	{0};
+	float yaw	{0};
+	float roll	{0};
 };
 
-enum class FlightMode {
-		DISARMED,
-		ARMED,
-		LANDED,
-		HOVER,
-		MOVING,
-};
-
-struct ControlInput {
+struct FlightControls {
 	float pitch		{0};
 	float roll		{0};
 	float yaw 		{0};
 	float throttle	{0};
 };
 
-struct DroneState {
+enum class FlightMode {
+		DISARMED,
+		ARMED,
+		LANDED,
+		HOVERING,
+		MOVING,
+};
+
+struct Drone {
 	FlightMode mode;
-	ControlInput controlInput;
+	FlightControls flightControls;
 	int16_t altitude;
 
-	bool gpsFix;
-	bool motorArmed;
-	bool BMP390;
-	bool ICM20948;
-	bool RFD900;
-	bool Communication;
+	bool GPS_OK;
+	bool MOTOR_ARMED;
+	bool PRESSURE_OK;
+	bool IMU_OK;
+	bool RADIO_OK;
+	bool GROUND_LINK_OK;
 
-	DroneState() :
+	Drone() :
 		mode(FlightMode::DISARMED),
-		controlInput{} {}
+		flightControls{},
+		altitude{false},
+		GPS_OK{false},
+		MOTOR_ARMED{false},
+		PRESSURE_OK{false},
+		IMU_OK{false},
+		RADIO_OK{false},
+		GROUND_LINK_OK{false} {}
 };
 
 struct __attribute__((packed)) Telemetry {
@@ -75,7 +82,7 @@ struct __attribute__((packed)) Telemetry {
 		altitude(0),
 		speed(0),
 		// accelX(0), accelY(0), accelZ(0),
-		attitude{0.0, 0.0, 0.0},
+		attitude{},
 		linearAccel{0.0, 0.0, 0.0},
 		temp(0), pressure(0),
 		batteryVoltage(0),
