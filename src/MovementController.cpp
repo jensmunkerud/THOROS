@@ -1,6 +1,9 @@
 #include "MovementController.h"
+#include "Motor.h"
 #include <Arduino.h>
 #include <cmath>
+
+extern Motor motor;
 
 
 MovementController::MovementController(Telemetry& tel, Drone& drone, RFD900& rfd900) : 
@@ -61,7 +64,7 @@ void MovementController::generateCommandMap() {
 	commandMap[CommandID::Id]				= [this](uint8_t v){ Id(v); };
 	commandMap[CommandID::D]				= [this](uint8_t v){ D(v); };
 	commandMap[CommandID::Dd]				= [this](uint8_t v){ Dd(v); };
-	commandMap[CommandID::KILL]				= [this](uint8_t v){ clearInputs(true); canApplyFailSafe = false; };
+	commandMap[CommandID::KILL]				= [this](uint8_t v){ clearInputs(true); canApplyFailSafe = false; motor.Kill();};
 	commandMap[CommandID::SPEED_UP]			= [this](uint8_t v){ increaseSpeed(v); };
 	commandMap[CommandID::SPEED_DOWN]		= [this](uint8_t v){ decreaseSpeed(v); };
 }
@@ -124,6 +127,9 @@ void MovementController::update() {
 		if (received.numCmds > 0) {
 			canApplyFailSafe = true;
 			lastCommandTime = std::chrono::steady_clock::now();
+			drone.mode = FlightMode::MOVING;
+		} else {
+			// PUT DRONE EITHER IN LANDED, HOVERING OR ARMED MODE!!!
 		}
 	}
 
@@ -156,16 +162,17 @@ void MovementController::update() {
 	applyFailsafeIfTimedOut();
 }
 
+// Disable user input if we loose radio communication while moving.
 void MovementController::applyFailsafeIfTimedOut() {
 	auto now = std::chrono::steady_clock::now();
 	auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - lastCommandTime).count();
 	if (elapsed > MOVEMENT_TIMEOUT_MS) {
-		clearInputs(false);
+		clearInputs();
 	}
 }
 
 void MovementController::clearInputs(bool clearThrottle) {
-	if (canApplyFailSafe) {
+	if (canApplyFailSafe || clearThrottle) {
 		target.pitch = 0;
 		target.roll = 0;
 		target.yaw = 0;

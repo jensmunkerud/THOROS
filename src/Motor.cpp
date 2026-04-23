@@ -70,6 +70,44 @@ void Motor::disarm() {
 	movementController.clearInputs(true);
 }
 
+void Motor::Kill() {
+	if (drone.mode == FlightMode::DISARMED) {
+		return;
+	}
+
+	drone.flightControls.pitch = 0.0f;
+	drone.flightControls.roll = 0.0f;
+	drone.flightControls.yaw = 0.0f;
+
+	float throttle = drone.flightControls.throttle;
+	unsigned long lastUpdateMs = millis();
+
+	while (throttle > 0.0f && drone.mode != FlightMode::DISARMED) {
+		unsigned long now = millis();
+		float deltaSeconds = static_cast<float>(now - lastUpdateMs) / 1000.0f;
+		lastUpdateMs = now;
+
+		throttle -= MOTOR_KILL_SPEED * deltaSeconds;
+		if (throttle < 0.0f) {
+			throttle = 0.0f;
+		}
+
+		drone.flightControls.throttle = throttle;
+		throttleBase = throttle;
+		m1 = throttle;
+		m2 = throttle;
+		m3 = throttle;
+		m4 = throttle;
+
+		motor1.send_dshot_value((int)m1);
+		motor2.send_dshot_value((int)m2);
+		motor3.send_dshot_value((int)m3);
+		motor4.send_dshot_value((int)m4);
+	}
+
+	disarm();
+}
+
 void Motor::setAttitudePidTunings(const PID& pitch, const PID& roll, const PID& yaw) {
 	pitchPid = pitch;
 	rollPid = roll;

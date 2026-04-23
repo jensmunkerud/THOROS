@@ -27,6 +27,8 @@ constexpr float ATTITUDE_I_BLEED_FULL_ERROR (8.0f);
 constexpr float ATTITUDE_I_BLEED_MAX_PER_LOOP (0.01f);
 constexpr float FRONT_BIAS (1.1f);
 constexpr float MAX_DISARM_TILT_ANGLE_DEG (45.0f);
+constexpr float MOTOR_KILL_SPEED{1000.0f};	// [units/s]
+
 
 constexpr dshot_mode_e DSHOT_TYPE{DSHOT300};
 
@@ -35,6 +37,7 @@ public:
 	Motor(MovementController& mc, Telemetry& tel, Drone& drone);
 	void begin();
 	void loop();
+	void Kill();
 	void setAttitudePidTunings(const PID& pitch, const PID& roll, const PID& yaw);
 	
 private:
