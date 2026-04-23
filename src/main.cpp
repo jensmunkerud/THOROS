@@ -24,7 +24,7 @@ BMP390 bmp390(telemetry, drone);
 // GPS gps(telemetry);
 RFD900 rfd900(telemetry, drone);
 MovementController movementController(telemetry, drone, rfd900);
-LED led(telemetry, drone, movementController);
+LED led(telemetry, drone);
 Motor motor(movementController, telemetry, drone);
 
 PidTuningReceiver pidTuningReceiver(Serial, applyPidTuningsToMotor, &motor);
@@ -46,7 +46,7 @@ void setup() {
 	initDevice("ICM20948", [](){ return drone.IMU_OK; }, [](){ icm20948.begin(); });
 	// initDevice("BMP390", [](){ return drone.BMP390; }, [](){ bmp390.begin(); });
 	initDevice("RFD900", [](){ return drone.RADIO_OK; }, [](){ rfd900.begin(); });
-	initDevice("Motor", [](){ return drone.MOTOR_ARMED; }, [](){ motor.begin(); });
+	initDevice("Motor", [](){ return drone.MOTOR_OK; }, [](){ motor.begin(); });
 	Serial.println("==== SETUP COMPLETE ====");
 }
 

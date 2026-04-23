@@ -7,15 +7,14 @@
 #include "COMMS/RFD900.h"
 #include "set"
 
-constexpr int SENSITIVITY {50};
-constexpr float MAX_TILT_ANGLE {30.0f};
-constexpr float PAN_SPEED {10.0f};
-constexpr float TILT_SPEED {10.0f};
-constexpr float THROTTLE_SPEED {10.0f};
-static constexpr int MOVEMENT_TIMEOUT_MS {55}; // 2x 80ms which is the sending interval
+constexpr float MAX_TILT_ANGLE				{10.0f};	// [deg]
+constexpr float PAN_SPEED					{5.0f};		// [u/s]
+constexpr float TILT_SPEED					{5.0f};		// [u/s]
+constexpr float THROTTLE_SPEED				{100.0f};	// [u/s]
+static constexpr int MOVEMENT_TIMEOUT_MS	{55};		// [ms]
 
 
-// Command IDs matching your radio protocol
+// Command IDs matching radio protocol
 enum CommandID : uint8_t {
 	FORWARD		= 100,
 	BACKWARD	= 101,
@@ -36,7 +35,7 @@ enum CommandID : uint8_t {
 	SPEED_DOWN	= 110,
 	KILL		= 254,
 };
-// Main control manager
+
 class MovementController {
 public:
 	MovementController(Telemetry& tel, Drone& drone, RFD900& rfd900);
@@ -47,7 +46,6 @@ public:
 	void clearInputs(bool clearThrottle = false);
 
 private:
-	
 	FlightControls target;
 	Telemetry& telemetry;
 	Drone& drone;
@@ -58,7 +56,7 @@ private:
 	std::unordered_map<CommandID, uint8_t> newCommands;
 	std::set<CommandID> oldCommands;
 
-	// Direction handlers
+	// Control handlers
 	void handleForward(uint8_t value);
 	void handleBackward(uint8_t value);
 	void handleLeft(uint8_t value);

@@ -39,7 +39,7 @@ struct Drone {
 	float altitude; // [m] above/under starting point
 
 	bool GPS_OK;
-	bool MOTOR_ARMED;
+	bool MOTOR_OK;
 	bool PRESSURE_OK;
 	bool IMU_OK;
 	bool RADIO_OK;
@@ -50,7 +50,7 @@ struct Drone {
 		flightControls{},
 		altitude{},
 		GPS_OK{false},
-		MOTOR_ARMED{false},
+		MOTOR_OK{false},
 		PRESSURE_OK{false},
 		IMU_OK{false},
 		RADIO_OK{false},

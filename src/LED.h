@@ -1,51 +1,40 @@
 #pragma once
 #include "Arduino.h"
 #include "Datatypes.h"
-#include "MovementController.h"
 
 constexpr int LEDPIN {2};
-constexpr unsigned long FAST_INTERVAL = 1000/1;
-constexpr unsigned long SLOW_INTERVAL = 1000/10;
+constexpr unsigned long BLINK_INTERVAL = 1000/100;
 
 class LED {
 public:
-	LED(Telemetry& tel, Drone& drone, MovementController& mc);
+	LED(Telemetry& tel, Drone& drone);
 	void loop();
 
 private:
 	Telemetry& telemetry;
 	Drone& drone;
 	bool state;
-	MovementController& mc;
-	long lastFast;
-	long lastSlow;
+	long lastTime;
 };
 
-LED::LED(Telemetry& tel, Drone& drone, MovementController& mc) : 
+LED::LED(Telemetry& tel, Drone& drone) : 
 telemetry{tel},
 drone{drone},
-state{false},
-mc{mc}
+state{false}
 {
 	pinMode(LEDPIN, OUTPUT);
+	lastTime = millis();
 }
 
 void LED::loop() {
-	
+	if (millis() - lastTime <= BLINK_INTERVAL) {return;}
+	lastTime = millis();
 	if (drone.GROUND_LINK_OK) {
 		// CONSTANT LIGHT IF COMMS CONNECTED
 		digitalWrite(LEDPIN, HIGH);
 	} else {
 		// BLINK IF ELSE
 		digitalWrite(LEDPIN, state ? HIGH : LOW);
-		state = not state;
+		state != state;
 	}
-
-	// for (bool elem : mc.commands_in_action) {
-	// 	state = false;
-	// 	if (elem) {
-	// 		state = true;
-	// 	}
-	// 	digitalWrite(LEDPIN, state ? HIGH : LOW);
-	// }
 }

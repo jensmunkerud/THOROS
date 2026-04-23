@@ -46,6 +46,7 @@ void Motor::begin() {
 	yawQuickPID.SetOutputLimits(-YAW_PID_OUTPUT_LIMIT, YAW_PID_OUTPUT_LIMIT);
 	
 	arm();
+	drone.MOTOR_OK = true;
 }
 
 void Motor::arm() {
@@ -56,7 +57,17 @@ void Motor::arm() {
 		motor4.send_dshot_value(0);
 		delay(1);
 	}
-	drone.MOTOR_ARMED = true;
+	drone.mode = FlightMode::ARMED;
+}
+
+void Motor::disarm() {
+	motor1.send_dshot_value(0);
+	motor2.send_dshot_value(0);
+	motor3.send_dshot_value(0);
+	motor4.send_dshot_value(0);
+	drone.mode = FlightMode::DISARMED;
+	drone.flightControls = {};
+	movementController.clearInputs(true);
 }
 
 void Motor::setAttitudePidTunings(const PID& pitch, const PID& roll, const PID& yaw) {
@@ -107,7 +118,13 @@ void Motor::updateAxisPid(QuickPID& pid, float setpoint, float measuredRaw, floa
 
 
 void Motor::loop() {
-	if (!drone.MOTOR_ARMED) {return;}
+	if (drone.mode == FlightMode::DISARMED) {return;}
+
+	if (fabsf(telemetry.attitude.pitch) > MAX_DISARM_TILT_ANGLE_DEG ||
+		fabsf(telemetry.attitude.roll) > MAX_DISARM_TILT_ANGLE_DEG) {
+		disarm();
+		return;
+	}
 
 	const FlightControls controlInput = drone.flightControls;
 	target.pitch = controlInput.pitch;

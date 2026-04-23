@@ -26,6 +26,7 @@ constexpr float ATTITUDE_I_BLEED_ZERO_ERROR (3.0f);
 constexpr float ATTITUDE_I_BLEED_FULL_ERROR (8.0f);
 constexpr float ATTITUDE_I_BLEED_MAX_PER_LOOP (0.01f);
 constexpr float FRONT_BIAS (1.1f);
+constexpr float MAX_DISARM_TILT_ANGLE_DEG (45.0f);
 
 constexpr dshot_mode_e DSHOT_TYPE{DSHOT300};
 
@@ -35,7 +36,6 @@ public:
 	void begin();
 	void loop();
 	void setAttitudePidTunings(const PID& pitch, const PID& roll, const PID& yaw);
-	void arm();
 	
 private:
 	PID pitchPid{6, 0.2, 0.7};
@@ -53,6 +53,8 @@ private:
 	QuickPID pitchQuickPID;
 	QuickPID rollQuickPID;
 	QuickPID yawQuickPID;
+	void arm();
+	void disarm();
 	float computeIntegralBleed(float errorAbs, float zeroError, float fullError, float maxBleedPerLoop) const;
 	void updateAxisPid(QuickPID& pid, float setpoint, float measurement, float& filteredInput, float& pidOutput, float& command, float outputLimit, float iBleedZeroError, float iBleedFullError, float iBleedMaxPerLoop);
 	float pidAuthority;
