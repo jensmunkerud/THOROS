@@ -12,9 +12,9 @@ constexpr int MOTOR3 {12}; // FRONT LEFT	CW
 constexpr int MOTOR4 {13}; // BACK LEFT		CCW
 
 constexpr int INITILIZE_ESC_TIME {40}; // 4000
-constexpr int MINIMUM_MOTOR_SPEED {70};
+constexpr int MIN_ARMED_DSHOT_VALUE {0}; // 0-47 is dShot reserved values
 constexpr int MAXIMUM_MOTOR_SPEED {600};
-constexpr float MOTOR_KILL_SPEED {1000.0f};	// [units/s]
+constexpr float MOTOR_KILL_SPEED {1500.0f};	// [units/s]
 constexpr float MAX_DISARM_TILT_ANGLE_DEG {30.0f};
 constexpr float FRONT_BIAS {1.1f};
 

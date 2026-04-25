@@ -26,6 +26,13 @@ struct FlightControls {
 	float throttle;
 };
 
+struct MotorOutputs {
+	int16_t m1;
+	int16_t m2;
+	int16_t m3;
+	int16_t m4;
+};
+
 enum class FlightMode : uint8_t {
 		DISARMED,
 		ARMED,
@@ -39,6 +46,7 @@ struct Drone {
 	FlightMode mode;
 	Attitude attitude;
 	FlightControls flightControls;
+	MotorOutputs motorOutputs;
 	float altitude; // [m] above/under starting point
 
 	bool GPS_OK;
@@ -52,6 +60,7 @@ struct Drone {
 		mode(FlightMode::DISARMED),
 		attitude{},
 		flightControls{},
+		motorOutputs{},
 		altitude{},
 		GPS_OK{false},
 		MOTOR_OK{false},

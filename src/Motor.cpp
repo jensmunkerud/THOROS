@@ -72,6 +72,7 @@ void Motor::disarm() {
 		DroneLockGuard lock(drone);
 		drone.mode = FlightMode::DISARMED;
 		drone.flightControls = {};
+		drone.motorOutputs = {};
 	}
 	movementController.clearInputs(true);
 }
@@ -118,11 +119,20 @@ void Motor::Kill() {
 		m2 = throttle;
 		m3 = throttle;
 		m4 = throttle;
+		{
+			DroneLockGuard lock(drone);
+			drone.motorOutputs = {
+				static_cast<int16_t>(m1),
+				static_cast<int16_t>(m2),
+				static_cast<int16_t>(m3),
+				static_cast<int16_t>(m4)
+			};
+		}
 
-		motor1.send_dshot_value(constrain((int)m1, 0, MAXIMUM_MOTOR_SPEED));
-		motor2.send_dshot_value(constrain((int)m2, 0, MAXIMUM_MOTOR_SPEED));
-		motor3.send_dshot_value(constrain((int)m3, 0, MAXIMUM_MOTOR_SPEED));
-		motor4.send_dshot_value(constrain((int)m4, 0, MAXIMUM_MOTOR_SPEED));
+		motor1.send_dshot_value(constrain((int)m1, MIN_ARMED_DSHOT_VALUE, MAXIMUM_MOTOR_SPEED));
+		motor2.send_dshot_value(constrain((int)m2, MIN_ARMED_DSHOT_VALUE, MAXIMUM_MOTOR_SPEED));
+		motor3.send_dshot_value(constrain((int)m3, MIN_ARMED_DSHOT_VALUE, MAXIMUM_MOTOR_SPEED));
+		motor4.send_dshot_value(constrain((int)m4, MIN_ARMED_DSHOT_VALUE, MAXIMUM_MOTOR_SPEED));
 	}
 
 	disarm();
@@ -198,7 +208,7 @@ void Motor::loop() {
 	throttleBase = controlInput.throttle;
 	
 	pidAuthority = constrain(
-			(throttleBase - (float)MINIMUM_MOTOR_SPEED) / (float)(PID_MAX_EFFECT_AFTER_SPEED - MINIMUM_MOTOR_SPEED),
+			(throttleBase - (float)MIN_ARMED_DSHOT_VALUE) / (float)(PID_MAX_EFFECT_AFTER_SPEED - MIN_ARMED_DSHOT_VALUE),
 			0.0f,
 			1.0f
 	);
@@ -218,11 +228,20 @@ void Motor::loop() {
 	m2 = constrain(throttleBase              - pitchCmd - rollCmd + yawCmd, 0, MAXIMUM_MOTOR_SPEED);
 	m3 = constrain(throttleBase * FRONT_BIAS + pitchCmd + rollCmd + yawCmd, 0, MAXIMUM_MOTOR_SPEED);
 	m4 = constrain(throttleBase              - pitchCmd + rollCmd - yawCmd, 0, MAXIMUM_MOTOR_SPEED);
+	{
+		DroneLockGuard lock(drone);
+		drone.motorOutputs = {
+			static_cast<int16_t>(m1),
+			static_cast<int16_t>(m2),
+			static_cast<int16_t>(m3),
+			static_cast<int16_t>(m4)
+		};
+	}
 
-	motor1.send_dshot_value((int)m1);
-	motor2.send_dshot_value((int)m2);
-	motor3.send_dshot_value((int)m3);
-	motor4.send_dshot_value((int)m4);
+	motor1.send_dshot_value(constrain((int)m1, MIN_ARMED_DSHOT_VALUE, MAXIMUM_MOTOR_SPEED));
+	motor2.send_dshot_value(constrain((int)m2, MIN_ARMED_DSHOT_VALUE, MAXIMUM_MOTOR_SPEED));
+	motor3.send_dshot_value(constrain((int)m3, MIN_ARMED_DSHOT_VALUE, MAXIMUM_MOTOR_SPEED));
+	motor4.send_dshot_value(constrain((int)m4, MIN_ARMED_DSHOT_VALUE, MAXIMUM_MOTOR_SPEED));
 	
 	Serial.print(attitudeInput.pitch);
 	Serial.print("/");

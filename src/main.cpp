@@ -43,6 +43,7 @@ void initDevice(const char* name, std::function<bool()> statusGetter, std::funct
 void setup() {
 	Serial.begin(115200);
 	Serial.println("==== SETUP BEGUN! ====");
+	rfd900.setPidApplyCallback(applyPidTuningsToMotor, &motor);
 	initDevice("ICM20948", [](){ DroneLockGuard lock(drone); return drone.IMU_OK; }, [](){ icm20948.begin(); });
 	// initDevice("BMP390", [](){ return drone.BMP390; }, [](){ bmp390.begin(); });
 	initDevice("RFD900", [](){ DroneLockGuard lock(drone); return drone.RADIO_OK; }, [](){ rfd900.begin(); });

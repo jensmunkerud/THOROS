@@ -7,8 +7,7 @@ extern Motor motor;
 
 constexpr float MODE_LATERAL_EPSILON {0.15f};
 constexpr float MODE_YAW_EPSILON {0.15f};
-constexpr float MODE_LANDED_THROTTLE {15.0f};
-constexpr float MODE_HOVERING_THROTTLE {80.0f};
+constexpr float MODE_LANDED_THROTTLE {600.0f};
 
 
 MovementController::MovementController(Telemetry& tel, Drone& drone, RFD900& rfd900) : 
@@ -198,7 +197,7 @@ void MovementController::updateFlightMode(const FlightControls& controls) {
 	FlightMode nextMode = FlightMode::ARMED;
 	if (throttle <= MODE_LANDED_THROTTLE && !movementActive) {
 		nextMode = FlightMode::LANDED;
-	} else if (throttle >= MODE_HOVERING_THROTTLE && !movementActive) {
+	} else if (throttle > MODE_LANDED_THROTTLE && !movementActive) {
 		nextMode = FlightMode::HOVERING;
 	} else if (movementActive || throttle > MODE_LANDED_THROTTLE) {
 		nextMode = FlightMode::MOVING;

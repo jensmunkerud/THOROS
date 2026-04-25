@@ -1,16 +1,26 @@
 #include "RFD900.h"
 
+#include <cstdio>
+
 
 RFD900::RFD900(Telemetry& tel, Drone& droneState) : 
 telemetry{tel},
 droneState{droneState},
 numPackets{0},
+pidLineLength{0},
+pidCallback{nullptr},
+pidContext{nullptr},
 rfdTaskHandle{nullptr},
+serialTxMutex{nullptr},
 pingProgress{0},
+statusProgress{0},
+controlStreamProgress{0},
 lastCommand{millis()},
 SerialRFD(RFD_SERIAL)
 {
 	commandQueue = xQueueCreate(5, sizeof(RFDCommandPacket));
+	serialTxMutex = xSemaphoreCreateMutex();
+	pidLineBuffer[0] = '\0';
 }
 
 
@@ -35,13 +45,20 @@ void RFD900::RFD900Task(void* parameter) {
 			rfd->sendStatus();
 			rfd->statusProgress = 0;
 		}
+		if (rfd->controlStreamProgress++ >= SEND_CONTROL_STREAM_INTERVAL) {
+			rfd->sendControlStream();
+			rfd->controlStreamProgress = 0;
+		}
 	}
 }
 
 void RFD900::begin() {
 	SerialRFD.begin(115200, SERIAL_8N1, 16, 17);
-	SerialRFD.write(START_MARKER);
-	SerialRFD.write(END_MARKER);
+	if (serialTxMutex && xSemaphoreTake(serialTxMutex, pdMS_TO_TICKS(10)) == pdTRUE) {
+		SerialRFD.write(START_MARKER);
+		SerialRFD.write(END_MARKER);
+		xSemaphoreGive(serialTxMutex);
+	}
 
 	xTaskCreatePinnedToCore(
 		RFD900Task,         // Task function
@@ -72,10 +89,15 @@ void RFD900::loop() {
 	while (SerialRFD.available() > 0) {
 		byte incoming = SerialRFD.read();
 
-		// Wait for start marker
-		if (numPackets == 0 && incoming != START_MARKER) {
+		// Shared marker-based frame parser (binary command packets and PID text frames)
+		if (numPackets == 0) {
+			if (incoming == START_MARKER) {
+				buffer[numPackets++] = incoming;
+				clearPidBuffer();
+			}
 			continue;
 		}
+
 		buffer[numPackets++] = incoming;
 
 		// Safety: if numPackets exceeds buffer size, reset
@@ -93,10 +115,17 @@ void RFD900::loop() {
 				droneState.GROUND_LINK_OK = true;
 			}
 			lastCommand = millis();
+
+			if (isLikelyTextFrame()) {
+				handleFramedPidPayload();
+				numPackets = 0;
+				continue;
+			}
+
 			RFDCommandPacket packet;
 			packet.numCmds = 0;
 			// Parse pairwise
-			for (int i = 1; i < numPackets - 1; i += 2) {
+			for (int i = 1; i + 1 < numPackets - 1; i += 2) {
 				if (packet.numCmds >= MAX_COMMANDS_PER_PACKET) {break;}
 				if (buffer[i] == END_MARKER || buffer[i] == START_MARKER) {continue;}
 				packet.commands[packet.numCmds].command = buffer[i];
@@ -110,6 +139,29 @@ void RFD900::loop() {
 	}
 }
 
+bool RFD900::isLikelyTextFrame() const {
+	if (numPackets < 3) {
+		return false;
+	}
+
+	size_t slashCount = 0;
+	for (size_t i = 1; i < static_cast<size_t>(numPackets - 1); ++i) {
+		char ch = static_cast<char>(buffer[i]);
+		if (ch == '/') {
+			slashCount++;
+		}
+		if (ch == '\r' || ch == '\n') {
+			continue;
+		}
+		if (ch < 32 || ch > 126) {
+			return false;
+		}
+	}
+
+	// PID and control stream payloads are slash-delimited text with many separators.
+	return slashCount >= 6;
+}
+
 
 void RFD900::sendStatus() {
 	bool linkOk = false;
@@ -118,18 +170,144 @@ void RFD900::sendStatus() {
 		linkOk = droneState.GROUND_LINK_OK;
 	}
 	if (linkOk) {
-		SerialRFD.write((uint8_t*)&telemetry, sizeof(Telemetry));
+		if (serialTxMutex && xSemaphoreTake(serialTxMutex, pdMS_TO_TICKS(2)) == pdTRUE) {
+			SerialRFD.write((uint8_t*)&telemetry, sizeof(Telemetry));
+			xSemaphoreGive(serialTxMutex);
+		}
+	}
+}
+
+void RFD900::sendControlStream() {
+	bool linkOk = false;
+	Attitude attitude{};
+	MotorOutputs motors{};
+	{
+		DroneLockGuard lock(droneState);
+		linkOk = droneState.GROUND_LINK_OK;
+		attitude = droneState.attitude;
+		motors = droneState.motorOutputs;
+	}
+
+	if (!linkOk) {
+		return;
+	}
+
+	if (serialTxMutex && xSemaphoreTake(serialTxMutex, pdMS_TO_TICKS(2)) == pdTRUE) {
+		char buffer[128];
+
+		int len = snprintf(buffer, sizeof(buffer),
+			"%c%.2f/%.2f/%.2f/%.2f/%.2f/%.2f/%.2f\n",
+			0xEF,
+			attitude.pitch,
+			attitude.yaw,
+			attitude.roll,
+			motors.m1,
+			motors.m2,
+			motors.m3,
+			motors.m4
+		);
+
+		SerialRFD.write((uint8_t*)buffer, len);
+		xSemaphoreGive(serialTxMutex);
 	}
 }
 
 
 void RFD900::ping() {
-	SerialRFD.write(START_MARKER);
-	SerialRFD.write(END_MARKER);
+	if (serialTxMutex && xSemaphoreTake(serialTxMutex, pdMS_TO_TICKS(2)) == pdTRUE) {
+		SerialRFD.write(START_MARKER);
+		SerialRFD.write(END_MARKER);
+		xSemaphoreGive(serialTxMutex);
+	}
 }
 
 QueueHandle_t RFD900::getCommandQueue() const { return commandQueue; }
 
-void none(int16_t value) {
-	//
+void RFD900::setPidApplyCallback(ApplyPidCallback callback, void* context) {
+	pidCallback = callback;
+	pidContext = context;
 }
+
+bool RFD900::handlePidLine() {
+	if (pidLineLength == 0 || pidCallback == nullptr) {
+		clearPidBuffer();
+		return false;
+	}
+
+	float values[9];
+	int matched = sscanf(
+		pidLineBuffer,
+		"%f/%f/%f/%f/%f/%f/%f/%f/%f",
+		&values[0],
+		&values[1],
+		&values[2],
+		&values[3],
+		&values[4],
+		&values[5],
+		&values[6],
+		&values[7],
+		&values[8]
+	);
+
+	clearPidBuffer();
+
+	if (matched != 9) {
+		return false;
+	}
+
+	PID pitch{values[0], values[1], values[2]};
+	PID roll{values[3], values[4], values[5]};
+	PID yaw{values[6], values[7], values[8]};
+	pidCallback(pitch, roll, yaw, pidContext);
+	return true;
+}
+
+bool RFD900::handleFramedPidPayload() {
+	if (numPackets < 3) {
+		return false;
+	}
+
+	size_t payloadLength = static_cast<size_t>(numPackets - 2);
+	if (payloadLength == 0 || payloadLength >= sizeof(pidLineBuffer)) {
+		return false;
+	}
+
+	size_t slashCount = 0;
+	size_t writeIndex = 0;
+	for (size_t i = 1; i < static_cast<size_t>(numPackets - 1); ++i) {
+		char ch = static_cast<char>(buffer[i]);
+		if (ch == '/') {
+			slashCount++;
+		}
+
+		if (ch == '\r' || ch == '\n') {
+			continue;
+		}
+
+		bool isNumericChar = (ch >= '0' && ch <= '9') || ch == '.' || ch == '-' || ch == '+' || ch == '/' || ch == ' ';
+		if (!isNumericChar) {
+			return false;
+		}
+
+		if (writeIndex >= sizeof(pidLineBuffer) - 1) {
+			clearPidBuffer();
+			return false;
+		}
+		pidLineBuffer[writeIndex++] = ch;
+	}
+
+	if (slashCount < 8) {
+		clearPidBuffer();
+		return false;
+	}
+
+	pidLineLength = writeIndex;
+	pidLineBuffer[pidLineLength] = '\0';
+	return handlePidLine();
+}
+
+void RFD900::clearPidBuffer() {
+	pidLineLength = 0;
+	pidLineBuffer[0] = '\0';
+}
+
