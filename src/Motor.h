@@ -11,23 +11,23 @@ constexpr int MOTOR2 {14}; // BACK RIGHT	CW
 constexpr int MOTOR3 {12}; // FRONT LEFT	CW
 constexpr int MOTOR4 {13}; // BACK LEFT		CCW
 
-constexpr int INITILIZE_ESC_TIME (40); // 4000
-constexpr int MINIMUM_MOTOR_SPEED (70);
-constexpr int MAXIMUM_MOTOR_SPEED (500);
-constexpr int PID_MAX_EFFECT_AFTER_SPEED (200);
-constexpr int ATTITUDE_PID_SAMPLE_US (1000);	// Inner PID loop
-constexpr int PITCH_PID_OUTPUT_LIMIT (200);
-constexpr int YAW_PID_OUTPUT_LIMIT (200);
-constexpr int ROLL_PID_OUTPUT_LIMIT (200);
-constexpr float ATTITUDE_COMMAND_SCALE (0.05f);
-constexpr float AXIS_INPUT_LPF_ALPHA (0.05f);
-constexpr float AXIS_OUTPUT_SLEW_PER_LOOP (12.0f);
-constexpr float ATTITUDE_I_BLEED_ZERO_ERROR (3.0f);
-constexpr float ATTITUDE_I_BLEED_FULL_ERROR (8.0f);
-constexpr float ATTITUDE_I_BLEED_MAX_PER_LOOP (0.01f);
-constexpr float FRONT_BIAS (1.1f);
-constexpr float MAX_DISARM_TILT_ANGLE_DEG (45.0f);
-constexpr float MOTOR_KILL_SPEED{1000.0f};	// [units/s]
+constexpr int INITILIZE_ESC_TIME {40}; // 4000
+constexpr int MINIMUM_MOTOR_SPEED {70};
+constexpr int MAXIMUM_MOTOR_SPEED {300};
+constexpr int PID_MAX_EFFECT_AFTER_SPEED {200};
+constexpr int ATTITUDE_PID_SAMPLE_US {1000};	// Inner PID loop
+constexpr int PITCH_PID_OUTPUT_LIMIT {200};
+constexpr int YAW_PID_OUTPUT_LIMIT {200};
+constexpr int ROLL_PID_OUTPUT_LIMIT {200};
+constexpr float ATTITUDE_COMMAND_SCALE {0.05f};
+constexpr float AXIS_INPUT_LPF_ALPHA {0.05f};
+constexpr float AXIS_OUTPUT_SLEW_PER_LOOP {12.0f};
+constexpr float ATTITUDE_I_BLEED_ZERO_ERROR {3.0f};
+constexpr float ATTITUDE_I_BLEED_FULL_ERROR {8.0f};
+constexpr float ATTITUDE_I_BLEED_MAX_PER_LOOP {0.01f};
+constexpr float FRONT_BIAS {1.1f};
+constexpr float MAX_DISARM_TILT_ANGLE_DEG {30.0f};
+constexpr float MOTOR_KILL_SPEED {1000.0f};	// [units/s]
 
 
 constexpr dshot_mode_e DSHOT_TYPE{DSHOT300};

@@ -76,14 +76,14 @@ void MovementController::generateCommandMap() {
 
 
 // === Command Handlers ===
-void MovementController::handleForward(uint8_t v)  { target.pitch = static_cast<float>(v); }
-void MovementController::handleBackward(uint8_t v) { target.pitch = -static_cast<float>(v); }
-void MovementController::handleLeft(uint8_t v)     { target.roll = -static_cast<float>(v); }
-void MovementController::handleRight(uint8_t v)    { target.roll = static_cast<float>(v); }
-void MovementController::handlePanLeft(uint8_t v)  { target.yaw = v > 0 ? v/255 : 0.0f; }
-void MovementController::handlePanRight(uint8_t v) { target.yaw = v > 0 ? -v/255 : 0.0f; }
-void MovementController::handleUp(uint8_t v)       { target.throttle = v > 0 ? v/255 : 0.0f; }
-void MovementController::handleDown(uint8_t v)     { target.throttle = v > 0 ? -v/255 : 0.0f; }
+void MovementController::handleForward(uint8_t v)  { target.pitch = -static_cast<float>(v); }
+void MovementController::handleBackward(uint8_t v) { target.pitch = static_cast<float>(v); }
+void MovementController::handleLeft(uint8_t v)     { target.roll = static_cast<float>(v); }
+void MovementController::handleRight(uint8_t v)    { target.roll = -static_cast<float>(v); }
+void MovementController::handlePanLeft(uint8_t v)  { target.yaw = v > 0 ? v/255.0f : 0.0f; }
+void MovementController::handlePanRight(uint8_t v) { target.yaw = v > 0 ? -v/255.0f : 0.0f; }
+void MovementController::handleUp(uint8_t v)       { target.throttle = v > 0 ? v/255.0f : 0.0f; }
+void MovementController::handleDown(uint8_t v)     { target.throttle = v > 0 ? -v/255.0f : 0.0f; }
 void MovementController::toggle(uint8_t v) {isToggled = not isToggled; return; Serial.print("Toggled , it is now: "); Serial.println(isToggled);}
 void MovementController::increaseSpeed(uint8_t v) {if (canChangeSpeed && v > 0) {movementSpeed = constrain(movementSpeed + v, 50, 500); canChangeSpeed = false;} Serial.print("Sped up, speed: "); Serial.println(movementSpeed); if (v == 0) {canChangeSpeed = true;}}
 void MovementController::decreaseSpeed(uint8_t v) {if (canChangeSpeed && v > 0) {movementSpeed = constrain(movementSpeed - v, 50, 500); canChangeSpeed = false;} if (v == 0) {canChangeSpeed = true;}}
@@ -154,18 +154,12 @@ void MovementController::update() {
 	);
 
 	if (target.yaw != 0.0f) {
-		controls.yaw += PAN_SPEED * target.yaw * deltaMs;
-	} else {
-		controls.yaw = smooth(controls.yaw, 0.0f, PAN_SPEED, deltaMs);
+		controls.yaw = constrain(smooth(controls.yaw, controls.yaw + PAN_SPEED * target.yaw, PAN_SPEED, deltaMs), -MAX_PAN, MAX_PAN);
 	}
+	
 	if (target.throttle != 0.0f) {
-		controls.throttle += THROTTLE_SPEED * target.throttle * deltaMs;
-	} else {
-		controls.throttle = smooth(controls.throttle, 0.0f, THROTTLE_SPEED, deltaMs);
+		controls.throttle = constrain(smooth(controls.throttle, controls.throttle + THROTTLE_SPEED * target.throttle, THROTTLE_SPEED, deltaMs), 0.0f, MAX_THROTTLE);
 	}
-
-	controls.yaw = constrain(controls.yaw, -180.0f, 180.0f);
-	controls.throttle = constrain(controls.throttle, 0.0f, 1500.0f);
 
 	{
 		DroneLockGuard lock(drone);

@@ -7,11 +7,13 @@
 #include "COMMS/RFD900.h"
 #include "set"
 
-constexpr float MAX_TILT_ANGLE				{10.0f};	// [deg]
 constexpr float PAN_SPEED					{5.0f};		// [deg/s]
-constexpr float TILT_SPEED					{5.0f};		// [deg/s]
-constexpr float THROTTLE_SPEED				{100.0f};	// [deg/s]
-static constexpr int MOVEMENT_TIMEOUT_MS	{55};		// [ms]
+constexpr float MAX_PAN						{175.0f};	// [deg]
+constexpr float TILT_SPEED					{10.0f};	// [deg/s]
+constexpr float MAX_TILT_ANGLE				{5.0f};		// [deg]
+constexpr float THROTTLE_SPEED				{100.0f};	// [u/s]
+constexpr float MAX_THROTTLE				{1000.0f};	// [u]
+constexpr int   MOVEMENT_TIMEOUT_MS			{35};		// [ms]
 
 
 // Command IDs matching radio protocol

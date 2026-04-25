@@ -3,7 +3,7 @@
 #include "Datatypes.h"
 
 constexpr int LEDPIN {2};
-constexpr unsigned long BLINK_INTERVAL = 1000/100;
+constexpr unsigned long BLINK_INTERVAL = 1000/4;
 
 class LED {
 public:
@@ -29,17 +29,16 @@ state{false}
 void LED::loop() {
 	if (millis() - lastTime <= BLINK_INTERVAL) {return;}
 	lastTime = millis();
-	bool linkOk = false;
+	bool droneArmed = false;
 	{
 		DroneLockGuard lock(drone);
-		linkOk = drone.GROUND_LINK_OK;
+		droneArmed = drone.mode != FlightMode::DISARMED;
 	}
-	if (linkOk) {
-		// CONSTANT LIGHT IF COMMS CONNECTED
+	if (droneArmed) {
 		digitalWrite(LEDPIN, HIGH);
 	} else {
 		// BLINK IF ELSE
 		digitalWrite(LEDPIN, state ? HIGH : LOW);
-		state != state;
+		state = !state;
 	}
 }
