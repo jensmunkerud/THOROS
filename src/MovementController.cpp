@@ -127,37 +127,49 @@ void MovementController::update() {
 		if (received.numCmds > 0) {
 			canApplyFailSafe = true;
 			lastCommandTime = std::chrono::steady_clock::now();
-			drone.mode = FlightMode::MOVING;
+			{
+				DroneLockGuard lock(drone);
+				drone.mode = FlightMode::MOVING;
+			}
 		} else {
 			// PUT DRONE EITHER IN LANDED, HOVERING OR ARMED MODE!!!
 		}
 	}
 
-	// Apply output signals from MovementController to drone flightControls state.
-	// Pitch & roll move and reach target
-	drone.flightControls.pitch = constrain(
-		smooth(drone.flightControls.pitch, target.pitch, TILT_SPEED, deltaMs),
+	FlightControls controls;
+	{
+		DroneLockGuard lock(drone);
+		controls = drone.flightControls;
+	}
+
+	// Apply output signals from MovementController to a local controls snapshot.
+	controls.pitch = constrain(
+		smooth(controls.pitch, target.pitch, TILT_SPEED, deltaMs),
 		-MAX_TILT_ANGLE, MAX_TILT_ANGLE
 	);
-	drone.flightControls.roll = constrain(
-		smooth(drone.flightControls.roll, target.roll, TILT_SPEED, deltaMs),
+	controls.roll = constrain(
+		smooth(controls.roll, target.roll, TILT_SPEED, deltaMs),
 		-MAX_TILT_ANGLE, MAX_TILT_ANGLE
 	);
 
-	// Yaw and throttle continually add up
 	if (target.yaw != 0.0f) {
-		drone.flightControls.yaw += PAN_SPEED * target.yaw * deltaMs;
+		controls.yaw += PAN_SPEED * target.yaw * deltaMs;
 	} else {
-		drone.flightControls.yaw = smooth(drone.flightControls.yaw, 0.0f, PAN_SPEED, deltaMs);
+		controls.yaw = smooth(controls.yaw, 0.0f, PAN_SPEED, deltaMs);
 	}
 	if (target.throttle != 0.0f) {
-		drone.flightControls.throttle += THROTTLE_SPEED * target.throttle * deltaMs;
+		controls.throttle += THROTTLE_SPEED * target.throttle * deltaMs;
 	} else {
-		drone.flightControls.throttle = smooth(drone.flightControls.throttle, 0.0f, THROTTLE_SPEED, deltaMs);
+		controls.throttle = smooth(controls.throttle, 0.0f, THROTTLE_SPEED, deltaMs);
 	}
 
-	drone.flightControls.yaw = constrain(drone.flightControls.yaw, -180.0f, 180.0f);
-	drone.flightControls.throttle = constrain(drone.flightControls.throttle, 0.0f, 1500.0f);
+	controls.yaw = constrain(controls.yaw, -180.0f, 180.0f);
+	controls.throttle = constrain(controls.throttle, 0.0f, 1500.0f);
+
+	{
+		DroneLockGuard lock(drone);
+		drone.flightControls = controls;
+	}
 
 	applyFailsafeIfTimedOut();
 }

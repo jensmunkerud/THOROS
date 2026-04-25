@@ -29,7 +29,12 @@ state{false}
 void LED::loop() {
 	if (millis() - lastTime <= BLINK_INTERVAL) {return;}
 	lastTime = millis();
-	if (drone.GROUND_LINK_OK) {
+	bool linkOk = false;
+	{
+		DroneLockGuard lock(drone);
+		linkOk = drone.GROUND_LINK_OK;
+	}
+	if (linkOk) {
 		// CONSTANT LIGHT IF COMMS CONNECTED
 		digitalWrite(LEDPIN, HIGH);
 	} else {

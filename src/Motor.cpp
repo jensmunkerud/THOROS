@@ -46,7 +46,10 @@ void Motor::begin() {
 	yawQuickPID.SetOutputLimits(-YAW_PID_OUTPUT_LIMIT, YAW_PID_OUTPUT_LIMIT);
 	
 	arm();
-	drone.MOTOR_OK = true;
+	{
+		DroneLockGuard lock(drone);
+		drone.MOTOR_OK = true;
+	}
 }
 
 void Motor::arm() {
@@ -57,7 +60,10 @@ void Motor::arm() {
 		motor4.send_dshot_value(0);
 		delay(1);
 	}
-	drone.mode = FlightMode::ARMED;
+	{
+		DroneLockGuard lock(drone);
+		drone.mode = FlightMode::ARMED;
+	}
 }
 
 void Motor::disarm() {
@@ -65,24 +71,38 @@ void Motor::disarm() {
 	motor2.send_dshot_value(0);
 	motor3.send_dshot_value(0);
 	motor4.send_dshot_value(0);
-	drone.mode = FlightMode::DISARMED;
-	drone.flightControls = {};
+	{
+		DroneLockGuard lock(drone);
+		drone.mode = FlightMode::DISARMED;
+		drone.flightControls = {};
+	}
 	movementController.clearInputs(true);
 }
 
 void Motor::Kill() {
-	if (drone.mode == FlightMode::DISARMED) {
-		return;
+	float throttle = 0.0f;
+	{
+		DroneLockGuard lock(drone);
+		if (drone.mode == FlightMode::DISARMED) {
+			return;
+		}
+		drone.flightControls.pitch = 0.0f;
+		drone.flightControls.roll = 0.0f;
+		drone.flightControls.yaw = 0.0f;
+		throttle = drone.flightControls.throttle;
 	}
-
-	drone.flightControls.pitch = 0.0f;
-	drone.flightControls.roll = 0.0f;
-	drone.flightControls.yaw = 0.0f;
-
-	float throttle = drone.flightControls.throttle;
 	unsigned long lastUpdateMs = millis();
 
-	while (throttle > 0.0f && drone.mode != FlightMode::DISARMED) {
+	while (throttle > 0.0f) {
+		bool isDisarmed = false;
+		{
+			DroneLockGuard lock(drone);
+			isDisarmed = (drone.mode == FlightMode::DISARMED);
+		}
+		if (isDisarmed) {
+			break;
+		}
+
 		unsigned long now = millis();
 		float deltaSeconds = static_cast<float>(now - lastUpdateMs) / 1000.0f;
 		lastUpdateMs = now;
@@ -92,17 +112,20 @@ void Motor::Kill() {
 			throttle = 0.0f;
 		}
 
-		drone.flightControls.throttle = throttle;
+		{
+			DroneLockGuard lock(drone);
+			drone.flightControls.throttle = throttle;
+		}
 		throttleBase = throttle;
 		m1 = throttle;
 		m2 = throttle;
 		m3 = throttle;
 		m4 = throttle;
 
-		motor1.send_dshot_value((int)m1);
-		motor2.send_dshot_value((int)m2);
-		motor3.send_dshot_value((int)m3);
-		motor4.send_dshot_value((int)m4);
+		motor1.send_dshot_value(constrain((int)m1, 0, MAXIMUM_MOTOR_SPEED));
+		motor2.send_dshot_value(constrain((int)m2, 0, MAXIMUM_MOTOR_SPEED));
+		motor3.send_dshot_value(constrain((int)m3, 0, MAXIMUM_MOTOR_SPEED));
+		motor4.send_dshot_value(constrain((int)m4, 0, MAXIMUM_MOTOR_SPEED));
 	}
 
 	disarm();
@@ -156,7 +179,14 @@ void Motor::updateAxisPid(QuickPID& pid, float setpoint, float measuredRaw, floa
 
 
 void Motor::loop() {
-	if (drone.mode == FlightMode::DISARMED) {return;}
+	FlightMode mode;
+	FlightControls controlInput;
+	{
+		DroneLockGuard lock(drone);
+		mode = drone.mode;
+		controlInput = drone.flightControls;
+	}
+	if (mode == FlightMode::DISARMED) {return;}
 
 	if (fabsf(telemetry.attitude.pitch) > MAX_DISARM_TILT_ANGLE_DEG ||
 		fabsf(telemetry.attitude.roll) > MAX_DISARM_TILT_ANGLE_DEG) {
@@ -164,7 +194,6 @@ void Motor::loop() {
 		return;
 	}
 
-	const FlightControls controlInput = drone.flightControls;
 	target.pitch = controlInput.pitch;
 	target.roll = controlInput.roll;
 	target.yaw = controlInput.yaw;

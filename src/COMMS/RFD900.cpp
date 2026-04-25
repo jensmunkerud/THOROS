@@ -7,6 +7,7 @@ droneState{droneState},
 numPackets{0},
 rfdTaskHandle{nullptr},
 pingProgress{0},
+lastCommand{millis()},
 SerialRFD(RFD_SERIAL)
 {
 	commandQueue = xQueueCreate(5, sizeof(RFDCommandPacket));
@@ -19,7 +20,10 @@ void RFD900::RFD900Task(void* parameter) {
 	if (!rfd) {
 		vTaskDelete(NULL); // safety check
 	}
-	rfd->droneState.RADIO_OK = true;
+	{
+		DroneLockGuard lock(rfd->droneState);
+		rfd->droneState.RADIO_OK = true;
+	}
 	for (;;) {
 		rfd->loop();
 		vTaskDelay(1); // 1ms
@@ -52,11 +56,17 @@ void RFD900::begin() {
 
 void RFD900::loop() {
 	if (millis() - lastCommand > RFD_TIMEOUT_MS) {
-		if (droneState.GROUND_LINK_OK) {
+		bool hadGroundLink = false;
+		{
+			DroneLockGuard lock(droneState);
+			hadGroundLink = droneState.GROUND_LINK_OK;
+			droneState.GROUND_LINK_OK = false;
+		}
+		if (hadGroundLink) {
+			// KILLS DRONE ON RADIO TIMEOUT
 			RFDCommandPacket killCommand{1, { {254, 0} }};
 			xQueueSendToBack(commandQueue, &killCommand, pdMS_TO_TICKS(10));
 		}
-		droneState.GROUND_LINK_OK = false;
 	}
 
 	while (SerialRFD.available() > 0) {
@@ -78,7 +88,10 @@ void RFD900::loop() {
 		// SOMETIMES they are bundled together, hence END_MARKER and START_MARKER skips inside
 		// (it might send too fast for SerialRFD to timeout or we receive next packet while inside for loop below)
 		if (incoming == END_MARKER) {
-			droneState.GROUND_LINK_OK = true;
+			{
+				DroneLockGuard lock(droneState);
+				droneState.GROUND_LINK_OK = true;
+			}
 			lastCommand = millis();
 			RFDCommandPacket packet;
 			packet.numCmds = 0;
@@ -99,7 +112,12 @@ void RFD900::loop() {
 
 
 void RFD900::sendStatus() {
-	if (droneState.GROUND_LINK_OK) {
+	bool linkOk = false;
+	{
+		DroneLockGuard lock(droneState);
+		linkOk = droneState.GROUND_LINK_OK;
+	}
+	if (linkOk) {
 		SerialRFD.write((uint8_t*)&telemetry, sizeof(Telemetry));
 	}
 }

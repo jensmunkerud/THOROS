@@ -1,5 +1,6 @@
 #pragma once
 #include <Arduino.h>
+#include "freertos/FreeRTOS.h"
 
 #define START_MARKER 0xAB
 #define END_MARKER 0xCD
@@ -34,6 +35,7 @@ enum class FlightMode : uint8_t {
 };
 
 struct Drone {
+	mutable portMUX_TYPE stateLock = portMUX_INITIALIZER_UNLOCKED;
 	FlightMode mode;
 	FlightControls flightControls;
 	float altitude; // [m] above/under starting point
@@ -55,6 +57,26 @@ struct Drone {
 		IMU_OK{false},
 		RADIO_OK{false},
 		GROUND_LINK_OK{false} {}
+
+	inline void lock() {
+		portENTER_CRITICAL(&stateLock);
+	}
+
+	inline void unlock() {
+		portEXIT_CRITICAL(&stateLock);
+	}
+};
+
+struct DroneLockGuard {
+	Drone& drone;
+
+	explicit DroneLockGuard(Drone& d) : drone(d) {
+		drone.lock();
+	}
+
+	~DroneLockGuard() {
+		drone.unlock();
+	}
 };
 
 struct __attribute__((packed)) Telemetry {
