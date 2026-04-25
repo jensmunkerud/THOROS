@@ -25,7 +25,7 @@ BMP390 bmp390(telemetry, drone);
 RFD900 rfd900(telemetry, drone);
 MovementController movementController(telemetry, drone, rfd900);
 LED led(telemetry, drone);
-Motor motor(movementController, telemetry, drone);
+Motor motor(movementController, drone);
 
 PidTuningReceiver pidTuningReceiver(Serial, applyPidTuningsToMotor, &motor);
 

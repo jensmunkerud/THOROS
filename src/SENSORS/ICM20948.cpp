@@ -1,4 +1,5 @@
 #include "ICM20948.h"
+#include "Filters.h"
 
 
 ICM20948::ICM20948(Telemetry& tel, Drone& drone) : 
@@ -81,24 +82,10 @@ void ICM20948::loop() {
 		acc = compensateForMountingRotation(acc);
 		mag = compensateForMountingRotation(mag);
 
-		if (!accelFilterInitialized) {
-			accelFiltered = acc;
-			accelFilterInitialized = true;
-		} else {
-			accelFiltered.x += ACCEL_LPF_ALPHA * (acc.x - accelFiltered.x);
-			accelFiltered.y += ACCEL_LPF_ALPHA * (acc.y - accelFiltered.y);
-			accelFiltered.z += ACCEL_LPF_ALPHA * (acc.z - accelFiltered.z);
-		}
+		accelFiltered = Filters::LowPass(accelFiltered, acc, ACCEL_LPF_ALPHA);
 		acc = accelFiltered;
 
-		if (!gyroFilterInitialized) {
-			gyroFiltered = gyr;
-			gyroFilterInitialized = true;
-		} else {
-			gyroFiltered.x += GYRO_LPF_ALPHA * (gyr.x - gyroFiltered.x);
-			gyroFiltered.y += GYRO_LPF_ALPHA * (gyr.y - gyroFiltered.y);
-			gyroFiltered.z += GYRO_LPF_ALPHA * (gyr.z - gyroFiltered.z);
-		}
+		gyroFiltered = Filters::LowPass(gyroFiltered, gyr, GYRO_LPF_ALPHA);
 		gyr = gyroFiltered;
 
 		// ============================================
@@ -114,9 +101,12 @@ void ICM20948::loop() {
 		float fusedPitch = fusion.getPitch();
 		float fusedYaw = fusion.getYaw() - 184.0f;
 
-		telemetry.attitude.pitch = -fusedRoll;
-		telemetry.attitude.roll  = fusedPitch;
-		telemetry.attitude.yaw   = fusedYaw;
+		{
+			DroneLockGuard lock(drone);
+			drone.attitude.pitch = -fusedRoll;
+			drone.attitude.roll  = fusedPitch;
+			drone.attitude.yaw   = fusedYaw;
+		}
 
 		// Remove gravity using current attitude, then convert to world frame.
 		Vec3 gBody = gravityBodyFromAttitude(fusedRoll, fusedPitch);
@@ -177,7 +167,6 @@ void ICM20948::calibrateIMU() {
 		// Reset the fusion timer so the first runtime update uses a normal dt.
 	fusion.deltatUpdate();
 
-	// yawOffset = fusion.getYaw();
 
 	gyroBias.x = gyr.x / samples;
 	gyroBias.y = gyr.y / samples;

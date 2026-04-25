@@ -13,28 +13,27 @@ constexpr int MOTOR4 {13}; // BACK LEFT		CCW
 
 constexpr int INITILIZE_ESC_TIME {40}; // 4000
 constexpr int MINIMUM_MOTOR_SPEED {70};
-constexpr int MAXIMUM_MOTOR_SPEED {300};
+constexpr int MAXIMUM_MOTOR_SPEED {600};
+constexpr float MOTOR_KILL_SPEED {1000.0f};	// [units/s]
+constexpr float MAX_DISARM_TILT_ANGLE_DEG {30.0f};
+constexpr float FRONT_BIAS {1.1f};
+
 constexpr int PID_MAX_EFFECT_AFTER_SPEED {200};
 constexpr int ATTITUDE_PID_SAMPLE_US {1000};	// Inner PID loop
 constexpr int PITCH_PID_OUTPUT_LIMIT {200};
 constexpr int YAW_PID_OUTPUT_LIMIT {200};
 constexpr int ROLL_PID_OUTPUT_LIMIT {200};
-constexpr float ATTITUDE_COMMAND_SCALE {0.05f};
-constexpr float AXIS_INPUT_LPF_ALPHA {0.05f};
-constexpr float AXIS_OUTPUT_SLEW_PER_LOOP {12.0f};
+constexpr float AXIS_OUTPUT_SLEW_PER_LOOP {1.0f};
 constexpr float ATTITUDE_I_BLEED_ZERO_ERROR {3.0f};
 constexpr float ATTITUDE_I_BLEED_FULL_ERROR {8.0f};
 constexpr float ATTITUDE_I_BLEED_MAX_PER_LOOP {0.01f};
-constexpr float FRONT_BIAS {1.1f};
-constexpr float MAX_DISARM_TILT_ANGLE_DEG {30.0f};
-constexpr float MOTOR_KILL_SPEED {1000.0f};	// [units/s]
 
 
 constexpr dshot_mode_e DSHOT_TYPE{DSHOT300};
 
 class Motor {
 public:
-	Motor(MovementController& mc, Telemetry& tel, Drone& drone);
+	Motor(MovementController& mc, Drone& drone);
 	void begin();
 	void loop();
 	void Kill();
@@ -45,13 +44,12 @@ private:
 	PID yawPid{2, 4, 1};
 	PID rollPid{3, 0.2, 0.6};
 	MovementController& movementController;
-	Telemetry& telemetry;
 	Drone& drone;
+	Attitude target{};
 	DShotRMT motor1;
 	DShotRMT motor2;
 	DShotRMT motor3;
 	DShotRMT motor4;
-	Attitude target{};
 
 	QuickPID pitchQuickPID;
 	QuickPID rollQuickPID;
@@ -59,10 +57,10 @@ private:
 	void arm();
 	void disarm();
 	float computeIntegralBleed(float errorAbs, float zeroError, float fullError, float maxBleedPerLoop) const;
-	void updateAxisPid(QuickPID& pid, float setpoint, float measurement, float& filteredInput, float& pidOutput, float& command, float outputLimit, float iBleedZeroError, float iBleedFullError, float iBleedMaxPerLoop);
+	void updateAxisPid(QuickPID& pid, float setpoint, float measurement, float& pidOutput, float& command, float outputLimit, float iBleedZeroError, float iBleedFullError, float iBleedMaxPerLoop);
 	float pidAuthority;
 
-	// Filtered control and attitude state used by the attitude loop.
+	// Per-loop attitude snapshots used as direct (unfiltered) QuickPID inputs.
 	float pitchInput;
 	float yawInput;
 	float rollInput;

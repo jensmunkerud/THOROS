@@ -37,6 +37,7 @@ enum class FlightMode : uint8_t {
 struct Drone {
 	mutable portMUX_TYPE stateLock = portMUX_INITIALIZER_UNLOCKED;
 	FlightMode mode;
+	Attitude attitude;
 	FlightControls flightControls;
 	float altitude; // [m] above/under starting point
 
@@ -49,6 +50,7 @@ struct Drone {
 
 	Drone() :
 		mode(FlightMode::DISARMED),
+		attitude{},
 		flightControls{},
 		altitude{},
 		GPS_OK{false},
@@ -83,8 +85,6 @@ struct __attribute__((packed)) Telemetry {
 	int8_t BEGIN;
 	int16_t altitude;
 	int16_t speed;
-
-	Attitude attitude;
 	Vec3 linearAccel;
 
 	int16_t temp;
@@ -103,7 +103,6 @@ struct __attribute__((packed)) Telemetry {
 		BEGIN(START_MARKER),
 		altitude(0),
 		speed(0),
-		attitude{},
 		linearAccel{},
 		temp(0), pressure(0),
 		batteryVoltage(0),
