@@ -5,6 +5,11 @@
 
 extern Motor motor;
 
+constexpr float MODE_LATERAL_EPSILON {0.15f};
+constexpr float MODE_YAW_EPSILON {0.15f};
+constexpr float MODE_LANDED_THROTTLE {15.0f};
+constexpr float MODE_HOVERING_THROTTLE {80.0f};
+
 
 MovementController::MovementController(Telemetry& tel, Drone& drone, RFD900& rfd900) : 
 telemetry{tel},
@@ -127,10 +132,6 @@ void MovementController::update() {
 		if (received.numCmds > 0) {
 			canApplyFailSafe = true;
 			lastCommandTime = std::chrono::steady_clock::now();
-			{
-				DroneLockGuard lock(drone);
-				drone.mode = FlightMode::MOVING;
-			}
 		} else {
 			// PUT DRONE EITHER IN LANDED, HOVERING OR ARMED MODE!!!
 		}
@@ -171,7 +172,48 @@ void MovementController::update() {
 		drone.flightControls = controls;
 	}
 
+	updateFlightMode(controls);
+
 	applyFailsafeIfTimedOut();
+}
+
+bool MovementController::hasLateralInput(const FlightControls& controls) const {
+	return fabsf(controls.pitch) > MODE_LATERAL_EPSILON || fabsf(controls.roll) > MODE_LATERAL_EPSILON;
+}
+
+bool MovementController::hasYawInput(const FlightControls& controls) const {
+	return fabsf(controls.yaw) > MODE_YAW_EPSILON;
+}
+
+void MovementController::updateFlightMode(const FlightControls& controls) {
+	FlightMode currentMode;
+	{
+		DroneLockGuard lock(drone);
+		currentMode = drone.mode;
+	}
+
+	if (currentMode == FlightMode::DISARMED) {
+		return;
+	}
+
+	const bool lateralActive = hasLateralInput(controls);
+	const bool yawActive = hasYawInput(controls);
+	const bool movementActive = lateralActive || yawActive;
+	const float throttle = controls.throttle;
+
+	FlightMode nextMode = FlightMode::ARMED;
+	if (throttle <= MODE_LANDED_THROTTLE && !movementActive) {
+		nextMode = FlightMode::LANDED;
+	} else if (throttle >= MODE_HOVERING_THROTTLE && !movementActive) {
+		nextMode = FlightMode::HOVERING;
+	} else if (movementActive || throttle > MODE_LANDED_THROTTLE) {
+		nextMode = FlightMode::MOVING;
+	}
+
+	if (nextMode != currentMode) {
+		DroneLockGuard lock(drone);
+		drone.mode = nextMode;
+	}
 }
 
 // Disable user input if we loose radio communication while moving.

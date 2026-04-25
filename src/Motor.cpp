@@ -62,6 +62,7 @@ void Motor::arm() {
 	}
 	{
 		DroneLockGuard lock(drone);
+		drone.flightControls = {};
 		drone.mode = FlightMode::ARMED;
 	}
 }

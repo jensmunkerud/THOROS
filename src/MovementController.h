@@ -85,6 +85,9 @@ private:
 	// Helpers
 	void generateCommandMap();
 	void applyFailsafeIfTimedOut();
+	void updateFlightMode(const FlightControls& controls);
+	bool hasLateralInput(const FlightControls& controls) const;
+	bool hasYawInput(const FlightControls& controls) const;
 	int16_t mapInput(uint8_t rawValue);
 	float smooth(float current, float target, float sensitivity, float deltaTime);
 
