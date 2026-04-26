@@ -31,7 +31,7 @@ void LED::loop() {
 	lastTime = millis();
 	bool droneArmed = false;
 	{
-		DroneLockGuard lock(drone);
+		DroneLockGuard droneLock(drone);
 		droneArmed = drone.mode != FlightMode::DISARMED;
 	}
 	if (droneArmed) {

@@ -30,6 +30,8 @@ void BMP390::loop() {
 	}
 	// float currentPressure = bmp.readPressure();
 	// float relativeAltitude = 44330.0 * (1.0 - pow(currentPressure / baselinePressure, 0.5));
-	telemetry.altitude = bmp.readAltitude(SEALEVELPRESSURE_HPA);
+	DroneLockGuard droneLock(drone);
+	TelemetryLockGuard telemetryLock(telemetry);
+	drone.altitude = bmp.readAltitude(SEALEVELPRESSURE_HPA);
 	telemetry.pressure = (int)(bmp.pressure * 100); // PRESSURE IN PASCALS
 }

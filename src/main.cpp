@@ -17,8 +17,8 @@ constexpr unsigned long SENSOR_INTERVAL_SLOW = 1000/1;
 unsigned long prevFAST = 0;
 unsigned long prevSLOW = 0;
 
-Telemetry telemetry;
 Drone drone;
+Telemetry telemetry;
 ICM20948 icm20948(telemetry, drone);
 BMP390 bmp390(telemetry, drone);
 // GPS gps(telemetry);
@@ -44,10 +44,10 @@ void setup() {
 	Serial.begin(115200);
 	Serial.println("==== SETUP BEGUN! ====");
 	rfd900.setPidApplyCallback(applyPidTuningsToMotor, &motor);
-	initDevice("ICM20948", [](){ DroneLockGuard lock(drone); return drone.IMU_OK; }, [](){ icm20948.begin(); });
+	initDevice("ICM20948", [](){ DroneLockGuard droneLock(drone); return drone.IMU_OK; }, [](){ icm20948.begin(); });
 	// initDevice("BMP390", [](){ return drone.BMP390; }, [](){ bmp390.begin(); });
-	initDevice("RFD900", [](){ DroneLockGuard lock(drone); return drone.RADIO_OK; }, [](){ rfd900.begin(); });
-	initDevice("Motor", [](){ DroneLockGuard lock(drone); return drone.MOTOR_OK; }, [](){ motor.begin(); });
+	initDevice("RFD900", [](){ DroneLockGuard droneLock(drone); return drone.RADIO_OK; }, [](){ rfd900.begin(); });
+	initDevice("Motor", [](){ DroneLockGuard droneLock(drone); return drone.MOTOR_OK; }, [](){ motor.begin(); });
 	Serial.println("==== SETUP COMPLETE ====");
 }
 

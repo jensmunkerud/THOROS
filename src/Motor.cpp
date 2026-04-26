@@ -43,7 +43,7 @@ void Motor::begin() {
 	
 	arm();
 	{
-		DroneLockGuard lock(drone);
+		DroneLockGuard droneLock(drone);
 		drone.MOTOR_OK = true;
 	}
 }
@@ -57,7 +57,7 @@ void Motor::arm() {
 		delay(1);
 	}
 	{
-		DroneLockGuard lock(drone);
+		DroneLockGuard droneLock(drone);
 		drone.flightControls = {};
 		drone.mode = FlightMode::ARMED;
 	}
@@ -69,10 +69,10 @@ void Motor::disarm() {
 	motor3.send_dshot_value(0);
 	motor4.send_dshot_value(0);
 	{
-		DroneLockGuard lock(drone);
+		DroneLockGuard droneLock(drone);
 		drone.mode = FlightMode::DISARMED;
 		drone.flightControls = {};
-		drone.motorOutputs = {};
+		drone.motorThrusts = {};
 	}
 	movementController.clearInputs(true);
 }
@@ -80,7 +80,7 @@ void Motor::disarm() {
 void Motor::Kill() {
 	float throttle = 0.0f;
 	{
-		DroneLockGuard lock(drone);
+		DroneLockGuard droneLock(drone);
 		if (drone.mode == FlightMode::DISARMED) {
 			return;
 		}
@@ -94,7 +94,7 @@ void Motor::Kill() {
 	while (throttle > 0.0f) {
 		bool isDisarmed = false;
 		{
-			DroneLockGuard lock(drone);
+			DroneLockGuard droneLock(drone);
 			isDisarmed = (drone.mode == FlightMode::DISARMED);
 		}
 		if (isDisarmed) {
@@ -111,7 +111,7 @@ void Motor::Kill() {
 		}
 
 		{
-			DroneLockGuard lock(drone);
+			DroneLockGuard droneLock(drone);
 			drone.flightControls.throttle = throttle;
 		}
 		throttleBase = throttle;
@@ -120,8 +120,8 @@ void Motor::Kill() {
 		m3 = throttle;
 		m4 = throttle;
 		{
-			DroneLockGuard lock(drone);
-			drone.motorOutputs = {
+			DroneLockGuard droneLock(drone);
+			drone.motorThrusts = {
 				static_cast<int16_t>(m1),
 				static_cast<int16_t>(m2),
 				static_cast<int16_t>(m3),
@@ -189,7 +189,7 @@ void Motor::loop() {
 	FlightControls controlInput;
 	Attitude attitudeInput;
 	{
-		DroneLockGuard lock(drone);
+		DroneLockGuard droneLock(drone);
 		mode = drone.mode;
 		controlInput = drone.flightControls;
 		attitudeInput = drone.attitude;
@@ -229,8 +229,8 @@ void Motor::loop() {
 	m3 = constrain(throttleBase * FRONT_BIAS + pitchCmd + rollCmd + yawCmd, 0, MAXIMUM_MOTOR_SPEED);
 	m4 = constrain(throttleBase              - pitchCmd + rollCmd - yawCmd, 0, MAXIMUM_MOTOR_SPEED);
 	{
-		DroneLockGuard lock(drone);
-		drone.motorOutputs = {
+		DroneLockGuard droneLock(drone);
+		drone.motorThrusts = {
 			static_cast<int16_t>(m1),
 			static_cast<int16_t>(m2),
 			static_cast<int16_t>(m3),
@@ -243,6 +243,7 @@ void Motor::loop() {
 	motor3.send_dshot_value(constrain((int)m3, MIN_ARMED_DSHOT_VALUE, MAXIMUM_MOTOR_SPEED));
 	motor4.send_dshot_value(constrain((int)m4, MIN_ARMED_DSHOT_VALUE, MAXIMUM_MOTOR_SPEED));
 	
+	return;
 	Serial.print(attitudeInput.pitch);
 	Serial.print("/");
 	Serial.print(attitudeInput.yaw);

@@ -6,10 +6,9 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
 
-constexpr int16_t RFD_TIMEOUT_MS {2500};
-constexpr int16_t PING_INTERVAL {2000};
-constexpr int16_t SEND_STATUS_INTERVAL {1500};
-constexpr int16_t SEND_CONTROL_STREAM_INTERVAL {10};
+constexpr int16_t RFD_TIMEOUT_MS {250};
+constexpr int16_t PING_INTERVAL {110};
+constexpr int16_t SEND_TELEMETRY_INTERVAL {100};
 constexpr uint8_t RFD_SERIAL {2};
 
 
@@ -21,8 +20,7 @@ public:
 	RFD900(Telemetry& tel, Drone& droneState);
 	void begin();
 	void loop();
-	void sendStatus();
-	void sendControlStream();
+	void sendTelemetry();
 	void ping();
 	QueueHandle_t getCommandQueue() const;
 
@@ -38,7 +36,7 @@ private:
 	
 	static void RFD900Task(void* parameter);
 	Telemetry& telemetry;
-	Drone& droneState;
+	Drone& drone;
 	byte buffer[192];
 	byte numPackets;
 	unsigned long lastCommand;
@@ -47,6 +45,5 @@ private:
 	SemaphoreHandle_t serialTxMutex;
 	HardwareSerial SerialRFD;
 	uint16_t pingProgress;
-	uint16_t statusProgress;
-	uint16_t controlStreamProgress;
+	uint16_t temeletryProgress;
 };

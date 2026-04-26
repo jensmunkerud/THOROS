@@ -3,9 +3,9 @@
 #include <cstdio>
 
 
-RFD900::RFD900(Telemetry& tel, Drone& droneState) : 
+RFD900::RFD900(Telemetry& tel, Drone& drone) : 
 telemetry{tel},
-droneState{droneState},
+drone{drone},
 numPackets{0},
 pidLineLength{0},
 pidCallback{nullptr},
@@ -13,8 +13,7 @@ pidContext{nullptr},
 rfdTaskHandle{nullptr},
 serialTxMutex{nullptr},
 pingProgress{0},
-statusProgress{0},
-controlStreamProgress{0},
+temeletryProgress{0},
 lastCommand{millis()},
 SerialRFD(RFD_SERIAL)
 {
@@ -31,8 +30,8 @@ void RFD900::RFD900Task(void* parameter) {
 		vTaskDelete(NULL); // safety check
 	}
 	{
-		DroneLockGuard lock(rfd->droneState);
-		rfd->droneState.RADIO_OK = true;
+		DroneLockGuard droneLock(rfd->drone);
+		rfd->drone.RADIO_OK = true;
 	}
 	for (;;) {
 		rfd->loop();
@@ -41,13 +40,9 @@ void RFD900::RFD900Task(void* parameter) {
 			rfd->ping();
 			rfd->pingProgress = 0;
 		}
-		if (rfd->statusProgress++ >= SEND_STATUS_INTERVAL) {
-			rfd->sendStatus();
-			rfd->statusProgress = 0;
-		}
-		if (rfd->controlStreamProgress++ >= SEND_CONTROL_STREAM_INTERVAL) {
-			rfd->sendControlStream();
-			rfd->controlStreamProgress = 0;
+		if (rfd->temeletryProgress++ >= SEND_TELEMETRY_INTERVAL) {
+			rfd->sendTelemetry();
+			rfd->temeletryProgress = 0;
 		}
 	}
 }
@@ -75,9 +70,9 @@ void RFD900::loop() {
 	if (millis() - lastCommand > RFD_TIMEOUT_MS) {
 		bool hadGroundLink = false;
 		{
-			DroneLockGuard lock(droneState);
-			hadGroundLink = droneState.GROUND_LINK_OK;
-			droneState.GROUND_LINK_OK = false;
+			DroneLockGuard droneLock(drone);
+			hadGroundLink = drone.GROUND_LINK_OK;
+			drone.GROUND_LINK_OK = false;
 		}
 		if (hadGroundLink) {
 			// KILLS DRONE ON RADIO TIMEOUT
@@ -111,8 +106,8 @@ void RFD900::loop() {
 		// (it might send too fast for SerialRFD to timeout or we receive next packet while inside for loop below)
 		if (incoming == END_MARKER) {
 			{
-				DroneLockGuard lock(droneState);
-				droneState.GROUND_LINK_OK = true;
+				DroneLockGuard droneLock(drone);
+				drone.GROUND_LINK_OK = true;
 			}
 			lastCommand = millis();
 
@@ -163,52 +158,25 @@ bool RFD900::isLikelyTextFrame() const {
 }
 
 
-void RFD900::sendStatus() {
+void RFD900::sendTelemetry() {
 	bool linkOk = false;
+	TelemetryPacket packet;
 	{
-		DroneLockGuard lock(droneState);
-		linkOk = droneState.GROUND_LINK_OK;
+		DroneLockGuard droneLock(drone);
+		TelemetryLockGuard telemetryLock(telemetry);
+		linkOk = drone.GROUND_LINK_OK;
+		if (linkOk) {
+			packet.drone = static_cast<const DroneData&>(drone);
+			packet.telemetry = static_cast<const TelemetryData&>(telemetry);
+		}
 	}
 	if (linkOk) {
 		if (serialTxMutex && xSemaphoreTake(serialTxMutex, pdMS_TO_TICKS(2)) == pdTRUE) {
-			SerialRFD.write((uint8_t*)&telemetry, sizeof(Telemetry));
+			SerialRFD.write(reinterpret_cast<const uint8_t*>(&packet), TelemetryPacket::WIRE_SIZE);
 			xSemaphoreGive(serialTxMutex);
+			Serial.write(reinterpret_cast<const uint8_t*>(&packet), TelemetryPacket::WIRE_SIZE);
+			Serial.println();
 		}
-	}
-}
-
-void RFD900::sendControlStream() {
-	bool linkOk = false;
-	Attitude attitude{};
-	MotorOutputs motors{};
-	{
-		DroneLockGuard lock(droneState);
-		linkOk = droneState.GROUND_LINK_OK;
-		attitude = droneState.attitude;
-		motors = droneState.motorOutputs;
-	}
-
-	if (!linkOk) {
-		return;
-	}
-
-	if (serialTxMutex && xSemaphoreTake(serialTxMutex, pdMS_TO_TICKS(2)) == pdTRUE) {
-		char buffer[128];
-
-		int len = snprintf(buffer, sizeof(buffer),
-			"%c%.2f/%.2f/%.2f/%.2f/%.2f/%.2f/%.2f\n",
-			0xEF,
-			attitude.pitch,
-			attitude.yaw,
-			attitude.roll,
-			motors.m1,
-			motors.m2,
-			motors.m3,
-			motors.m4
-		);
-
-		SerialRFD.write((uint8_t*)buffer, len);
-		xSemaphoreGive(serialTxMutex);
 	}
 }
 

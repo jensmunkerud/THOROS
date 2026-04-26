@@ -5,6 +5,9 @@
 #define START_MARKER 0xAB
 #define END_MARKER 0xCD
 
+#define START_MARKER2 0xAD
+#define END_MARKER2 0xFE
+
 struct Vec3 {
 	float x, y, z;
 };
@@ -13,20 +16,20 @@ struct PID {
 	float P, I, D;
 };
 
-struct Attitude {
+struct __attribute__((packed)) Attitude {
 	float pitch;
 	float yaw;
 	float roll;
 };
 
-struct FlightControls {
+struct __attribute__((packed)) FlightControls {
 	float pitch;
 	float roll;
 	float yaw;
 	float throttle;
 };
 
-struct MotorOutputs {
+struct __attribute__((packed)) MotorThrusts {
 	int16_t m1;
 	int16_t m2;
 	int16_t m3;
@@ -41,12 +44,11 @@ enum class FlightMode : uint8_t {
 		MOVING,
 };
 
-struct Drone {
-	mutable portMUX_TYPE stateLock = portMUX_INITIALIZER_UNLOCKED;
+struct __attribute__((packed)) DroneData {
 	FlightMode mode;
 	Attitude attitude;
+	MotorThrusts motorThrusts;
 	FlightControls flightControls;
-	MotorOutputs motorOutputs;
 	float altitude; // [m] above/under starting point
 
 	bool GPS_OK;
@@ -55,19 +57,14 @@ struct Drone {
 	bool IMU_OK;
 	bool RADIO_OK;
 	bool GROUND_LINK_OK;
+};
 
-	Drone() :
-		mode(FlightMode::DISARMED),
-		attitude{},
-		flightControls{},
-		motorOutputs{},
-		altitude{},
-		GPS_OK{false},
-		MOTOR_OK{false},
-		PRESSURE_OK{false},
-		IMU_OK{false},
-		RADIO_OK{false},
-		GROUND_LINK_OK{false} {}
+struct Drone : public DroneData {
+	mutable portMUX_TYPE stateLock = portMUX_INITIALIZER_UNLOCKED;
+
+	Drone() : DroneData{} {
+		mode = FlightMode::DISARMED;
+	}
 
 	inline void lock() {
 		portENTER_CRITICAL(&stateLock);
@@ -90,34 +87,58 @@ struct DroneLockGuard {
 	}
 };
 
-struct __attribute__((packed)) Telemetry {
-	int8_t BEGIN;
-	int16_t altitude;
-	int16_t speed;
-	Vec3 linearAccel;
-
+struct __attribute__((packed)) TelemetryData {
 	int16_t temp;
 	int16_t pressure;
-
 	int16_t batteryVoltage;
 
 	int32_t latitude;   // scaled by 1e7
 	int32_t longitude;  // scaled by 1e7
+};
 
+struct Telemetry : public TelemetryData {
+	mutable portMUX_TYPE stateLock = portMUX_INITIALIZER_UNLOCKED;
 
-	uint16_t timestamp; // unused
+	Telemetry() : TelemetryData{} {}
+
+	inline void lock() {
+		portENTER_CRITICAL(&stateLock);
+	}
+
+	inline void unlock() {
+		portEXIT_CRITICAL(&stateLock);
+	}
+};
+
+struct TelemetryLockGuard {
+	Telemetry& telemetry;
+
+	explicit TelemetryLockGuard(Telemetry& t) : telemetry(t) {
+		telemetry.lock();
+	}
+
+	~TelemetryLockGuard() {
+		telemetry.unlock();
+	}
+};
+
+struct TelemetryPacket {
+	int8_t BEGIN;
+	DroneData drone;
+	TelemetryData telemetry;
 	int8_t END;
 
-	Telemetry() :
-		BEGIN(START_MARKER),
-		altitude(0),
-		speed(0),
-		linearAccel{},
-		temp(0), pressure(0),
-		batteryVoltage(0),
-		latitude(0), longitude(0),
-		timestamp(0),
-		END(END_MARKER) {}
+	static constexpr size_t WIRE_SIZE =
+		sizeof(BEGIN) +
+		sizeof(drone) +
+		sizeof(telemetry) +
+		sizeof(END);
+
+	TelemetryPacket() :
+		BEGIN(START_MARKER2),
+		drone{},
+		telemetry{},
+		END(END_MARKER2) {}
 };
 
 

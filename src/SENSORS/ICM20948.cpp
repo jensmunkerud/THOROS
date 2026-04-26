@@ -102,22 +102,22 @@ void ICM20948::loop() {
 		float fusedYaw = fusion.getYaw() - 184.0f;
 
 		{
-			DroneLockGuard lock(drone);
+			DroneLockGuard droneLock(drone);
 			drone.attitude.pitch = -fusedRoll;
 			drone.attitude.roll  = fusedPitch;
 			drone.attitude.yaw   = fusedYaw;
 		}
 
 		// Remove gravity using current attitude, then convert to world frame.
-		Vec3 gBody = gravityBodyFromAttitude(fusedRoll, fusedPitch);
-		Vec3 linBody = {
-			acc.x - gBody.x,
-			acc.y - gBody.y,
-			acc.z - gBody.z
-		};
-		telemetry.linearAccel.x = linBody.x;
-		telemetry.linearAccel.y = linBody.y;
-		telemetry.linearAccel.z = linBody.z;
+		// Vec3 gBody = gravityBodyFromAttitude(fusedRoll, fusedPitch);
+		// Vec3 linBody = {
+		// 	acc.x - gBody.x,
+		// 	acc.y - gBody.y,
+		// 	acc.z - gBody.z
+		// };
+		// telemetry.linearAccel.x = linBody.x;
+		// telemetry.linearAccel.y = linBody.y;
+		// telemetry.linearAccel.z = linBody.z;
 
 		// Print: 9axis_debug
 		// Serial.print(acc.x, 4); Serial.print("/");

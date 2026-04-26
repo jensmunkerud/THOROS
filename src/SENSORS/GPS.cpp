@@ -17,6 +17,7 @@ void GPS::loop() {
 
 	if (gps.location.isValid()) {
 		drone.GPS_OK = true;
+		TelemetryLockGuard telemetryLock(telemetry);
 		telemetry.latitude  = gps.location.lat() * 1e7;
 		telemetry.longitude = gps.location.lng() * 1e7;
 	} else {

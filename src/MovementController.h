@@ -12,8 +12,8 @@ constexpr float MAX_PAN						{175.0f};	// [deg]
 constexpr float TILT_SPEED					{10.0f};	// [deg/s]
 constexpr float MAX_TILT_ANGLE				{5.0f};		// [deg]
 constexpr float THROTTLE_SPEED				{400.0f};	// [u/s]
-constexpr float MAX_THROTTLE				{1200.0f};	// [u]
-constexpr int   MOVEMENT_TIMEOUT_MS			{3500};		// [ms]
+constexpr float MAX_THROTTLE				{600.0f};	// [u]
+constexpr int   MOVEMENT_TIMEOUT_MS			{35};		// [ms]
 
 
 // Command IDs matching radio protocol

@@ -138,7 +138,7 @@ void MovementController::update() {
 
 	FlightControls controls;
 	{
-		DroneLockGuard lock(drone);
+		DroneLockGuard droneLock(drone);
 		controls = drone.flightControls;
 	}
 
@@ -161,7 +161,7 @@ void MovementController::update() {
 	}
 
 	{
-		DroneLockGuard lock(drone);
+		DroneLockGuard droneLock(drone);
 		drone.flightControls = controls;
 	}
 
@@ -181,7 +181,7 @@ bool MovementController::hasYawInput(const FlightControls& controls) const {
 void MovementController::updateFlightMode(const FlightControls& controls) {
 	FlightMode currentMode;
 	{
-		DroneLockGuard lock(drone);
+		DroneLockGuard droneLock(drone);
 		currentMode = drone.mode;
 	}
 
@@ -204,7 +204,7 @@ void MovementController::updateFlightMode(const FlightControls& controls) {
 	}
 
 	if (nextMode != currentMode) {
-		DroneLockGuard lock(drone);
+		DroneLockGuard droneLock(drone);
 		drone.mode = nextMode;
 	}
 }
