@@ -8,7 +8,7 @@
 
 constexpr int16_t RFD_TIMEOUT_MS {2500};
 constexpr int16_t PING_INTERVAL {1000};
-constexpr int16_t SEND_TELEMETRY_INTERVAL {100};
+constexpr int16_t SEND_TELEMETRY_INTERVAL {50};
 constexpr uint8_t RFD_SERIAL {2};
 
 
