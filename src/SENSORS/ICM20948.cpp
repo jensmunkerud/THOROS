@@ -1,18 +1,19 @@
 #include "ICM20948.h"
-#include "Filters.h"
+#include "MISC/Filters.h"
 
 
 ICM20948::ICM20948(Telemetry& tel, Drone& drone) : 
 telemetry{tel},
-drone{drone}
+drone{drone},
+vspi(VSPI)
 {
 	sampleRate.a = (1000 / ICM_SAMPLERATE) - 1;
 	sampleRate.g = (1000 / ICM_SAMPLERATE) - 1;
 }
 
 void ICM20948::begin() {
-	SPI.begin();
-	drone.IMU_OK = icm20948.begin(ICM20948_CS, SPI) == ICM_20948_Stat_Ok;
+	vspi.begin(ICM20948_SCK, ICM20948_MISO, ICM20948_MOSI, ICM20948_CS);
+	drone.IMU_OK = icm20948.begin(ICM20948_CS, vspi) == ICM_20948_Stat_Ok;
 	if (!drone.IMU_OK) {return;}
 	drone.IMU_OK = icm20948.startupMagnetometer() == ICM_20948_Stat_Ok;
 	if (!drone.IMU_OK) {return;}

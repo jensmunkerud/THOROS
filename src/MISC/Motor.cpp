@@ -18,10 +18,15 @@ quickYawOUT{0},
 quickPitchCommand{0},
 quickRollCommand{0},
 quickYawCommand{0},
+controlOutput{},
 pitchQuickPID{&drone.attitude.pitch, &quickPitchOUT, &target.pitch, pitchPid.P, pitchPid.I, pitchPid.D, QuickPID::Action::direct},
 yawQuickPID{&drone.attitude.yaw, &quickYawOUT, &target.yaw, yawPid.P, yawPid.I, yawPid.D, QuickPID::Action::direct},
 rollQuickPID{&drone.attitude.roll, &quickRollOUT, &target.roll, rollPid.P, rollPid.I, rollPid.D, QuickPID::Action::reverse}
 {}
+
+Attitude Motor::getControlOutput() const {
+	return controlOutput;
+}
 
 void Motor::begin() {
 	motor1.begin(DSHOT_TYPE, NO_BIDIRECTION, 14);
@@ -61,6 +66,7 @@ void Motor::arm() {
 		drone.flightControls = {};
 		drone.mode = FlightMode::ARMED;
 	}
+	controlOutput = {};
 }
 
 void Motor::disarm() {
@@ -74,6 +80,7 @@ void Motor::disarm() {
 		drone.flightControls = {};
 		drone.motorThrusts = {};
 	}
+	controlOutput = {};
 	movementController.clearInputs(true);
 }
 
@@ -222,6 +229,11 @@ void Motor::loop() {
 	float pitchCmd = quickPitchCommand * pidAuthority;
 	float rollCmd = quickRollCommand * pidAuthority;
 	float yawCmd = quickYawCommand * pidAuthority;
+	controlOutput = {
+		pitchCmd,
+		yawCmd,
+		rollCmd
+	};
 
 	// Apply motor mix
 	m1 = constrain(throttleBase * FRONT_BIAS + pitchCmd - rollCmd - yawCmd, 0, MAXIMUM_MOTOR_SPEED);

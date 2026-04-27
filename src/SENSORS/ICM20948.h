@@ -4,13 +4,16 @@
 #include <SPI.h>
 #include <ICM_20948.h>
 #include <SensorFusion.h>
-#include "Datatypes.h"
+#include "MISC/Datatypes.h"
 
-static constexpr int ICM20948_CS {15};
-static constexpr int ICM_SAMPLERATE {1000};
-static constexpr float DEG2RAD = 0.01745329251f;
-static constexpr float ACCEL_LPF_ALPHA = 0.05f; // 0.05f optimal (perhaps)
-static constexpr float GYRO_LPF_ALPHA = 0.05f; // 0.05f optimal
+static constexpr int ICM20948_CS		{15};
+static constexpr int ICM20948_SCK		{18};
+static constexpr int ICM20948_MISO		{19};
+static constexpr int ICM20948_MOSI		{23};
+static constexpr int ICM_SAMPLERATE		{1000};
+static constexpr float DEG2RAD			{0.01745329251f};
+static constexpr float ACCEL_LPF_ALPHA	{0.05f}; // 0.05f optimal (perhaps)
+static constexpr float GYRO_LPF_ALPHA	{0.05f}; // 0.05f optimal
 
 class ICM20948 {
 public:
@@ -29,6 +32,7 @@ private:
 	Vec3 gyroBias;
 	Vec3 accelFiltered{NAN, NAN, NAN};
 	Vec3 gyroFiltered{NAN, NAN, NAN};
+	SPIClass vspi;
 
 	Vec3 normalize(Vec3 v);
 	Vec3 cross(Vec3 a, Vec3 b);

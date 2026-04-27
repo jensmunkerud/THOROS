@@ -6,10 +6,10 @@
 #include "Datatypes.h"
 
 // CONFIGURATION
-constexpr int MOTOR1 {27}; // FRONT RIGHT	CCW
-constexpr int MOTOR2 {14}; // BACK RIGHT	CW
-constexpr int MOTOR3 {12}; // FRONT LEFT	CW
-constexpr int MOTOR4 {13}; // BACK LEFT		CCW
+constexpr int MOTOR1 {33}; // FRONT RIGHT	CCW
+constexpr int MOTOR2 {25}; // BACK RIGHT	CW
+constexpr int MOTOR3 {26}; // FRONT LEFT	CW
+constexpr int MOTOR4 {27}; // BACK LEFT		CCW
 
 constexpr int INITILIZE_ESC_TIME {40}; // 4000
 constexpr int MIN_ARMED_DSHOT_VALUE {0}; // 0-47 is dShot reserved values
@@ -38,6 +38,7 @@ public:
 	void loop();
 	void Kill();
 	void setAttitudePidTunings(const PID& pitch, const PID& roll, const PID& yaw);
+	Attitude getControlOutput() const;
 	
 private:
 	PID pitchPid{6, 0.2, 0.7};
@@ -59,6 +60,7 @@ private:
 	float computeIntegralBleed(float errorAbs, float zeroError, float fullError, float maxBleedPerLoop) const;
 	void updateAxisPid(QuickPID& pid, float setpoint, float measurement, float& pidOutput, float& command, float outputLimit, float iBleedZeroError, float iBleedFullError, float iBleedMaxPerLoop);
 	float pidAuthority;
+	Attitude controlOutput;
 
 	// Per-loop attitude snapshots used as direct (unfiltered) QuickPID inputs.
 	float pitchInput;

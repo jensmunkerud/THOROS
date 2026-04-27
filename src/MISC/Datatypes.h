@@ -57,6 +57,7 @@ struct __attribute__((packed)) DroneData {
 	bool IMU_OK;
 	bool RADIO_OK;
 	bool GROUND_LINK_OK;
+	bool LOGGER_OK;
 };
 
 struct Drone : public DroneData {

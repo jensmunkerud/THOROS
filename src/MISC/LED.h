@@ -2,8 +2,8 @@
 #include "Arduino.h"
 #include "Datatypes.h"
 
-constexpr int LEDPIN {2};
-constexpr unsigned long BLINK_INTERVAL = 1000/4;
+constexpr int LEDPIN					{2};
+constexpr unsigned long BLINK_INTERVAL	{1000/4};
 
 class LED {
 public:

@@ -2,16 +2,18 @@
 #include <SPI.h>
 #include <Adafruit_Sensor.h>
 #include <Adafruit_BMP3XX.h>
-#include "Datatypes.h"
+#include "MISC/Datatypes.h"
 
 
 BMP390::BMP390(Telemetry& tel, Drone& drone) : 
 telemetry{tel},
-drone{drone}
+drone{drone},
+vspi(VSPI)
 {}
 
 void BMP390::begin() {
-	if (!bmp.begin_SPI(BMP390_CS)) {
+	vspi.begin(BMP390_SCK, BMP390_MISO, BMP390_MOSI, BMP390_CS);
+	if (!bmp.begin_SPI(BMP390_CS, &vspi)) {
 		drone.PRESSURE_OK = false;
 		return;
 	}

@@ -1,7 +1,7 @@
 #pragma once
 #include <TinyGPSPlus.h>
 #include <Arduino.h>
-#include "Datatypes.h"
+#include "MISC/Datatypes.h"
 
 constexpr int GPS_RX	{21};
 constexpr int GPS_TX	{22};
