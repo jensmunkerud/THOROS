@@ -36,6 +36,12 @@ If control columns are missing, the tool falls back to setpoint-based identifica
 python tools/pid_autotune/autotune_pid.py --csv path/to/flight_log.csv
 ```
 
+To plot the attitude measurements from the same CSV shape:
+
+```bash
+python tools/pid_autotune/plot_measurements.py --csv path/to/flight_log.csv
+```
+
 Outputs are written to `tools/pid_autotune/out/` by default.
 
 ## Column override example

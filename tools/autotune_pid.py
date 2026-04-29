@@ -25,7 +25,7 @@ from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
-from scipy.optimize import minimize
+from scipy.optimize import differential_evolution, minimize
 
 AXES = ("pitch", "roll", "yaw")
 
@@ -284,12 +284,24 @@ def tune_axis(
     def _obj(x: np.ndarray) -> float:
         return objective_for_gains(x, model, axis_data, control_limit)
 
-    x0 = np.array(initial_gains, dtype=float)
-    x0 = np.clip(x0, [b[0] for b in bounds], [b[1] for b in bounds])
+    # Use global optimization (differential_evolution) to escape local minima,
+    # then refine with local optimization.
+    de_result = differential_evolution(
+        _obj,
+        bounds,
+        seed=42,
+        maxiter=1000,
+        popsize=15,
+        atol=1e-6,
+        tol=1e-6,
+        workers=1,
+        updating="deferred",
+    )
 
+    # Refine the global result with local optimization.
     result = minimize(
         _obj,
-        x0,
+        de_result.x,
         method="L-BFGS-B",
         bounds=bounds,
         options={"maxiter": 300},
@@ -392,7 +404,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Offline PID autotune from flight log CSV.")
     parser.add_argument("--csv", required=True, help="Path to CSV file.")
     parser.add_argument("--time-col", default="timestamp_s", help="Timestamp column in seconds.")
-    parser.add_argument("--output-dir", default="tools/pid_autotune/out", help="Output folder for report and JSON.")
+    parser.add_argument("--output-dir", default="tune", help="Output folder for report and JSON.")
     parser.add_argument("--safe-scale", type=float, default=0.65, help="Scale applied to suggested gains for first flight.")
 
     parser.add_argument("--pitch-initial", default="6,0.2,0.7", help="Initial Kp,Ki,Kd for pitch.")
