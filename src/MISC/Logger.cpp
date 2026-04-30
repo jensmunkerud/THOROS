@@ -1,18 +1,18 @@
 #include "Logger.h"
-
 #include "Motor.h"
 
-Logger::Logger(Drone& droneState, Telemetry& telemetryState, Motor& motorState) :
-drone{droneState},
-telemetry{telemetryState},
-motor{motorState},
-ready{false},
-logging{false},
-includeFullTelemetry{false},
-logStartMs{0},
-lastWriteMs{0},
-logPath{0},
-hspi(HSPI)
+extern Motor motor;
+
+Logger::Logger(Drone& droneState, Telemetry& telemetryState) :
+	drone{droneState},
+	telemetry{telemetryState},
+	ready{false},
+	logging{false},
+	includeFullTelemetry{false},
+	logStartMs{0},
+	lastWriteMs{0},
+	logPath{0},
+	hspi(HSPI)
 {}
 
 bool Logger::begin() {
@@ -37,18 +37,14 @@ bool Logger::isLogging() const {
 }
 
 bool Logger::buildLogPath(char* output, size_t outputSize) const {
-	time_t now = time(nullptr);
-	if (now > 1700000000) {
-		struct tm timeInfo;
-		localtime_r(&now, &timeInfo);
-		char fileName[32];
-		strftime(fileName, sizeof(fileName), "%Y%m%d_%H%M%S.csv", &timeInfo);
-		snprintf(output, outputSize, "/logs/%s", fileName);
-		return true;
+	for (uint32_t index = 1; index < UINT32_MAX; ++index) {
+		snprintf(output, outputSize, "/logs/%lu.csv", static_cast<unsigned long>(index));
+		if (!SD.exists(output)) {
+			return true;
+		}
 	}
 
-	snprintf(output, outputSize, "/logs/log_%010lu.csv", millis());
-	return true;
+	return false;
 }
 
 bool Logger::openLogFile() {
@@ -56,7 +52,9 @@ bool Logger::openLogFile() {
 		return false;
 	}
 
-	buildLogPath(logPath, sizeof(logPath));
+	if (!buildLogPath(logPath, sizeof(logPath))) {
+		return false;
+	}
 	logFile = SD.open(logPath, FILE_WRITE);
 	if (!logFile) {
 		return false;
@@ -214,6 +212,7 @@ Logger::LogSnapshot Logger::captureSnapshot() const {
 }
 
 bool Logger::startLog(bool fullTelemetry) {
+	Serial.println("STARTED LOG!");
 	if (!ready) {
 		return false;
 	}
@@ -235,6 +234,7 @@ bool Logger::startLog(bool fullTelemetry) {
 }
 
 void Logger::stopLog() {
+	Serial.println("STOPPED LOG!!!");
 	if (!logging) {
 		return;
 	}

@@ -4,18 +4,18 @@
 
 
 RFD900::RFD900(Telemetry& tel, Drone& drone) : 
-telemetry{tel},
-drone{drone},
-numPackets{0},
-pidLineLength{0},
-pidCallback{nullptr},
-pidContext{nullptr},
-rfdTaskHandle{nullptr},
-serialTxMutex{nullptr},
-pingProgress{0},
-temeletryProgress{0},
-lastCommand{millis()},
-SerialRFD(RFD_SERIAL)
+	telemetry{tel},
+	drone{drone},
+	numPackets{0},
+	pidLineLength{0},
+	pidCallback{nullptr},
+	pidContext{nullptr},
+	rfdTaskHandle{nullptr},
+	serialTxMutex{nullptr},
+	pingProgress{0},
+	temeletryProgress{0},
+	lastCommand{millis()},
+	SerialRFD{RFD_SERIAL}
 {
 	commandQueue = xQueueCreate(5, sizeof(RFDCommandPacket));
 	serialTxMutex = xSemaphoreCreateMutex();
@@ -174,8 +174,6 @@ void RFD900::sendTelemetry() {
 		if (serialTxMutex && xSemaphoreTake(serialTxMutex, pdMS_TO_TICKS(2)) == pdTRUE) {
 			SerialRFD.write(reinterpret_cast<const uint8_t*>(&packet), TelemetryPacket::WIRE_SIZE);
 			xSemaphoreGive(serialTxMutex);
-			Serial.write(reinterpret_cast<const uint8_t*>(&packet), TelemetryPacket::WIRE_SIZE);
-			Serial.println();
 		}
 	}
 }

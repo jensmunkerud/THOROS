@@ -1,9 +1,11 @@
 #include "MovementController.h"
 #include "Motor.h"
+#include "Logger.h"
 #include <Arduino.h>
 #include <cmath>
 
 extern Motor motor;
+extern Logger logger;
 
 constexpr float MODE_LATERAL_EPSILON {0.15f};
 constexpr float MODE_YAW_EPSILON {0.15f};
@@ -11,13 +13,13 @@ constexpr float MODE_LANDED_THROTTLE {600.0f};
 
 
 MovementController::MovementController(Telemetry& tel, Drone& drone, RFD900& rfd900) : 
-telemetry{tel},
-drone{drone},
-rfd900{rfd900},
-isToggled{false},
-canApplyFailSafe{true},
-canChangeSpeed(true),
-movementSpeed{400}
+	telemetry{tel},
+	drone{drone},
+	rfd900{rfd900},
+	isToggled{false},
+	canApplyFailSafe{true},
+	canChangeSpeed{true},
+	movementSpeed{400}
 {
 	generateCommandMap();
 }
@@ -33,16 +35,16 @@ void MovementController::updateRunningCommands() {
 	}
 
 	// Detect commands that were active but are now gone
-	for (const auto& oldCmd : oldCommands) {
+	for (const auto& oldCmd : runningCommands) {
 		if (newCommands.find(oldCmd) == newCommands.end()) {
 			executeCommand(oldCmd, 0);
 		}
 	}
 
 	// Update activeCommands for next frame
-	oldCommands.clear();
+	runningCommands.clear();
 	for (const auto& entry : newCommands) {
-		oldCommands.insert(entry.first);
+		runningCommands.insert(entry.first);
 	}
 }
 
@@ -62,15 +64,10 @@ void MovementController::generateCommandMap() {
 	commandMap[CommandID::GO_UP]			= [this](uint8_t v){ handleUp(v); };
 	commandMap[CommandID::GO_DOWN]			= [this](uint8_t v){ handleDown(v); };
 	commandMap[CommandID::TOGGLE]			= [this](uint8_t v){ toggle(v); };
-	commandMap[CommandID::P]				= [this](uint8_t v){ P(v); };
-	commandMap[CommandID::Pd]				= [this](uint8_t v){ Pd(v); };
-	commandMap[CommandID::I]				= [this](uint8_t v){ I(v); };
-	commandMap[CommandID::Id]				= [this](uint8_t v){ Id(v); };
-	commandMap[CommandID::D]				= [this](uint8_t v){ D(v); };
-	commandMap[CommandID::Dd]				= [this](uint8_t v){ Dd(v); };
-	commandMap[CommandID::KILL]				= [this](uint8_t v){ clearInputs(true); canApplyFailSafe = false; motor.Kill();};
 	commandMap[CommandID::SPEED_UP]			= [this](uint8_t v){ increaseSpeed(v); };
 	commandMap[CommandID::SPEED_DOWN]		= [this](uint8_t v){ decreaseSpeed(v); };
+	commandMap[CommandID::LOG_TOGGLE]		= [this](uint8_t v){ log_toggle(v); };
+	commandMap[CommandID::KILL]				= [this](uint8_t v){ clearInputs(true); canApplyFailSafe = false; motor.Kill();};
 }
 
 
@@ -84,14 +81,23 @@ void MovementController::handlePanRight(uint8_t v) { target.yaw = v > 0 ? -v/255
 void MovementController::handleUp(uint8_t v)       { target.throttle = v > 0 ? v/255.0f : 0.0f; }
 void MovementController::handleDown(uint8_t v)     { target.throttle = v > 0 ? -v/255.0f : 0.0f; }
 void MovementController::toggle(uint8_t v) {isToggled = not isToggled; return; Serial.print("Toggled , it is now: "); Serial.println(isToggled);}
-void MovementController::increaseSpeed(uint8_t v) {if (canChangeSpeed && v > 0) {movementSpeed = constrain(movementSpeed + v, 50, 500); canChangeSpeed = false;} Serial.print("Sped up, speed: "); Serial.println(movementSpeed); if (v == 0) {canChangeSpeed = true;}}
-void MovementController::decreaseSpeed(uint8_t v) {if (canChangeSpeed && v > 0) {movementSpeed = constrain(movementSpeed - v, 50, 500); canChangeSpeed = false;} if (v == 0) {canChangeSpeed = true;}}
-void MovementController::P(uint8_t v) {Kp = max(0, (int)Kp + v);}
-void MovementController::Pd(uint8_t v) {Kp = max(0, (int)Kp - v);}
-void MovementController::I(uint8_t v) {Ki = max(0, (int)Ki + v);}
-void MovementController::Id(uint8_t v) {Ki = max(0, (int)Ki - v);}
-void MovementController::D(uint8_t v) {Kd = max(0, (int)Kd + v);}
-void MovementController::Dd(uint8_t v) {Kd = max(0, (int)Kd - v);}
+void MovementController::increaseSpeed(uint8_t v)  {if (canChangeSpeed && v > 0) {movementSpeed = constrain(movementSpeed + v, 50, 500); canChangeSpeed = false;} Serial.print("Sped up, speed: "); Serial.println(movementSpeed); if (v == 0) {canChangeSpeed = true;}}
+void MovementController::decreaseSpeed(uint8_t v)  {if (canChangeSpeed && v > 0) {movementSpeed = constrain(movementSpeed - v, 50, 500); canChangeSpeed = false;} if (v == 0) {canChangeSpeed = true;}}
+void MovementController::log_toggle(uint8_t v)     {
+	if (v == 0) {
+		return;
+	}
+
+	if (runningCommands.find(CommandID::LOG_TOGGLE) != runningCommands.end()) {
+		return;
+	}
+
+	if (logger.isLogging()) {
+		logger.stopLog();
+	} else {
+		logger.startLog();
+	}
+}
 
 
 float MovementController::smooth(float current, float target, float sensitivity, float deltaMs)

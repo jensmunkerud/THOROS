@@ -12,7 +12,7 @@ constexpr float MAX_PAN						{175.0f};	// [deg]
 constexpr float TILT_SPEED					{10.0f};	// [deg/s]
 constexpr float MAX_TILT_ANGLE				{5.0f};		// [deg]
 constexpr float THROTTLE_SPEED				{400.0f};	// [u/s]
-constexpr float MAX_THROTTLE				{600.0f};	// [u]
+constexpr float MAX_THROTTLE				{1200.0f};	// [u]
 constexpr int   MOVEMENT_TIMEOUT_MS			{35};		// [ms]
 
 
@@ -27,20 +27,15 @@ enum CommandID : uint8_t {
 	GO_UP		= 107,
 	GO_DOWN 	= 108,
 	TOGGLE		= 17,
-	P			= 50,
-	Pd			= 51,
-	I			= 52,
-	Id			= 53,
-	D			= 54,
-	Dd			= 55,
 	SPEED_UP	= 109,
 	SPEED_DOWN	= 110,
+	LOG_TOGGLE	= 245,
 	KILL		= 254,
 };
 
 class MovementController {
 public:
-	MovementController(Telemetry& tel, Drone& drone, RFD900& rfd900);
+	MovementController(Telemetry& tel, Drone& drone, RFD900& rfd90);
 	void begin();
 	void update();
 	bool isToggled;
@@ -56,7 +51,7 @@ private:
 	std::chrono::steady_clock::time_point lastCommandTime;
 	RFDCommandPacket received;
 	std::unordered_map<CommandID, uint8_t> newCommands;
-	std::set<CommandID> oldCommands;
+	std::set<CommandID> runningCommands;
 
 	// Control handlers
 	void handleForward(uint8_t value);
@@ -71,12 +66,7 @@ private:
 	void decreaseSpeed(uint8_t value);
 	
 	void toggle(uint8_t value);
-	void P(uint8_t value);
-	void Pd(uint8_t value);
-	void I(uint8_t value);
-	void Id(uint8_t value);
-	void D(uint8_t value);
-	void Dd(uint8_t value);
+	void log_toggle(uint8_t value);
 
 	long lastTime{0};
 	long deltaMs{0};

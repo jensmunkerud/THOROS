@@ -13,7 +13,7 @@
 
 // PARAMETERS
 constexpr unsigned long SENSOR_INTERVAL_FAST = 1000/1000;
-constexpr unsigned long SENSOR_INTERVAL_SLOW = 1000/0.1;
+constexpr unsigned long SENSOR_INTERVAL_SLOW = 1000/1;
 
 unsigned long prevFAST = 0;
 unsigned long prevSLOW = 0;
@@ -23,11 +23,11 @@ Telemetry telemetry;
 ICM20948 icm20948(telemetry, drone);
 BMP390 bmp390(telemetry, drone);
 // GPS gps(telemetry);
+LED led(telemetry, drone);
 RFD900 rfd900(telemetry, drone);
 MovementController movementController(telemetry, drone, rfd900);
-LED led(telemetry, drone);
+Logger logger(drone, telemetry);
 Motor motor(movementController, drone);
-Logger logger(drone, telemetry, motor);
 
 PidTuningReceiver pidTuningReceiver(Serial, applyPidTuningsToMotor, &motor);
 
@@ -59,11 +59,6 @@ bool began = false;
 // ---------------- //
 void loop() {
 	unsigned long current = millis();
-	
-	if (!began) {
-		began = !began;
-		logger.startLog();
-	}
 
 	if (current - prevFAST >= SENSOR_INTERVAL_FAST) {
 		prevFAST = current;
@@ -80,7 +75,6 @@ void loop() {
 	if (current - prevSLOW >= SENSOR_INTERVAL_SLOW) {
 		prevSLOW = current;
 		// gps.loop();
-		logger.stopLog();
 	}
 	led.loop();
 }

@@ -1,27 +1,27 @@
 #include "Motor.h"
 
 Motor::Motor(MovementController& mc, Drone& drone) : 
-movementController{mc},
-drone{drone},
-motor1(MOTOR1),
-motor2(MOTOR2),
-motor3(MOTOR3),
-motor4(MOTOR4),
-m1{0},
-m2{0},
-m3{0},
-m4{0},
-throttleBase{0},
-quickPitchOUT{0},
-quickRollOUT{0},
-quickYawOUT{0},
-quickPitchCommand{0},
-quickRollCommand{0},
-quickYawCommand{0},
-controlOutput{},
-pitchQuickPID{&drone.attitude.pitch, &quickPitchOUT, &target.pitch, pitchPid.P, pitchPid.I, pitchPid.D, QuickPID::Action::direct},
-yawQuickPID{&drone.attitude.yaw, &quickYawOUT, &target.yaw, yawPid.P, yawPid.I, yawPid.D, QuickPID::Action::direct},
-rollQuickPID{&drone.attitude.roll, &quickRollOUT, &target.roll, rollPid.P, rollPid.I, rollPid.D, QuickPID::Action::reverse}
+	movementController{mc},
+	drone{drone},
+	motor1(MOTOR1),
+	motor2(MOTOR2),
+	motor3(MOTOR3),
+	motor4(MOTOR4),
+	m1{0},
+	m2{0},
+	m3{0},
+	m4{0},
+	throttleBase{0},
+	quickPitchOUT{0},
+	quickRollOUT{0},
+	quickYawOUT{0},
+	quickPitchCommand{0},
+	quickRollCommand{0},
+	quickYawCommand{0},
+	controlOutput{},
+	pitchQuickPID{&drone.attitude.pitch, &quickPitchOUT, &target.pitch, pitchPid.P, pitchPid.I, pitchPid.D, QuickPID::Action::direct},
+	yawQuickPID{&drone.attitude.yaw, &quickYawOUT, &target.yaw, yawPid.P, yawPid.I, yawPid.D, QuickPID::Action::direct},
+	rollQuickPID{&drone.attitude.roll, &quickRollOUT, &target.roll, rollPid.P, rollPid.I, rollPid.D, QuickPID::Action::reverse}
 {}
 
 Attitude Motor::getControlOutput() const {

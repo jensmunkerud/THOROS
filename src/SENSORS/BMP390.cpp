@@ -6,9 +6,9 @@
 
 
 BMP390::BMP390(Telemetry& tel, Drone& drone) : 
-telemetry{tel},
-drone{drone},
-vspi(VSPI)
+	telemetry{tel},
+	drone{drone},
+	vspi{VSPI}
 {}
 
 void BMP390::begin() {

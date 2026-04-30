@@ -5,6 +5,7 @@
 
 constexpr int GPS_RX	{21};
 constexpr int GPS_TX	{22};
+constexpr uint8_t GPS_SERIAL {1};
 const int maxPacketLength = 300;
 
 class GPS {

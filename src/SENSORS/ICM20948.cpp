@@ -3,9 +3,9 @@
 
 
 ICM20948::ICM20948(Telemetry& tel, Drone& drone) : 
-telemetry{tel},
-drone{drone},
-vspi(VSPI)
+	telemetry{tel},
+	drone{drone},
+	vspi{VSPI}
 {
 	sampleRate.a = (1000 / ICM_SAMPLERATE) - 1;
 	sampleRate.g = (1000 / ICM_SAMPLERATE) - 1;

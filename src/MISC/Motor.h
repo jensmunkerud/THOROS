@@ -6,14 +6,14 @@
 #include "Datatypes.h"
 
 // CONFIGURATION
-constexpr int MOTOR1 {33}; // FRONT RIGHT	CCW
-constexpr int MOTOR2 {25}; // BACK RIGHT	CW
-constexpr int MOTOR3 {26}; // FRONT LEFT	CW
-constexpr int MOTOR4 {27}; // BACK LEFT		CCW
+constexpr int MOTOR1 {32}; // FRONT RIGHT	CCW
+constexpr int MOTOR2 {33}; // BACK RIGHT	CW
+constexpr int MOTOR3 {25}; // FRONT LEFT	CW
+constexpr int MOTOR4 {26}; // BACK LEFT		CCW
 
 constexpr int INITILIZE_ESC_TIME {40}; // 4000
 constexpr int MIN_ARMED_DSHOT_VALUE {0}; // 0-47 is dShot reserved values
-constexpr int MAXIMUM_MOTOR_SPEED {600};
+constexpr int MAXIMUM_MOTOR_SPEED {1200};
 constexpr float MOTOR_KILL_SPEED {1500.0f};	// [units/s]
 constexpr float MAX_DISARM_TILT_ANGLE_DEG {30.0f};
 constexpr float FRONT_BIAS {1.1f};
@@ -41,7 +41,10 @@ public:
 	Attitude getControlOutput() const;
 	
 private:
-	PID pitchPid{6, 0.2, 0.7};
+	// PID pitchPid{6, 0.2, 0.7};
+	// PID yawPid{2, 4, 1};
+	// PID rollPid{3, 0.2, 0.6};
+	PID pitchPid{0.4659, 0.2, 0.1};
 	PID yawPid{2, 4, 1};
 	PID rollPid{3, 0.2, 0.6};
 	MovementController& movementController;

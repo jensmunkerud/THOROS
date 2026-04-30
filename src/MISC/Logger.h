@@ -16,7 +16,7 @@ class Motor;
 
 class Logger {
 public:
-	Logger(Drone& droneState, Telemetry& telemetryState, Motor& motorState);
+	Logger(Drone& droneState, Telemetry& telemetryState);
 	bool begin();
 	bool startLog(bool includeFullTelemetry = false);
 	void stopLog();
@@ -60,7 +60,6 @@ private:
 
 	Drone& drone;
 	Telemetry& telemetry;
-	Motor& motor;
 	File logFile;
 	bool ready;
 	bool logging;
