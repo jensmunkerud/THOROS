@@ -87,7 +87,7 @@ void Logger::writeFloat(float value, uint8_t digits) {
 }
 
 void Logger::writeBasicHeader() {
-	logFile.print("timestamp_s,dt_s,pitch_setpoint,pitch_measurement,pitch_control,roll_setpoint,roll_measurement,roll_control,yaw_setpoint,yaw_measurement,yaw_control");
+	logFile.print("timestamp_s,dt_s,pitch_setpoint,pitch_measurement,pitch_command,pitch_control,roll_setpoint,roll_measurement,roll_command,roll_control,yaw_setpoint,yaw_measurement,yaw_command,yaw_control,throttle");
 }
 
 void Logger::writeFullTelemetryHeader() {
@@ -110,19 +110,21 @@ void Logger::writeBasicSnapshot(const LogSnapshot& snapshot) {
 	writeSeparator();
 	writeFloat(snapshot.attitude.pitch, 3);
 	writeSeparator();
-	writeFloat(snapshot.controlOutput.pitch, 3);
+	writeFloat(snapshot.commandOutput.pitch, 3);
 	writeSeparator();
 	writeFloat(snapshot.flightControls.roll, 3);
 	writeSeparator();
 	writeFloat(snapshot.attitude.roll, 3);
 	writeSeparator();
-	writeFloat(snapshot.controlOutput.roll, 3);
+	writeFloat(snapshot.commandOutput.roll, 3);
 	writeSeparator();
 	writeFloat(snapshot.flightControls.yaw, 3);
 	writeSeparator();
 	writeFloat(snapshot.attitude.yaw, 3);
 	writeSeparator();
-	writeFloat(snapshot.controlOutput.yaw, 3);
+	writeFloat(snapshot.commandOutput.yaw, 3);
+	writeSeparator();
+	writeFloat(snapshot.flightControls.throttle, 3);
 }
 
 void Logger::writeFullTelemetrySnapshot(const LogSnapshot& snapshot) {
@@ -207,7 +209,7 @@ Logger::LogSnapshot Logger::captureSnapshot() const {
 		TelemetryLockGuard telemetryLock(telemetry);
 		snapshot.telemetry = static_cast<const TelemetryData&>(telemetry);
 	}
-	snapshot.controlOutput = motor.getControlOutput();
+	snapshot.commandOutput = motor.getCommandOutput();
 	return snapshot;
 }
 
