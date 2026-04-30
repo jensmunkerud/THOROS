@@ -1,37 +1,39 @@
 #include <Arduino.h>
 #include <SPI.h>
-#include "Status.h"
+#include "MISC/Datatypes.h"
 #include "SENSORS/ICM20948.h"
 #include "SENSORS/BMP390.h"
 #include "SENSORS/GPS.h"
-#include "MovementController.h"
+#include "MISC/MovementController.h"
 #include "COMMS/RFD900.h"
-#include "LED.h"
-#include "Motor.h"
+#include "MISC/Logger.h"
+#include "MISC/LED.h"
+#include "MISC/Motor.h"
 #include "COMMS/PidTuningReceiver.h"
 
 // PARAMETERS
 constexpr unsigned long SENSOR_INTERVAL_FAST = 1000/1000;
 constexpr unsigned long SENSOR_INTERVAL_SLOW = 1000/1;
-constexpr unsigned long interval2 = 1000/10;
 
 unsigned long prevFAST = 0;
 unsigned long prevSLOW = 0;
 
-Status status;
-ICM20948 icm20948(status);
-BMP390 bmp390(status);
-// GPS gps(status);
-RFD900 rfd900(status);
-MovementController movementController(status, rfd900);
-LED led(status, movementController);
-Motor motor(movementController, status);
+Drone drone;
+Telemetry telemetry;
+ICM20948 icm20948(telemetry, drone);
+BMP390 bmp390(telemetry, drone);
+// GPS gps(telemetry);
+LED led(telemetry, drone);
+RFD900 rfd900(telemetry, drone);
+MovementController movementController(telemetry, drone, rfd900);
+Logger logger(drone, telemetry);
+Motor motor(movementController, drone);
 
 PidTuningReceiver pidTuningReceiver(Serial, applyPidTuningsToMotor, &motor);
 
-void initDevice(const char* name, std::function<uint8_t()> statusGetter, std::function<void()> beginFunc) {
+void initDevice(const char* name, std::function<bool()> statusGetter, std::function<void()> beginFunc) {
 	beginFunc();
-	uint8_t statusFlag = statusGetter();
+	bool statusFlag = statusGetter();
 	Serial.print(name);
 	Serial.println(statusFlag ? " Success" : " Failed");
 	while (!statusGetter()) {}
@@ -43,35 +45,37 @@ void initDevice(const char* name, std::function<uint8_t()> statusGetter, std::fu
 void setup() {
 	Serial.begin(115200);
 	Serial.println("==== SETUP BEGUN! ====");
-	initDevice("ICM20948", [](){ return status.ICM20948; }, [](){ icm20948.begin(); });
-	// initDevice("BMP390", [](){ return status.BMP390; }, [](){ bmp390.begin(); });
-	initDevice("RFD900", [](){ return status.RFD900; }, [](){ rfd900.begin(); });
-	initDevice("Motor", [](){ return status.motorArmed; }, [](){ motor.begin(); });
+	rfd900.setPidApplyCallback(applyPidTuningsToMotor, &motor);
+	initDevice("ICM20948", [](){ DroneLockGuard droneLock(drone); return drone.IMU_OK; }, [](){ icm20948.begin(); });
+	// initDevice("BMP390", [](){ return drone.BMP390; }, [](){ bmp390.begin(); });
+	initDevice("RFD900", [](){ DroneLockGuard droneLock(drone); return drone.RADIO_OK; }, [](){ rfd900.begin(); });
+	initDevice("Motor", [](){ DroneLockGuard droneLock(drone); return drone.MOTOR_OK; }, [](){ motor.begin(); });
+	initDevice("Logger", [](){ DroneLockGuard droneLock(drone); return drone.LOGGER_OK; }, [](){ logger.begin(); });
 	Serial.println("==== SETUP COMPLETE ====");
 }
-
+bool began = false;
 // ---------------- //
 //       LOOP       //
 // ---------------- //
 void loop() {
 	unsigned long current = millis();
-	
+
 	if (current - prevFAST >= SENSOR_INTERVAL_FAST) {
 		prevFAST = current;
 		icm20948.loop();
-		// Serial.print(1000/(current-prevFAST));
-		// Serial.println("Hz");
 		// bmp390.loop(); // This thing is SUPER SLOW
 		movementController.update();
 		pidTuningReceiver.loop();
 		motor.loop();
+		logger.loop();
 	}
+
+
 
 	if (current - prevSLOW >= SENSOR_INTERVAL_SLOW) {
 		prevSLOW = current;
 		// gps.loop();
-		led.loop();
 	}
-	// delayMicroseconds(1);
+	led.loop();
 }
 

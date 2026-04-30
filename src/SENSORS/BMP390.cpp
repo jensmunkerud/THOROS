@@ -2,31 +2,38 @@
 #include <SPI.h>
 #include <Adafruit_Sensor.h>
 #include <Adafruit_BMP3XX.h>
-#include "Status.h"
+#include "MISC/Datatypes.h"
 
 
-BMP390::BMP390(Status& status) : status{status} {}
+BMP390::BMP390(Telemetry& tel, Drone& drone) : 
+	telemetry{tel},
+	drone{drone},
+	vspi{VSPI}
+{}
 
 void BMP390::begin() {
-	if (!bmp.begin_SPI(BMP390_CS)) {
-		status.BMP390 = 0;
+	vspi.begin(BMP390_SCK, BMP390_MISO, BMP390_MOSI, BMP390_CS);
+	if (!bmp.begin_SPI(BMP390_CS, &vspi)) {
+		drone.PRESSURE_OK = false;
 		return;
 	}
 	bmp.setTemperatureOversampling(BMP3_OVERSAMPLING_8X);
 	bmp.setPressureOversampling(BMP3_OVERSAMPLING_4X);
 	bmp.setIIRFilterCoeff(BMP3_IIR_FILTER_COEFF_3);
 	bmp.setOutputDataRate(BMP3_ODR_200_HZ);
-	status.BMP390 = 1;
+	drone.PRESSURE_OK = true;
 }
 
 void BMP390::loop() {
-	if (status.BMP390 != 1) {return;}
+	if (!drone.PRESSURE_OK) {return;}
 	if (!bmp.performReading()) {
-		status.BMP390 = 0;
+		drone.PRESSURE_OK = false;
 		return;
 	}
 	// float currentPressure = bmp.readPressure();
 	// float relativeAltitude = 44330.0 * (1.0 - pow(currentPressure / baselinePressure, 0.5));
-	status.altitude = bmp.readAltitude(SEALEVELPRESSURE_HPA);
-	status.pressure = (int)(bmp.pressure * 100); // PRESSURE IN PASCALS
+	DroneLockGuard droneLock(drone);
+	TelemetryLockGuard telemetryLock(telemetry);
+	drone.altitude = bmp.readAltitude(SEALEVELPRESSURE_HPA);
+	telemetry.pressure = (int)(bmp.pressure * 100); // PRESSURE IN PASCALS
 }

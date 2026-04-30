@@ -1,37 +1,22 @@
 #include "ICM20948.h"
+#include "MISC/Filters.h"
 
-static Vec3 gravityBodyFromAttitude(float rollDeg, float pitchDeg) {
-	float roll = rollDeg * DEG2RAD;
-	float pitch = pitchDeg * DEG2RAD;
-	float cr = cosf(roll);
-	float sr = sinf(roll);
-	float cp = cosf(pitch);
-	float sp = sinf(pitch);
 
-	return {
-		-sp,
-		cp * sr,
-		cp * cr
-	};
-}
- 
-ICM20948::ICM20948(Status& status) : status{status} {
+ICM20948::ICM20948(Telemetry& tel, Drone& drone) : 
+	telemetry{tel},
+	drone{drone},
+	vspi{VSPI}
+{
 	sampleRate.a = (1000 / ICM_SAMPLERATE) - 1;
 	sampleRate.g = (1000 / ICM_SAMPLERATE) - 1;
 }
 
 void ICM20948::begin() {
-	SPI.begin();
-	status.ICM20948 = icm20948.begin(ICM20948_CS, SPI) == ICM_20948_Stat_Ok;
-	if (!status.ICM20948) {
-		Serial.println("failed first");
-		return;
-	}
-	status.ICM20948 = icm20948.startupMagnetometer() == ICM_20948_Stat_Ok;
-	if (!status.ICM20948) {
-		Serial.println("failed first");
-		return;
-	}
+	vspi.begin(ICM20948_SCK, ICM20948_MISO, ICM20948_MOSI, ICM20948_CS);
+	drone.IMU_OK = icm20948.begin(ICM20948_CS, vspi) == ICM_20948_Stat_Ok;
+	if (!drone.IMU_OK) {return;}
+	drone.IMU_OK = icm20948.startupMagnetometer() == ICM_20948_Stat_Ok;
+	if (!drone.IMU_OK) {return;}
 	ICM_20948_fss_t fss;
 	fss.a = gpm8;
 	fss.g = dps2000;
@@ -52,7 +37,22 @@ void ICM20948::begin() {
 
 	delay(500);
 	calibrateIMU();
-	status.ICM20948 = 1;
+	drone.IMU_OK = true;
+}
+
+static Vec3 gravityBodyFromAttitude(float rollDeg, float pitchDeg) {
+	float roll = rollDeg * DEG2RAD;
+	float pitch = pitchDeg * DEG2RAD;
+	float cr = cosf(roll);
+	float sr = sinf(roll);
+	float cp = cosf(pitch);
+	float sp = sinf(pitch);
+
+	return {
+		-sp,
+		cp * sr,
+		cp * cr
+	};
 }
 
 void ICM20948::loop() {
@@ -83,24 +83,10 @@ void ICM20948::loop() {
 		acc = compensateForMountingRotation(acc);
 		mag = compensateForMountingRotation(mag);
 
-		if (!accelFilterInitialized) {
-			accelFiltered = acc;
-			accelFilterInitialized = true;
-		} else {
-			accelFiltered.x += ACCEL_LPF_ALPHA * (acc.x - accelFiltered.x);
-			accelFiltered.y += ACCEL_LPF_ALPHA * (acc.y - accelFiltered.y);
-			accelFiltered.z += ACCEL_LPF_ALPHA * (acc.z - accelFiltered.z);
-		}
+		accelFiltered = Filters::LowPass(accelFiltered, acc, ACCEL_LPF_ALPHA);
 		acc = accelFiltered;
 
-		if (!gyroFilterInitialized) {
-			gyroFiltered = gyr;
-			gyroFilterInitialized = true;
-		} else {
-			gyroFiltered.x += GYRO_LPF_ALPHA * (gyr.x - gyroFiltered.x);
-			gyroFiltered.y += GYRO_LPF_ALPHA * (gyr.y - gyroFiltered.y);
-			gyroFiltered.z += GYRO_LPF_ALPHA * (gyr.z - gyroFiltered.z);
-		}
+		gyroFiltered = Filters::LowPass(gyroFiltered, gyr, GYRO_LPF_ALPHA);
 		gyr = gyroFiltered;
 
 		// ============================================
@@ -116,20 +102,23 @@ void ICM20948::loop() {
 		float fusedPitch = fusion.getPitch();
 		float fusedYaw = fusion.getYaw() - 184.0f;
 
-		status.attitude.pitch = -fusedRoll;
-		status.attitude.roll  = fusedPitch;
-		status.attitude.yaw   = fusedYaw;
+		{
+			DroneLockGuard droneLock(drone);
+			drone.attitude.pitch = -fusedRoll;
+			drone.attitude.roll  = fusedPitch;
+			drone.attitude.yaw   = fusedYaw;
+		}
 
 		// Remove gravity using current attitude, then convert to world frame.
-		Vec3 gBody = gravityBodyFromAttitude(fusedRoll, fusedPitch);
-		Vec3 linBody = {
-			acc.x - gBody.x,
-			acc.y - gBody.y,
-			acc.z - gBody.z
-		};
-		status.linearAccel.x = linBody.x;
-		status.linearAccel.y = linBody.y;
-		status.linearAccel.z = linBody.z;
+		// Vec3 gBody = gravityBodyFromAttitude(fusedRoll, fusedPitch);
+		// Vec3 linBody = {
+		// 	acc.x - gBody.x,
+		// 	acc.y - gBody.y,
+		// 	acc.z - gBody.z
+		// };
+		// telemetry.linearAccel.x = linBody.x;
+		// telemetry.linearAccel.y = linBody.y;
+		// telemetry.linearAccel.z = linBody.z;
 
 		// Print: 9axis_debug
 		// Serial.print(acc.x, 4); Serial.print("/");
@@ -155,7 +144,7 @@ void ICM20948::calibrateIMU() {
 		unsigned long waitStartUs = micros();
 		while (!icm20948.dataReady()) {
 			if ((unsigned long)(micros() - waitStartUs) > sampleTimeoutUs) {
-				status.ICM20948 = 0;
+				drone.IMU_OK = false;
 				return;
 			}
 			delayMicroseconds(100);
@@ -179,7 +168,6 @@ void ICM20948::calibrateIMU() {
 		// Reset the fusion timer so the first runtime update uses a normal dt.
 	fusion.deltatUpdate();
 
-	// yawOffset = fusion.getYaw();
 
 	gyroBias.x = gyr.x / samples;
 	gyroBias.y = gyr.y / samples;

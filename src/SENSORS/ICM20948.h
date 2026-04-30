@@ -1,37 +1,38 @@
 #pragma once
+#include <math.h>
 #include <Wire.h>
 #include <SPI.h>
 #include <ICM_20948.h>
 #include <SensorFusion.h>
-#include "Status.h"
+#include "MISC/Datatypes.h"
 
-static constexpr int ICM20948_CS {15};
-static constexpr int ICM_SAMPLERATE {1000};
-static constexpr float DEG2RAD = 0.01745329251f;
-static constexpr float ACCEL_LPF_ALPHA = 0.005f;
-static constexpr float GYRO_LPF_ALPHA = 1.0f;
-
-// Drone yaw drifts around -1deg per 45sec
+static constexpr int ICM20948_CS		{15};
+static constexpr int ICM20948_SCK		{18};
+static constexpr int ICM20948_MISO		{19};
+static constexpr int ICM20948_MOSI		{23};
+static constexpr int ICM_SAMPLERATE		{1000};
+static constexpr float DEG2RAD			{0.01745329251f};
+static constexpr float ACCEL_LPF_ALPHA	{0.05f}; // 0.05f optimal (perhaps)
+static constexpr float GYRO_LPF_ALPHA	{0.05f}; // 0.05f optimal
 
 class ICM20948 {
-	public:
-	ICM20948(Status& status);
+public:
+	ICM20948(Telemetry& tel, Drone& drone);
 	void begin();
 	void loop();
 
-	private:
-	Status& status;
+private:
+	Telemetry& telemetry;
+	Drone& drone;
 	SF fusion;
 	float dt;
 	ICM_20948_SPI icm20948;
 	ICM_20948_smplrt_t sampleRate;
 	float R_mount[3][3];
 	Vec3 gyroBias;
-	Vec3 accelFiltered{0, 0, 0};
-	Vec3 gyroFiltered{0, 0, 0};
-	bool accelFilterInitialized{false};
-	bool gyroFilterInitialized{false};
-	float yawOffset = 0.0f;
+	Vec3 accelFiltered{NAN, NAN, NAN};
+	Vec3 gyroFiltered{NAN, NAN, NAN};
+	SPIClass vspi;
 
 	Vec3 normalize(Vec3 v);
 	Vec3 cross(Vec3 a, Vec3 b);

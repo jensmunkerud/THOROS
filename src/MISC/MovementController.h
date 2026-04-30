@@ -3,15 +3,20 @@
 #include <unordered_map>
 #include <functional>
 #include <chrono>
-#include "Status.h"
+#include "Datatypes.h"
 #include "COMMS/RFD900.h"
 #include "set"
 
-constexpr int SENSITIVITY {50};
-static constexpr int MOVEMENT_TIMEOUT_MS {55}; // 2x 80ms which is the sending interval
+constexpr float PAN_SPEED					{5.0f};		// [deg/s]
+constexpr float MAX_PAN						{175.0f};	// [deg]
+constexpr float TILT_SPEED					{10.0f};	// [deg/s]
+constexpr float MAX_TILT_ANGLE				{5.0f};		// [deg]
+constexpr float THROTTLE_SPEED				{400.0f};	// [u/s]
+constexpr float MAX_THROTTLE				{1200.0f};	// [u]
+constexpr int   MOVEMENT_TIMEOUT_MS			{35};		// [ms]
 
 
-// Command IDs matching your radio protocol
+// Command IDs matching radio protocol
 enum CommandID : uint8_t {
 	FORWARD		= 100,
 	BACKWARD	= 101,
@@ -22,50 +27,33 @@ enum CommandID : uint8_t {
 	GO_UP		= 107,
 	GO_DOWN 	= 108,
 	TOGGLE		= 17,
-	P			= 50,
-	Pd			= 51,
-	I			= 52,
-	Id			= 53,
-	D			= 54,
-	Dd			= 55,
 	SPEED_UP	= 109,
 	SPEED_DOWN	= 110,
+	LOG_TOGGLE	= 245,
 	KILL		= 254,
 };
 
-
-struct ControlInput {
-	float pitch		{0};	// forward/backward
-	float roll		{0};	// left/right
-	float yaw 		{0};	// rotation (optional)
-	float throttle	{0};	// up/down
-};
-
-// Main control manager
 class MovementController {
 public:
-	MovementController(Status& s, RFD900& rfd900);
+	MovementController(Telemetry& tel, Drone& drone, RFD900& rfd90);
 	void begin();
 	void update();
-	ControlInput getInput() const;
 	bool isToggled;
 	double Kp = 1, Ki = 0, Kd = 1;
-	ControlInput currentInput;
 	void clearInputs(bool clearThrottle = false);
 
-
 private:
-
-	Status& status;
+	FlightControls target;
+	Telemetry& telemetry;
+	Drone& drone;
 	RFD900& rfd900;
 	std::unordered_map<CommandID, std::function<void(uint8_t)>> commandMap;
-	ControlInput targetInput;
 	std::chrono::steady_clock::time_point lastCommandTime;
 	RFDCommandPacket received;
 	std::unordered_map<CommandID, uint8_t> newCommands;
-	std::set<CommandID> oldCommands;
+	std::set<CommandID> runningCommands;
 
-	// Direction handlers
+	// Control handlers
 	void handleForward(uint8_t value);
 	void handleBackward(uint8_t value);
 	void handleLeft(uint8_t value);
@@ -74,28 +62,24 @@ private:
 	void handleDown(uint8_t value);
 	void handlePanLeft(uint8_t value);
 	void handlePanRight(uint8_t value);
-	void speedUp(uint8_t value);
-	void speedDown(uint8_t value);
+	void increaseSpeed(uint8_t value);
+	void decreaseSpeed(uint8_t value);
 	
 	void toggle(uint8_t value);
-	void P(uint8_t value);
-	void Pd(uint8_t value);
-	void I(uint8_t value);
-	void Id(uint8_t value);
-	void D(uint8_t value);
-	void Dd(uint8_t value);
+	void log_toggle(uint8_t value);
 
-	int verticalSpeed {0};
-	int count {0};
 	long lastTime{0};
-	long deltaTime{0};
+	long deltaMs{0};
 	void executeCommand(CommandID id, uint8_t rawValue);
 	void updateRunningCommands();
 	void controlTimeouts();
 
 	// Helpers
-	void updateCommandMap();
+	void generateCommandMap();
 	void applyFailsafeIfTimedOut();
+	void updateFlightMode(const FlightControls& controls);
+	bool hasLateralInput(const FlightControls& controls) const;
+	bool hasYawInput(const FlightControls& controls) const;
 	int16_t mapInput(uint8_t rawValue);
 	float smooth(float current, float target, float sensitivity, float deltaTime);
 

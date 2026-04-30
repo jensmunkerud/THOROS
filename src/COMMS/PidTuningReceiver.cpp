@@ -1,7 +1,7 @@
 #include "PidTuningReceiver.h"
 
 #include <cstdio>
-#include "../Motor.h"
+#include "MISC/Motor.h"
 
 void applyPidTuningsToMotor(const PID& pitch, const PID& roll, const PID& yaw, void* context) {
 	Motor* targetMotor = static_cast<Motor*>(context);

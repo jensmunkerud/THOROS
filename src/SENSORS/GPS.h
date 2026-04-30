@@ -1,19 +1,21 @@
 #pragma once
 #include <TinyGPSPlus.h>
 #include <Arduino.h>
-#include "Status.h"
+#include "MISC/Datatypes.h"
 
 constexpr int GPS_RX	{21};
 constexpr int GPS_TX	{22};
+constexpr uint8_t GPS_SERIAL {1};
 const int maxPacketLength = 300;
 
 class GPS {
-	public:
-	GPS(Status& status);
+public:
+	GPS(Telemetry& tel, Drone& drone);
 	void loop();
 
-	private:
+private:
 	TinyGPSPlus gps;
-	Status& status;
+	Telemetry& telemetry;
+	Drone& drone;
 	HardwareSerial SerialGPS;
 };

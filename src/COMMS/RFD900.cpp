@@ -1,8 +1,25 @@
 #include "RFD900.h"
 
+#include <cstdio>
 
-RFD900::RFD900(Status& s) : status{s}, numPackets{0}, rfdTaskHandle{nullptr}, pingProgress{0}, SerialRFD(RFD_SERIAL) {
+
+RFD900::RFD900(Telemetry& tel, Drone& drone) : 
+	telemetry{tel},
+	drone{drone},
+	numPackets{0},
+	pidLineLength{0},
+	pidCallback{nullptr},
+	pidContext{nullptr},
+	rfdTaskHandle{nullptr},
+	serialTxMutex{nullptr},
+	pingProgress{0},
+	temeletryProgress{0},
+	lastCommand{millis()},
+	SerialRFD{RFD_SERIAL}
+{
 	commandQueue = xQueueCreate(5, sizeof(RFDCommandPacket));
+	serialTxMutex = xSemaphoreCreateMutex();
+	pidLineBuffer[0] = '\0';
 }
 
 
@@ -12,7 +29,10 @@ void RFD900::RFD900Task(void* parameter) {
 	if (!rfd) {
 		vTaskDelete(NULL); // safety check
 	}
-	rfd->status.RFD900 = 1;
+	{
+		DroneLockGuard droneLock(rfd->drone);
+		rfd->drone.RADIO_OK = true;
+	}
 	for (;;) {
 		rfd->loop();
 		vTaskDelay(1); // 1ms
@@ -20,17 +40,20 @@ void RFD900::RFD900Task(void* parameter) {
 			rfd->ping();
 			rfd->pingProgress = 0;
 		}
-		if (rfd->statusProgress++ >= SEND_STATUS_INTERVAL) {
-			rfd->sendStatus();
-			rfd->statusProgress = 0;
+		if (rfd->temeletryProgress++ >= SEND_TELEMETRY_INTERVAL) {
+			rfd->sendTelemetry();
+			rfd->temeletryProgress = 0;
 		}
 	}
 }
 
 void RFD900::begin() {
 	SerialRFD.begin(115200, SERIAL_8N1, 16, 17);
-	SerialRFD.write(START_MARKER);
-	SerialRFD.write(END_MARKER);
+	if (serialTxMutex && xSemaphoreTake(serialTxMutex, pdMS_TO_TICKS(10)) == pdTRUE) {
+		SerialRFD.write(START_MARKER);
+		SerialRFD.write(END_MARKER);
+		xSemaphoreGive(serialTxMutex);
+	}
 
 	xTaskCreatePinnedToCore(
 		RFD900Task,         // Task function
@@ -45,20 +68,31 @@ void RFD900::begin() {
 
 void RFD900::loop() {
 	if (millis() - lastCommand > RFD_TIMEOUT_MS) {
-		if (status.Communication == 1) {
+		bool hadGroundLink = false;
+		{
+			DroneLockGuard droneLock(drone);
+			hadGroundLink = drone.GROUND_LINK_OK;
+			drone.GROUND_LINK_OK = false;
+		}
+		if (hadGroundLink) {
+			// KILLS DRONE ON RADIO TIMEOUT
 			RFDCommandPacket killCommand{1, { {254, 0} }};
 			xQueueSendToBack(commandQueue, &killCommand, pdMS_TO_TICKS(10));
 		}
-		status.Communication = 0;
 	}
 
 	while (SerialRFD.available() > 0) {
 		byte incoming = SerialRFD.read();
 
-		// Wait for start marker
-		if (numPackets == 0 && incoming != START_MARKER) {
+		// Shared marker-based frame parser (binary command packets and PID text frames)
+		if (numPackets == 0) {
+			if (incoming == START_MARKER) {
+				buffer[numPackets++] = incoming;
+				clearPidBuffer();
+			}
 			continue;
 		}
+
 		buffer[numPackets++] = incoming;
 
 		// Safety: if numPackets exceeds buffer size, reset
@@ -71,12 +105,22 @@ void RFD900::loop() {
 		// SOMETIMES they are bundled together, hence END_MARKER and START_MARKER skips inside
 		// (it might send too fast for SerialRFD to timeout or we receive next packet while inside for loop below)
 		if (incoming == END_MARKER) {
-			status.Communication = 1;
+			{
+				DroneLockGuard droneLock(drone);
+				drone.GROUND_LINK_OK = true;
+			}
 			lastCommand = millis();
+
+			if (isLikelyTextFrame()) {
+				handleFramedPidPayload();
+				numPackets = 0;
+				continue;
+			}
+
 			RFDCommandPacket packet;
 			packet.numCmds = 0;
 			// Parse pairwise
-			for (int i = 1; i < numPackets - 1; i += 2) {
+			for (int i = 1; i + 1 < numPackets - 1; i += 2) {
 				if (packet.numCmds >= MAX_COMMANDS_PER_PACKET) {break;}
 				if (buffer[i] == END_MARKER || buffer[i] == START_MARKER) {continue;}
 				packet.commands[packet.numCmds].command = buffer[i];
@@ -90,21 +134,146 @@ void RFD900::loop() {
 	}
 }
 
+bool RFD900::isLikelyTextFrame() const {
+	if (numPackets < 3) {
+		return false;
+	}
 
-void RFD900::sendStatus() {
-	if (status.Communication == 1) {
-		SerialRFD.write((uint8_t*)&status, sizeof(Status));
+	size_t slashCount = 0;
+	for (size_t i = 1; i < static_cast<size_t>(numPackets - 1); ++i) {
+		char ch = static_cast<char>(buffer[i]);
+		if (ch == '/') {
+			slashCount++;
+		}
+		if (ch == '\r' || ch == '\n') {
+			continue;
+		}
+		if (ch < 32 || ch > 126) {
+			return false;
+		}
+	}
+
+	// PID and control stream payloads are slash-delimited text with many separators.
+	return slashCount >= 6;
+}
+
+
+void RFD900::sendTelemetry() {
+	bool linkOk = false;
+	TelemetryPacket packet;
+	{
+		DroneLockGuard droneLock(drone);
+		TelemetryLockGuard telemetryLock(telemetry);
+		linkOk = drone.GROUND_LINK_OK;
+		if (linkOk) {
+			packet.drone = static_cast<const DroneData&>(drone);
+			packet.telemetry = static_cast<const TelemetryData&>(telemetry);
+		}
+	}
+	if (linkOk) {
+		if (serialTxMutex && xSemaphoreTake(serialTxMutex, pdMS_TO_TICKS(2)) == pdTRUE) {
+			SerialRFD.write(reinterpret_cast<const uint8_t*>(&packet), TelemetryPacket::WIRE_SIZE);
+			xSemaphoreGive(serialTxMutex);
+		}
 	}
 }
 
 
 void RFD900::ping() {
-	SerialRFD.write(START_MARKER);
-	SerialRFD.write(END_MARKER);
+	if (serialTxMutex && xSemaphoreTake(serialTxMutex, pdMS_TO_TICKS(2)) == pdTRUE) {
+		SerialRFD.write(START_MARKER);
+		SerialRFD.write(END_MARKER);
+		xSemaphoreGive(serialTxMutex);
+	}
 }
 
 QueueHandle_t RFD900::getCommandQueue() const { return commandQueue; }
 
-void none(int16_t value) {
-	//
+void RFD900::setPidApplyCallback(ApplyPidCallback callback, void* context) {
+	pidCallback = callback;
+	pidContext = context;
 }
+
+bool RFD900::handlePidLine() {
+	if (pidLineLength == 0 || pidCallback == nullptr) {
+		clearPidBuffer();
+		return false;
+	}
+
+	float values[9];
+	int matched = sscanf(
+		pidLineBuffer,
+		"%f/%f/%f/%f/%f/%f/%f/%f/%f",
+		&values[0],
+		&values[1],
+		&values[2],
+		&values[3],
+		&values[4],
+		&values[5],
+		&values[6],
+		&values[7],
+		&values[8]
+	);
+
+	clearPidBuffer();
+
+	if (matched != 9) {
+		return false;
+	}
+
+	PID pitch{values[0], values[1], values[2]};
+	PID roll{values[3], values[4], values[5]};
+	PID yaw{values[6], values[7], values[8]};
+	pidCallback(pitch, roll, yaw, pidContext);
+	return true;
+}
+
+bool RFD900::handleFramedPidPayload() {
+	if (numPackets < 3) {
+		return false;
+	}
+
+	size_t payloadLength = static_cast<size_t>(numPackets - 2);
+	if (payloadLength == 0 || payloadLength >= sizeof(pidLineBuffer)) {
+		return false;
+	}
+
+	size_t slashCount = 0;
+	size_t writeIndex = 0;
+	for (size_t i = 1; i < static_cast<size_t>(numPackets - 1); ++i) {
+		char ch = static_cast<char>(buffer[i]);
+		if (ch == '/') {
+			slashCount++;
+		}
+
+		if (ch == '\r' || ch == '\n') {
+			continue;
+		}
+
+		bool isNumericChar = (ch >= '0' && ch <= '9') || ch == '.' || ch == '-' || ch == '+' || ch == '/' || ch == ' ';
+		if (!isNumericChar) {
+			return false;
+		}
+
+		if (writeIndex >= sizeof(pidLineBuffer) - 1) {
+			clearPidBuffer();
+			return false;
+		}
+		pidLineBuffer[writeIndex++] = ch;
+	}
+
+	if (slashCount < 8) {
+		clearPidBuffer();
+		return false;
+	}
+
+	pidLineLength = writeIndex;
+	pidLineBuffer[pidLineLength] = '\0';
+	return handlePidLine();
+}
+
+void RFD900::clearPidBuffer() {
+	pidLineLength = 0;
+	pidLineBuffer[0] = '\0';
+}
+
