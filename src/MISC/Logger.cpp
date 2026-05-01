@@ -22,6 +22,10 @@ bool Logger::begin() {
 		SD.mkdir("/logs");
 	}
 	{
+		TelemetryLockGuard telemetryLock(telemetry);
+		telemetry.loggerIsLogging = false;
+	}
+	{
 		DroneLockGuard droneLock(drone);
 		drone.LOGGER_OK = ready;
 	}
@@ -91,7 +95,7 @@ void Logger::writeBasicHeader() {
 }
 
 void Logger::writeFullTelemetryHeader() {
-	logFile.print(",flight_mode,attitude_pitch,attitude_yaw,attitude_roll,motor_m1,motor_m2,motor_m3,motor_m4,flight_pitch,flight_roll,flight_yaw,flight_throttle,altitude,GPS_OK,MOTOR_OK,PRESSURE_OK,IMU_OK,RADIO_OK,GROUND_LINK_OK,temp,pressure,batteryVoltage,latitude,longitude");
+	logFile.print(",flight_mode,attitude_pitch,attitude_yaw,attitude_roll,motor_m1,motor_m2,motor_m3,motor_m4,flight_pitch,flight_roll,flight_yaw,flight_throttle,altitude,GPS_OK,MOTOR_OK,PRESSURE_OK,IMU_OK,RADIO_OK,GROUND_LINK_OK,temp,pressure,batteryVoltage,loggerIsLogging,latitude,longitude,");
 }
 
 void Logger::writeHeader() {
@@ -173,6 +177,8 @@ void Logger::writeFullTelemetrySnapshot(const LogSnapshot& snapshot) {
 	writeSeparator();
 	writeInt32(snapshot.telemetry.batteryVoltage);
 	writeSeparator();
+	writeBool(snapshot.telemetry.loggerIsLogging);
+	writeSeparator();
 	writeInt32(snapshot.telemetry.latitude);
 	writeSeparator();
 	writeInt32(snapshot.telemetry.longitude);
@@ -228,10 +234,18 @@ bool Logger::startLog(bool fullTelemetry) {
 	lastWriteMs = logStartMs;
 	if (!openLogFile()) {
 		logging = false;
+		{
+			TelemetryLockGuard telemetryLock(telemetry);
+			telemetry.loggerIsLogging = false;
+		}
 		return false;
 	}
 
 	logging = true;
+	{
+		TelemetryLockGuard telemetryLock(telemetry);
+		telemetry.loggerIsLogging = true;
+	}
 	return true;
 }
 
@@ -244,6 +258,10 @@ void Logger::stopLog() {
 	logFile.flush();
 	logFile.close();
 	logging = false;
+	{
+		TelemetryLockGuard telemetryLock(telemetry);
+		telemetry.loggerIsLogging = false;
+	}
 }
 
 void Logger::loop() {

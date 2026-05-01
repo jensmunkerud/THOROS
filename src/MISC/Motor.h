@@ -45,8 +45,8 @@ private:
 	// PID yawPid{2, 4, 1};
 	// PID rollPid{3, 0.2, 0.6};
 	PID pitchPid{0.4659, 0.2, 0.1};
-	PID yawPid{2, 4, 1};
 	PID rollPid{3, 0.2, 0.6};
+	PID yawPid{2, 4, 1};
 	MovementController& movementController;
 	Drone& drone;
 	Attitude target{};
