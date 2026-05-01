@@ -30,7 +30,7 @@ private:
 		float deltaSeconds;
 		FlightControls flightControls;
 		Attitude attitude;
-		Attitude controlOutput;
+		Attitude commandOutput;
 		MotorThrusts motorThrusts;
 		TelemetryData telemetry;
 		FlightMode mode;

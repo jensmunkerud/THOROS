@@ -38,7 +38,7 @@ public:
 	void loop();
 	void Kill();
 	void setAttitudePidTunings(const PID& pitch, const PID& roll, const PID& yaw);
-	Attitude getControlOutput() const;
+	Attitude getCommandOutput() const;
 	
 private:
 	// PID pitchPid{6, 0.2, 0.7};
@@ -63,7 +63,7 @@ private:
 	float computeIntegralBleed(float errorAbs, float zeroError, float fullError, float maxBleedPerLoop) const;
 	void updateAxisPid(QuickPID& pid, float setpoint, float measurement, float& pidOutput, float& command, float outputLimit, float iBleedZeroError, float iBleedFullError, float iBleedMaxPerLoop);
 	float pidAuthority;
-	Attitude controlOutput;
+	Attitude commandOutput;
 
 	// Per-loop attitude snapshots used as direct (unfiltered) QuickPID inputs.
 	float pitchInput;

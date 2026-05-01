@@ -18,14 +18,14 @@ Motor::Motor(MovementController& mc, Drone& drone) :
 	quickPitchCommand{0},
 	quickRollCommand{0},
 	quickYawCommand{0},
-	controlOutput{},
+	commandOutput{},
 	pitchQuickPID{&drone.attitude.pitch, &quickPitchOUT, &target.pitch, pitchPid.P, pitchPid.I, pitchPid.D, QuickPID::Action::direct},
 	yawQuickPID{&drone.attitude.yaw, &quickYawOUT, &target.yaw, yawPid.P, yawPid.I, yawPid.D, QuickPID::Action::direct},
 	rollQuickPID{&drone.attitude.roll, &quickRollOUT, &target.roll, rollPid.P, rollPid.I, rollPid.D, QuickPID::Action::reverse}
 {}
 
-Attitude Motor::getControlOutput() const {
-	return controlOutput;
+Attitude Motor::getCommandOutput() const {
+	return commandOutput;
 }
 
 void Motor::begin() {
@@ -66,7 +66,7 @@ void Motor::arm() {
 		drone.flightControls = {};
 		drone.mode = FlightMode::ARMED;
 	}
-	controlOutput = {};
+	commandOutput = {};
 }
 
 void Motor::disarm() {
@@ -80,7 +80,7 @@ void Motor::disarm() {
 		drone.flightControls = {};
 		drone.motorThrusts = {};
 	}
-	controlOutput = {};
+	commandOutput = {};
 	movementController.clearInputs(true);
 }
 
@@ -229,7 +229,7 @@ void Motor::loop() {
 	float pitchCmd = quickPitchCommand * pidAuthority;
 	float rollCmd = quickRollCommand * pidAuthority;
 	float yawCmd = quickYawCommand * pidAuthority;
-	controlOutput = {
+	commandOutput = {
 		pitchCmd,
 		yawCmd,
 		rollCmd

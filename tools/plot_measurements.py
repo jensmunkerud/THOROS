@@ -49,6 +49,7 @@ def main() -> None:
 
 		ax.plot(axis_data.t, axis_data.y, label=f"{axis_name} measurement", linewidth=1.6)
 		ax.plot(axis_data.t, axis_data.r, label=f"{axis_name} setpoint", linewidth=1.1, alpha=0.8)
+		ax.plot(axis_data.t, axis_data.u, label=f"{axis_name} command", linewidth=1.1, alpha=0.8)
 		ax.set_ylabel(f"{axis_name.capitalize()}\n(deg)")
 		ax.grid(True, alpha=0.25)
 		ax.legend(loc="upper right")
