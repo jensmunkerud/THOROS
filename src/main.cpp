@@ -3,6 +3,7 @@
 #include "MISC/Datatypes.h"
 #include "SENSORS/ICM20948.h"
 #include "SENSORS/BMP390.h"
+#include "SENSORS/OpticalFlow.h"
 #include "SENSORS/GPS.h"
 #include "MISC/MovementController.h"
 #include "COMMS/RFD900.h"
@@ -12,8 +13,8 @@
 #include "COMMS/PidTuningReceiver.h"
 
 // PARAMETERS
-constexpr unsigned long SENSOR_INTERVAL_FAST = 1000/1000;
-constexpr unsigned long SENSOR_INTERVAL_SLOW = 1000/1;
+constexpr unsigned long SENSOR_INTERVAL_FAST = 1000/1000;	// 1000 Hz
+constexpr unsigned long SENSOR_INTERVAL_SLOW = 1000/50;		// 50 Hz
 
 unsigned long prevFAST = 0;
 unsigned long prevSLOW = 0;
@@ -22,6 +23,7 @@ Drone drone;
 Telemetry telemetry;
 ICM20948 icm20948(telemetry, drone);
 BMP390 bmp390(telemetry, drone);
+OpticalFlow opticalFlow(drone);
 // GPS gps(telemetry);
 LED led(telemetry, drone);
 RFD900 rfd900(telemetry, drone);
@@ -48,6 +50,7 @@ void setup() {
 	rfd900.setPidApplyCallback(applyPidTuningsToMotor, &motor);
 	initDevice("ICM20948", [](){ DroneLockGuard droneLock(drone); return drone.IMU_OK; }, [](){ icm20948.begin(); });
 	// initDevice("BMP390", [](){ return drone.BMP390; }, [](){ bmp390.begin(); });
+	initDevice("OPTICAL FLOW", [](){ DroneLockGuard droneLock(drone); return drone.OPTICAL_OK; }, [](){ opticalFlow.begin(); });
 	initDevice("RFD900", [](){ DroneLockGuard droneLock(drone); return drone.RADIO_OK; }, [](){ rfd900.begin(); });
 	initDevice("Motor", [](){ DroneLockGuard droneLock(drone); return drone.MOTOR_OK; }, [](){ motor.begin(); });
 	initDevice("Logger", [](){ DroneLockGuard droneLock(drone); return drone.LOGGER_OK; }, [](){ logger.begin(); });
@@ -74,6 +77,7 @@ void loop() {
 
 	if (current - prevSLOW >= SENSOR_INTERVAL_SLOW) {
 		prevSLOW = current;
+		opticalFlow.loop();
 		// gps.loop();
 	}
 	led.loop();

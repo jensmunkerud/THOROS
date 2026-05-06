@@ -55,6 +55,7 @@ struct __attribute__((packed)) DroneData {
 	bool MOTOR_OK;
 	bool PRESSURE_OK;
 	bool IMU_OK;
+	bool OPTICAL_OK;
 	bool RADIO_OK;
 	bool GROUND_LINK_OK;
 	bool LOGGER_OK;
