@@ -1,5 +1,6 @@
 #include "Motor.h"
 
+
 Motor::Motor(MovementController& mc, Drone& drone) : 
 	movementController{mc},
 	drone{drone},
@@ -24,9 +25,11 @@ Motor::Motor(MovementController& mc, Drone& drone) :
 	rollQuickPID{&drone.attitude.roll, &quickRollOUT, &target.roll, rollPid.P, rollPid.I, rollPid.D, QuickPID::Action::reverse}
 {}
 
+
 Attitude Motor::getCommandOutput() const {
 	return commandOutput;
 }
+
 
 void Motor::begin() {
 	motor1.begin(DSHOT_TYPE, NO_BIDIRECTION, 14);
@@ -52,6 +55,7 @@ void Motor::begin() {
 		drone.MOTOR_OK = true;
 	}
 }
+
 
 void Motor::arm() {
 	for(int i = 0; i < INITILIZE_ESC_TIME; i++) {
@@ -83,6 +87,7 @@ void Motor::disarm() {
 	commandOutput = {};
 	movementController.clearInputs(true);
 }
+
 
 void Motor::Kill() {
 	float throttle = 0.0f;
@@ -145,6 +150,7 @@ void Motor::Kill() {
 	disarm();
 }
 
+
 void Motor::setAttitudePidTunings(const PID& pitch, const PID& roll, const PID& yaw) {
 	pitchPid = pitch;
 	rollPid = roll;
@@ -155,33 +161,8 @@ void Motor::setAttitudePidTunings(const PID& pitch, const PID& roll, const PID& 
 }
 
 
-// Perform PID calculation, with slew limiter on output
-float Motor::computeIntegralBleed(float errorAbs, float zeroError, float fullError, float maxBleedPerLoop) const {
-	if (maxBleedPerLoop <= 0.0f) {
-		return 0.0f;
-	}
-	if (fullError <= zeroError) {
-		return maxBleedPerLoop;
-	}
-	if (errorAbs <= zeroError) {
-		return maxBleedPerLoop;
-	}
-	if (errorAbs >= fullError) {
-		return 0.0f;
-	}
-	float x = (errorAbs - zeroError) / (fullError - zeroError);
-	float smooth = x * x * (3.0f - 2.0f * x);
-	return maxBleedPerLoop * (1.0f - smooth);
-}
-
-void Motor::updateAxisPid(QuickPID& pid, float setpoint, float measurement, float& commandUnfiltered, float& commandFiltered, float outputLimit, float iBleedZeroError, float iBleedFullError, float iBleedMaxPerLoop) {
-	float errorAbs = fabsf(setpoint - measurement);
+void Motor::updateAxisPid(QuickPID& pid, float setpoint, float measurement, float& commandUnfiltered, float& commandFiltered, float outputLimit) {
 	pid.Compute();
-
-	float iBleed = computeIntegralBleed(errorAbs, iBleedZeroError, iBleedFullError, iBleedMaxPerLoop);
-	if (iBleed > 0.0f) {
-		pid.SetOutputSum(pid.GetOutputSum() * (1.0f - iBleed));
-	}
 
 	commandFiltered = constrain(
 		commandFiltered + constrain(commandUnfiltered - commandFiltered, -AXIS_OUTPUT_SLEW_PER_LOOP, AXIS_OUTPUT_SLEW_PER_LOOP),
@@ -221,9 +202,9 @@ void Motor::loop() {
 	);
 
 	// Attitude stabilization
-	updateAxisPid(pitchQuickPID, target.pitch, attitudeInput.pitch, quickPitchOUT, quickPitchCommand, PITCH_PID_OUTPUT_LIMIT, ATTITUDE_I_BLEED_ZERO_ERROR, ATTITUDE_I_BLEED_FULL_ERROR, ATTITUDE_I_BLEED_MAX_PER_LOOP);
-	updateAxisPid(rollQuickPID, target.roll, attitudeInput.roll, quickRollOUT, quickRollCommand, ROLL_PID_OUTPUT_LIMIT, ATTITUDE_I_BLEED_ZERO_ERROR, ATTITUDE_I_BLEED_FULL_ERROR, ATTITUDE_I_BLEED_MAX_PER_LOOP);
-	updateAxisPid(yawQuickPID, target.yaw, attitudeInput.yaw, quickYawOUT, quickYawCommand, YAW_PID_OUTPUT_LIMIT, ATTITUDE_I_BLEED_ZERO_ERROR, ATTITUDE_I_BLEED_FULL_ERROR, ATTITUDE_I_BLEED_MAX_PER_LOOP);
+	updateAxisPid(pitchQuickPID, target.pitch, attitudeInput.pitch, quickPitchOUT, quickPitchCommand, PITCH_PID_OUTPUT_LIMIT);
+	updateAxisPid(rollQuickPID, target.roll, attitudeInput.roll, quickRollOUT, quickRollCommand, ROLL_PID_OUTPUT_LIMIT);
+	updateAxisPid(yawQuickPID, target.yaw, attitudeInput.yaw, quickYawOUT, quickYawCommand, YAW_PID_OUTPUT_LIMIT);
 
 	// Scale attitude commands by PID authority
 	float pitchCmd = quickPitchCommand * pidAuthority;
