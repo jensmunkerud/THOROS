@@ -68,6 +68,7 @@ void MovementController::generateCommandMap() {
 	commandMap[CommandID::SPEED_DOWN]		= [this](uint8_t v){ decreaseSpeed(v); };
 	commandMap[CommandID::LOG_TOGGLE]		= [this](uint8_t v){ log_toggle(v); };
 	commandMap[CommandID::KILL]				= [this](uint8_t v){ clearInputs(true); canApplyFailSafe = false; motor.Kill();};
+	commandMap[CommandID::ARM]				= [this](uint8_t v){ handleArm(v); };
 }
 
 
@@ -96,6 +97,33 @@ void MovementController::log_toggle(uint8_t v)     {
 		logger.stopLog();
 	} else {
 		logger.startLog();
+	}
+}
+
+void MovementController::handleArm(uint8_t v) {
+	if (v == 0) {
+		armButtonActive = false;
+		return;
+	}
+
+	auto now = std::chrono::steady_clock::now();
+	if (!armButtonActive) {
+		armButtonActive = true;
+		armPressedAt = now;
+		return;
+	}
+
+	auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - armPressedAt).count();
+	if (elapsed >= ARM_HOLD_MS) {
+		{
+			DroneLockGuard droneLock(drone);
+			if (drone.mode == FlightMode::DISARMED) {
+				drone.flightControls = {};
+				drone.mode = FlightMode::ARMED;
+			}
+		}
+		clearInputs(true);
+		armButtonActive = false; // prevent repeated re-arming
 	}
 }
 

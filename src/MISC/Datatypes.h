@@ -92,6 +92,7 @@ struct __attribute__((packed)) TelemetryData {
 	int16_t temp;
 	int16_t pressure;
 	int16_t batteryVoltage;
+	bool loggerIsLogging;
 
 	int32_t latitude;   // scaled by 1e7
 	int32_t longitude;  // scaled by 1e7
