@@ -89,6 +89,13 @@ void ICM20948::loop() {
 		gyroFiltered = Filters::LowPass(gyroFiltered, gyr, GYRO_LPF_ALPHA);
 		gyr = gyroFiltered;
 
+		{
+			DroneLockGuard droneLock(drone);
+			drone.gyroRate.pitch = -gyr.x / DEG2RAD;
+			drone.gyroRate.roll = gyr.y / DEG2RAD;
+			drone.gyroRate.yaw = gyr.z / DEG2RAD;
+		}
+
 		// ============================================
 		// RAW SENSOR DATA IS TUNED FROM THIS POINT ON
 		// Gyro -> rad/s

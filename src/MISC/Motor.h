@@ -19,11 +19,11 @@ constexpr float MAX_DISARM_TILT_ANGLE_DEG {30.0f};
 constexpr float FRONT_BIAS {1.1f};
 
 constexpr int PID_MAX_EFFECT_AFTER_SPEED {200};
-constexpr int ATTITUDE_PID_SAMPLE_US {1000};	// Inner PID loop
+constexpr int ATTITUDE_PID_SAMPLE_US {1000};	// PID loop
+constexpr float ATTITUDE_RATE_LIMIT_DPS {180.0f}; // this has been multiplied 180x since last edit, just saying
 constexpr int PITCH_PID_OUTPUT_LIMIT {200};
 constexpr int YAW_PID_OUTPUT_LIMIT {200};
 constexpr int ROLL_PID_OUTPUT_LIMIT {200};
-constexpr float AXIS_OUTPUT_SLEW_PER_LOOP {1.0f};
 
 
 constexpr dshot_mode_e DSHOT_TYPE{DSHOT300};
@@ -55,10 +55,11 @@ private:
 	QuickPID pitchQuickPID;
 	QuickPID rollQuickPID;
 	QuickPID yawQuickPID;
+	QuickPID pitchRatePID;
+	QuickPID rollRatePID;
+	QuickPID yawRatePID;
 	void arm();
 	void disarm();
-	float computeIntegralBleed(float errorAbs, float zeroError, float fullError, float maxBleedPerLoop) const;
-	void updateAxisPid(QuickPID& pid, float setpoint, float measurement, float& pidOutput, float& command, float outputLimit);
 	float pidAuthority;
 	Attitude commandOutput;
 

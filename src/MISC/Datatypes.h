@@ -1,4 +1,5 @@
 #pragma once
+#include <cstddef>
 #include <Arduino.h>
 #include "freertos/FreeRTOS.h"
 
@@ -46,7 +47,8 @@ enum class FlightMode : uint8_t {
 
 struct __attribute__((packed)) DroneData {
 	FlightMode mode;
-	Attitude attitude;				// Sensor esimation of drone attitude
+	Attitude attitude;
+	Attitude gyroRate;
 	MotorThrusts motorThrusts;
 	FlightControls flightControls;	// User control input
 	float altitude;					// [m] above/under starting point

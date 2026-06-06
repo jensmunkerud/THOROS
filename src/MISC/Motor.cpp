@@ -22,7 +22,10 @@ Motor::Motor(MovementController& mc, Drone& drone) :
 	commandOutput{},
 	pitchQuickPID{&drone.attitude.pitch, &quickPitchOUT, &target.pitch, pitchPid.P, pitchPid.I, pitchPid.D, QuickPID::Action::direct},
 	yawQuickPID{&drone.attitude.yaw, &quickYawOUT, &target.yaw, yawPid.P, yawPid.I, yawPid.D, QuickPID::Action::direct},
-	rollQuickPID{&drone.attitude.roll, &quickRollOUT, &target.roll, rollPid.P, rollPid.I, rollPid.D, QuickPID::Action::reverse}
+	rollQuickPID{&drone.attitude.roll, &quickRollOUT, &target.roll, rollPid.P, rollPid.I, rollPid.D, QuickPID::Action::reverse},
+	pitchRatePID{&drone.gyroRate.pitch, &quickPitchCommand, &quickPitchOUT, 1.0f, 0.0f, 0.02f, QuickPID::Action::direct},
+	yawRatePID{&drone.gyroRate.yaw, &quickYawCommand, &quickYawOUT, 0.8f, 0.0f, 0.0f, QuickPID::Action::direct},
+	rollRatePID{&drone.gyroRate.roll, &quickRollCommand, &quickRollOUT, 1.0f, 0.0f, 0.02f, QuickPID::Action::reverse}
 {}
 
 
@@ -45,9 +48,21 @@ void Motor::begin() {
 	rollQuickPID.SetSampleTimeUs(ATTITUDE_PID_SAMPLE_US);
 	yawQuickPID.SetSampleTimeUs(ATTITUDE_PID_SAMPLE_US);
 
-	pitchQuickPID.SetOutputLimits(-PITCH_PID_OUTPUT_LIMIT, PITCH_PID_OUTPUT_LIMIT);
-	rollQuickPID.SetOutputLimits(-ROLL_PID_OUTPUT_LIMIT, ROLL_PID_OUTPUT_LIMIT);
-	yawQuickPID.SetOutputLimits(-YAW_PID_OUTPUT_LIMIT, YAW_PID_OUTPUT_LIMIT);
+	pitchQuickPID.SetOutputLimits(-ATTITUDE_RATE_LIMIT_DPS, ATTITUDE_RATE_LIMIT_DPS);
+	rollQuickPID.SetOutputLimits(-ATTITUDE_RATE_LIMIT_DPS, ATTITUDE_RATE_LIMIT_DPS);
+	yawQuickPID.SetOutputLimits(-ATTITUDE_RATE_LIMIT_DPS, ATTITUDE_RATE_LIMIT_DPS);
+
+	pitchRatePID.SetMode(QuickPID::Control::automatic);
+	rollRatePID.SetMode(QuickPID::Control::automatic);
+	yawRatePID.SetMode(QuickPID::Control::automatic);
+
+	pitchRatePID.SetSampleTimeUs(ATTITUDE_PID_SAMPLE_US);
+	rollRatePID.SetSampleTimeUs(ATTITUDE_PID_SAMPLE_US);
+	yawRatePID.SetSampleTimeUs(ATTITUDE_PID_SAMPLE_US);
+
+	pitchRatePID.SetOutputLimits(-PITCH_PID_OUTPUT_LIMIT, PITCH_PID_OUTPUT_LIMIT);
+	rollRatePID.SetOutputLimits(-ROLL_PID_OUTPUT_LIMIT, ROLL_PID_OUTPUT_LIMIT);
+	yawRatePID.SetOutputLimits(-YAW_PID_OUTPUT_LIMIT, YAW_PID_OUTPUT_LIMIT);
 	
 	arm();
 	{
@@ -150,28 +165,6 @@ void Motor::Kill() {
 	disarm();
 }
 
-
-void Motor::setAttitudePidTunings(const PID& pitch, const PID& roll, const PID& yaw) {
-	pitchPid = pitch;
-	rollPid = roll;
-	yawPid = yaw;
-	pitchQuickPID.SetTunings(pitchPid.P, pitchPid.I, pitchPid.D);
-	rollQuickPID.SetTunings(rollPid.P, rollPid.I, rollPid.D);
-	yawQuickPID.SetTunings(yawPid.P, yawPid.I, yawPid.D);
-}
-
-
-void Motor::updateAxisPid(QuickPID& pid, float setpoint, float measurement, float& commandUnfiltered, float& commandFiltered, float outputLimit) {
-	pid.Compute();
-
-	commandFiltered = constrain(
-		commandFiltered + constrain(commandUnfiltered - commandFiltered, -AXIS_OUTPUT_SLEW_PER_LOOP, AXIS_OUTPUT_SLEW_PER_LOOP),
-		-outputLimit,
-		outputLimit
-	);
-}
-
-
 void Motor::loop() {
 	FlightMode mode;
 	FlightControls controlInput;
@@ -201,12 +194,17 @@ void Motor::loop() {
 			1.0f
 	);
 
-	// Attitude stabilization
-	updateAxisPid(pitchQuickPID, target.pitch, attitudeInput.pitch, quickPitchOUT, quickPitchCommand, PITCH_PID_OUTPUT_LIMIT);
-	updateAxisPid(rollQuickPID, target.roll, attitudeInput.roll, quickRollOUT, quickRollCommand, ROLL_PID_OUTPUT_LIMIT);
-	updateAxisPid(yawQuickPID, target.yaw, attitudeInput.yaw, quickYawOUT, quickYawCommand, YAW_PID_OUTPUT_LIMIT);
+	// Angle loop -> desired rate
+	pitchQuickPID.Compute();
+	rollQuickPID.Compute();
+	yawQuickPID.Compute();
 
-	// Scale attitude commands by PID authority
+	// Rate loop -> motor command
+	pitchRatePID.Compute();
+	rollRatePID.Compute();
+	yawRatePID.Compute();
+
+	// Scale rate-loop commands by PID authority
 	float pitchCmd = quickPitchCommand * pidAuthority;
 	float rollCmd = quickRollCommand * pidAuthority;
 	float yawCmd = quickYawCommand * pidAuthority;
