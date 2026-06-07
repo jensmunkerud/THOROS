@@ -19,7 +19,8 @@ constexpr float MAX_DISARM_TILT_ANGLE_DEG {30.0f};
 constexpr float FRONT_BIAS {1.1f};
 
 constexpr int PID_MAX_EFFECT_AFTER_SPEED {200};
-constexpr int ATTITUDE_PID_SAMPLE_US {1000};	// PID loop
+constexpr uint32_t OUTER_PID_INTERVAL_US {10000};		// 100 Hz
+constexpr uint32_t INNER_RATE_PID_INTERVAL_US {2000};	// 500 Hz
 constexpr float ATTITUDE_RATE_LIMIT_DPS {180.0f}; // this has been multiplied 180x since last edit, just saying
 constexpr int PITCH_PID_OUTPUT_LIMIT {200};
 constexpr int YAW_PID_OUTPUT_LIMIT {200};
@@ -52,12 +53,12 @@ private:
 	DShotRMT motor3;
 	DShotRMT motor4;
 
-	QuickPID pitchQuickPID;
-	QuickPID rollQuickPID;
-	QuickPID yawQuickPID;
-	QuickPID pitchRatePID;
-	QuickPID rollRatePID;
-	QuickPID yawRatePID;
+	QuickPID pitchAngle;
+	QuickPID rollAngle;
+	QuickPID yawAngle;
+	QuickPID pitchRate;
+	QuickPID rollRate;
+	QuickPID yawRate;
 	void arm();
 	void disarm();
 	float pidAuthority;
@@ -76,6 +77,9 @@ private:
 	float quickPitchCommand;
 	float quickYawCommand;
 	float quickRollCommand;
+
+	uint32_t lastOuterPidComputeUs;
+	uint32_t lastInnerPidComputeUs;
 
 	double m1;
 	double m2;
