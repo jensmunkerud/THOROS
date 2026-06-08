@@ -106,7 +106,7 @@ void Logger::writeFloat(float value, uint8_t digits) {
 }
 
 void Logger::writeBasicHeader() {
-	logFile.print("timestamp_s,dt_s,pitch_setpoint,pitch_measurement,pitch_command,pitch_control,roll_setpoint,roll_measurement,roll_command,roll_control,yaw_setpoint,yaw_measurement,yaw_command,yaw_control,throttle");
+	logFile.print("timestamp_s,dt_s,pitch_setpoint,pitch_measurement,pitch_command,roll_setpoint,roll_measurement,roll_command,yaw_setpoint,yaw_measurement,yaw_command,throttle");
 }
 
 void Logger::writeFullTelemetryHeader() {
@@ -312,7 +312,7 @@ void Logger::LOGGERTask() {
 		const LogSnapshot snapshot = captureSnapshot();
 		writeSnapshot(snapshot);
 		lastWriteMs = millis();
-		vTaskDelay(10 / portTICK_PERIOD_MS);
+		vTaskDelay(LOGGER_INTERVAL / portTICK_PERIOD_MS);
 	}
 }
 

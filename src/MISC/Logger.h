@@ -11,6 +11,7 @@ static constexpr int LOGGER_CS		{5};
 static constexpr int LOGGER_SCK		{14};
 static constexpr int LOGGER_MISO	{27};
 static constexpr int LOGGER_MOSI	{13};
+static constexpr int LOGGER_INTERVAL{10};	// [ms]
 
 class Motor;
 
