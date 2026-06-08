@@ -13,21 +13,21 @@ Motor::Motor(MovementController& mc, Drone& drone) :
 	m3{0},
 	m4{0},
 	throttleBase{0},
-	quickPitchOUT{0},
-	quickRollOUT{0},
-	quickYawOUT{0},
-	quickPitchCommand{0},
-	quickRollCommand{0},
-	quickYawCommand{0},
+	pitchAngle_OUT{0},
+	rollAngle_OUT{0},
+	yawAngle_OUT{0},
+	pitchRate_OUT{0},
+	rollRate_OUT{0},
+	yawRate_OUT{0},
 	lastOuterPidComputeUs{0},
 	lastInnerPidComputeUs{0},
 	commandOutput{},
-	pitchAngle{&drone.attitude.pitch, &quickPitchOUT, &target.pitch, pitchPid.P, pitchPid.I, pitchPid.D, QuickPID::Action::direct},
-	yawAngle{&drone.attitude.yaw, &quickYawOUT, &target.yaw, yawPid.P, yawPid.I, yawPid.D, QuickPID::Action::direct},
-	rollAngle{&drone.attitude.roll, &quickRollOUT, &target.roll, rollPid.P, rollPid.I, rollPid.D, QuickPID::Action::reverse},
-	pitchRate{&drone.gyroRate.pitch, &quickPitchCommand, &quickPitchOUT, 1.0f, 0.0f, 0.02f, QuickPID::Action::direct},
-	yawRate{&drone.gyroRate.yaw, &quickYawCommand, &quickYawOUT, 0.8f, 0.0f, 0.0f, QuickPID::Action::direct},
-	rollRate{&drone.gyroRate.roll, &quickRollCommand, &quickRollOUT, 1.0f, 0.0f, 0.02f, QuickPID::Action::reverse}
+	pitchAngle{&drone.attitude.pitch, &pitchAngle_OUT, &target.pitch, K_pitchAngle.P, K_pitchAngle.I, K_pitchAngle.D, QuickPID::Action::direct},
+	rollAngle{&drone.attitude.roll, &rollAngle_OUT, &target.roll, K_rollAngle.P, K_rollAngle.I, K_rollAngle.D, QuickPID::Action::reverse},
+	yawAngle{&drone.attitude.yaw, &yawAngle_OUT, &target.yaw, K_yawAngle.P, K_yawAngle.I, K_yawAngle.D, QuickPID::Action::direct},
+	pitchRate{&drone.gyroRate.pitch, &pitchRate_OUT, &pitchAngle_OUT, K_pitchRate.P, K_pitchRate.I, K_pitchRate.D, QuickPID::Action::direct},
+	rollRate{&drone.gyroRate.roll, &rollRate_OUT, &rollAngle_OUT, K_rollRate.P, K_rollRate.I, K_rollRate.D, QuickPID::Action::reverse},
+	yawRate{&drone.gyroRate.yaw, &yawRate_OUT, &yawAngle_OUT, K_yawRate.P, K_yawRate.I, K_yawRate.D, QuickPID::Action::direct}
 {}
 
 
@@ -105,7 +105,6 @@ void Motor::disarm() {
 	movementController.clearInputs(true);
 }
 
-
 void Motor::Kill() {
 	float throttle = 0.0f;
 	{
@@ -167,20 +166,26 @@ void Motor::Kill() {
 	disarm();
 }
 
+void Motor::setAttitudePidTunings(const PID& pitch, const PID& roll, const PID& yaw) {
+	pitchRate.SetTunings(pitch.P, pitch.I, pitch.D);
+	rollRate.SetTunings(roll.P, roll.I, roll.D);
+	yawRate.SetTunings(yaw.P, yaw.I, yaw.D);
+}
+
 void Motor::loop() {
 	FlightMode mode;
 	FlightControls controlInput;
-	Attitude attitudeInput;
+	Attitude attitude;
 	{
 		DroneLockGuard droneLock(drone);
 		mode = drone.mode;
 		controlInput = drone.flightControls;
-		attitudeInput = drone.attitude;
+		attitude = drone.attitude;
 	}
 	if (mode == FlightMode::DISARMED) {return;}
 
-	if (fabsf(attitudeInput.pitch) > MAX_DISARM_TILT_ANGLE_DEG ||
-		fabsf(attitudeInput.roll) > MAX_DISARM_TILT_ANGLE_DEG) {
+	if (fabsf(attitude.pitch) > MAX_DISARM_TILT_ANGLE_DEG ||
+		fabsf(attitude.roll) > MAX_DISARM_TILT_ANGLE_DEG) {
 		disarm();
 		return;
 	}
@@ -216,9 +221,9 @@ void Motor::loop() {
 	}
 
 	// Scale rate-loop commands by PID authority
-	float pitchCmd = quickPitchCommand * pidAuthority;
-	float rollCmd = quickRollCommand * pidAuthority;
-	float yawCmd = quickYawCommand * pidAuthority;
+	float pitchCmd = pitchRate_OUT * pidAuthority;
+	float rollCmd = rollRate_OUT * pidAuthority;
+	float yawCmd = yawRate_OUT * pidAuthority;
 	commandOutput = {
 		pitchCmd,
 		yawCmd,
@@ -246,11 +251,11 @@ void Motor::loop() {
 	motor4.send_dshot_value(constrain((int)m4, MIN_ARMED_DSHOT_VALUE, MAXIMUM_MOTOR_SPEED));
 	
 	return;
-	Serial.print(attitudeInput.pitch);
+	Serial.print(attitude.pitch);
 	Serial.print("/");
-	Serial.print(attitudeInput.yaw);
+	Serial.print(attitude.yaw);
 	Serial.print("/");
-	Serial.print(attitudeInput.roll);
+	Serial.print(attitude.roll);
 	Serial.print("/");
 	Serial.print((int)m1);
 	Serial.print("/");

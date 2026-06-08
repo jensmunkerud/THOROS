@@ -89,13 +89,6 @@ void ICM20948::loop() {
 		gyroFiltered = Filters::LowPass(gyroFiltered, gyr, GYRO_LPF_ALPHA);
 		gyr = gyroFiltered;
 
-		{
-			DroneLockGuard droneLock(drone);
-			drone.gyroRate.pitch = -gyr.x / DEG2RAD;
-			drone.gyroRate.roll = gyr.y / DEG2RAD;
-			drone.gyroRate.yaw = gyr.z / DEG2RAD;
-		}
-
 		// ============================================
 		// RAW SENSOR DATA IS TUNED FROM THIS POINT ON
 		// Gyro -> rad/s
@@ -114,6 +107,9 @@ void ICM20948::loop() {
 			drone.attitude.pitch = -fusedRoll;
 			drone.attitude.roll  = fusedPitch;
 			drone.attitude.yaw   = fusedYaw;
+			drone.gyroRate.pitch = -gyr.x / DEG2RAD;
+			drone.gyroRate.roll = gyr.y / DEG2RAD;
+			drone.gyroRate.yaw = gyr.z / DEG2RAD;
 		}
 
 		// Remove gravity using current attitude, then convert to world frame.

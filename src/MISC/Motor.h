@@ -39,12 +39,17 @@ public:
 	Attitude getCommandOutput() const;
 	
 private:
-	// PID pitchPid{6, 0.2, 0.7};
-	// PID yawPid{2, 4, 1};
-	// PID rollPid{3, 0.2, 0.6};
-	PID pitchPid{0.4659, 0.2, 0.1};
-	PID rollPid{3, 0.2, 0.6};
-	PID yawPid{2, 4, 1};
+	// PID K_pitchAngle{0.4659, 0.2, 0.1};
+	// PID K_rollAngle{3, 0.2, 0.6};
+	// PID K_yawAngle{2, 0, 1};
+	PID K_pitchAngle{0, 0, 0};
+	PID K_rollAngle{0, 0, 0};
+	PID K_yawAngle{0, 0, 0};
+
+	PID K_pitchRate{0.4659, 0, 0.1};
+	PID K_rollRate{3, 0.2, 0.6};
+	PID K_yawRate{2, 0, 1};
+
 	MovementController& movementController;
 	Drone& drone;
 	Attitude target{};
@@ -70,13 +75,13 @@ private:
 	float rollInput;
 	float throttleBase;
 
-	float quickPitchOUT;
-	float quickYawOUT;
-	float quickRollOUT;
+	float pitchAngle_OUT;
+	float yawAngle_OUT;
+	float rollAngle_OUT;
 
-	float quickPitchCommand;
-	float quickYawCommand;
-	float quickRollCommand;
+	float pitchRate_OUT;
+	float yawRate_OUT;
+	float rollRate_OUT;
 
 	uint32_t lastOuterPidComputeUs;
 	uint32_t lastInnerPidComputeUs;

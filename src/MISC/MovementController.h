@@ -14,7 +14,7 @@ static constexpr float MAX_TILT_ANGLE				{5.0f};		// [deg]
 static constexpr float THROTTLE_SPEED				{400.0f};	// [u/s]
 static constexpr float MAX_THROTTLE					{1200.0f};	// [u]
 static constexpr int   MOVEMENT_TIMEOUT_MS			{35};		// [ms]
-static constexpr int ARM_HOLD_MS					{3000};		// [ms]
+static constexpr int   ARM_HOLD_MS					{3000};		// [ms]
 
 
 // Command IDs matching radio protocol
