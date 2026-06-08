@@ -67,7 +67,6 @@ void loop() {
 		movementController.update();
 		pidTuningReceiver.loop();
 		motor.loop();
-		logger.loop();
 	}
 
 

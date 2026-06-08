@@ -3,6 +3,10 @@
 
 extern Motor motor;
 
+void Logger::LOGGERTaskEntry(void* param) {
+	static_cast<Logger*>(param)->LOGGERTask();
+}
+
 Logger::Logger(Drone& droneState, Telemetry& telemetryState) :
 	drone{droneState},
 	telemetry{telemetryState},
@@ -12,7 +16,8 @@ Logger::Logger(Drone& droneState, Telemetry& telemetryState) :
 	logStartMs{0},
 	lastWriteMs{0},
 	logPath{0},
-	hspi(HSPI)
+	hspi(HSPI),
+	loggerTaskHandle{nullptr}
 {}
 
 bool Logger::begin() {
@@ -29,6 +34,16 @@ bool Logger::begin() {
 		DroneLockGuard droneLock(drone);
 		drone.LOGGER_OK = ready;
 	}
+
+	xTaskCreatePinnedToCore(
+		LOGGERTaskEntry,    // Task function
+		"LOGGER Task",      // Name
+		8192,               // Stack size (bytes)
+		this,               // Parameter
+		1,                  // Priority
+		&loggerTaskHandle,  // Task handle
+		1                   // Core 1
+	);
 	return ready;
 }
 
@@ -246,30 +261,58 @@ bool Logger::startLog(bool fullTelemetry) {
 		TelemetryLockGuard telemetryLock(telemetry);
 		telemetry.loggerIsLogging = true;
 	}
+	if (loggerTaskHandle != nullptr) {
+		vTaskResume(loggerTaskHandle);
+	}
 	return true;
 }
 
 void Logger::stopLog() {
 	Serial.println("STOPPED LOG!!!");
 	if (!logging) {
+		if (loggerTaskHandle != nullptr) {
+			vTaskSuspend(loggerTaskHandle);
+		}
 		return;
 	}
 
-	logFile.flush();
-	logFile.close();
 	logging = false;
+	for (int i = 0; i < 50; ++i) {
+		if (loggerTaskHandle == nullptr || eTaskGetState(loggerTaskHandle) == eSuspended) {
+			break;
+		}
+		vTaskDelay(1 / portTICK_PERIOD_MS);
+	}
 	{
 		TelemetryLockGuard telemetryLock(telemetry);
 		telemetry.loggerIsLogging = false;
 	}
 }
 
-void Logger::loop() {
-	if (!logging || !logFile) {
-		return;
-	}
+void Logger::LOGGERTask() {
+	while (true) {
+		if (!logging) {
+			if (logFile) {
+				logFile.flush();
+				logFile.close();
+			}
+			{
+				TelemetryLockGuard telemetryLock(telemetry);
+				telemetry.loggerIsLogging = false;
+			}
+			vTaskSuspend(nullptr);
+			continue;
+		}
 
-	const LogSnapshot snapshot = captureSnapshot();
-	writeSnapshot(snapshot);
-	lastWriteMs = millis();
+		if (!logFile) {
+			vTaskDelay(1 / portTICK_PERIOD_MS);
+			continue;
+		}
+
+		const LogSnapshot snapshot = captureSnapshot();
+		writeSnapshot(snapshot);
+		lastWriteMs = millis();
+		vTaskDelay(10 / portTICK_PERIOD_MS);
+	}
 }
+

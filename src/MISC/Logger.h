@@ -20,7 +20,6 @@ public:
 	bool begin();
 	bool startLog(bool includeFullTelemetry = false);
 	void stopLog();
-	void loop();
 	bool isReady() const;
 	bool isLogging() const;
 
@@ -45,6 +44,8 @@ private:
 
 	bool buildLogPath(char* output, size_t outputSize) const;
 	bool openLogFile();
+	static void LOGGERTaskEntry(void* param);
+	void LOGGERTask();
 	void writeHeader();
 	void writeBasicHeader();
 	void writeFullTelemetryHeader();
@@ -68,4 +69,5 @@ private:
 	unsigned long lastWriteMs;
 	char logPath[80];
 	SPIClass hspi;
+	TaskHandle_t loggerTaskHandle;
 };
