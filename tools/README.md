@@ -4,7 +4,7 @@ This folder contains an offline PID recommendation tool for THOROS logs.
 
 ## What it does
 
-- Reads a CSV log containing setpoint/measurement time-series.
+- Reads a CSV log containing setpoint/measurement time-series and throttle.
 - Identifies a first-order model per axis (pitch/roll/yaw).
 - Optimizes PID gains against your real trajectory.
 - Produces:
@@ -27,6 +27,7 @@ pip install -r tools/pid_autotune/requirements.txt
 - `pitch_setpoint`, `pitch_measurement`, `pitch_control` (optional)
 - `roll_setpoint`, `roll_measurement`, `roll_control` (optional)
 - `yaw_setpoint`, `yaw_measurement`, `yaw_control` (optional)
+- `throttle` (optional, plotted when present)
 
 If control columns are missing, the tool falls back to setpoint-based identification and marks confidence lower.
 
@@ -36,7 +37,7 @@ If control columns are missing, the tool falls back to setpoint-based identifica
 python tools/pid_autotune/autotune_pid.py --csv path/to/flight_log.csv
 ```
 
-To plot the attitude measurements from the same CSV shape:
+To plot the attitude measurements and throttle from the same CSV shape:
 
 ```bash
 python tools/pid_autotune/plot_measurements.py --csv path/to/flight_log.csv

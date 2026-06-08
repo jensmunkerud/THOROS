@@ -53,7 +53,7 @@ void setup() {
 	initDevice("Logger", [](){ DroneLockGuard droneLock(drone); return drone.LOGGER_OK; }, [](){ logger.begin(); });
 	Serial.println("==== SETUP COMPLETE ====");
 }
-bool began = false;
+
 // ---------------- //
 //       LOOP       //
 // ---------------- //
@@ -67,7 +67,6 @@ void loop() {
 		movementController.update();
 		pidTuningReceiver.loop();
 		motor.loop();
-		logger.loop();
 	}
 
 

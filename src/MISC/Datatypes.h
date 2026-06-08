@@ -46,10 +46,10 @@ enum class FlightMode : uint8_t {
 
 struct __attribute__((packed)) DroneData {
 	FlightMode mode;
-	Attitude attitude;
+	Attitude attitude;				// Sensor esimation of drone attitude
 	MotorThrusts motorThrusts;
-	FlightControls flightControls;
-	float altitude; // [m] above/under starting point
+	FlightControls flightControls;	// User control input
+	float altitude;					// [m] above/under starting point
 
 	bool GPS_OK;
 	bool MOTOR_OK;

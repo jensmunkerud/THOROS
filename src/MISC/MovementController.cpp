@@ -85,10 +85,6 @@ void MovementController::toggle(uint8_t v) {isToggled = not isToggled; return; S
 void MovementController::increaseSpeed(uint8_t v)  {if (canChangeSpeed && v > 0) {movementSpeed = constrain(movementSpeed + v, 50, 500); canChangeSpeed = false;} Serial.print("Sped up, speed: "); Serial.println(movementSpeed); if (v == 0) {canChangeSpeed = true;}}
 void MovementController::decreaseSpeed(uint8_t v)  {if (canChangeSpeed && v > 0) {movementSpeed = constrain(movementSpeed - v, 50, 500); canChangeSpeed = false;} if (v == 0) {canChangeSpeed = true;}}
 void MovementController::log_toggle(uint8_t v)     {
-	if (v == 0) {
-		return;
-	}
-
 	if (runningCommands.find(CommandID::LOG_TOGGLE) != runningCommands.end()) {
 		return;
 	}

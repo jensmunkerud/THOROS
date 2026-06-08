@@ -11,6 +11,7 @@ static constexpr int LOGGER_CS		{5};
 static constexpr int LOGGER_SCK		{14};
 static constexpr int LOGGER_MISO	{27};
 static constexpr int LOGGER_MOSI	{13};
+static constexpr int LOGGER_INTERVAL{10};	// [ms]
 
 class Motor;
 
@@ -20,7 +21,6 @@ public:
 	bool begin();
 	bool startLog(bool includeFullTelemetry = false);
 	void stopLog();
-	void loop();
 	bool isReady() const;
 	bool isLogging() const;
 
@@ -45,6 +45,8 @@ private:
 
 	bool buildLogPath(char* output, size_t outputSize) const;
 	bool openLogFile();
+	static void LOGGERTaskEntry(void* param);
+	void LOGGERTask();
 	void writeHeader();
 	void writeBasicHeader();
 	void writeFullTelemetryHeader();
@@ -68,4 +70,5 @@ private:
 	unsigned long lastWriteMs;
 	char logPath[80];
 	SPIClass hspi;
+	TaskHandle_t loggerTaskHandle;
 };
