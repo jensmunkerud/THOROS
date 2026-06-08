@@ -12,3 +12,4 @@ THORCommander.exe
 Graphics/
 _internal/
 tools/__pycache__
+secret.h
