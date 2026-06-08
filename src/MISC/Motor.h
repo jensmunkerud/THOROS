@@ -46,9 +46,12 @@ private:
 	PID K_rollAngle{0, 0, 0};
 	PID K_yawAngle{0, 0, 0};
 
-	PID K_pitchRate{0.4659, 0, 0.1};
-	PID K_rollRate{3, 0.2, 0.6};
-	PID K_yawRate{2, 0, 1};
+	// PID K_pitchRate{0.4659, 0, 0.1};
+	// PID K_rollRate{3, 0.2, 0.6};
+	// PID K_yawRate{2, 0, 1};
+	PID K_pitchRate{0.4659, 0, 0};
+	PID K_rollRate{3, 0.2, 0};
+	PID K_yawRate{2, 0, 0};
 
 	MovementController& movementController;
 	Drone& drone;

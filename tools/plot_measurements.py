@@ -65,7 +65,7 @@ def main() -> None:
 		raise ValueError("No plottable series found in CSV.")
 
 	nrows = len(axis_payloads) + (1 if throttle_col else 0)
-	fig, axes = plt.subplots(nrows, 1, sharex=True, figsize=(12, 3 * nrows))
+	fig, axes = plt.subplots(nrows, 1, sharex=True, figsize=(8, 2 * nrows))
 	if nrows == 1:
 		axes = [axes]
 	fig.suptitle(f"THOROS attitude measurements over time\n{csv_path.name}")

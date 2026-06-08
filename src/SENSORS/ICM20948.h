@@ -13,7 +13,7 @@ static constexpr int ICM20948_MOSI		{23};
 static constexpr int ICM_SAMPLERATE		{1000};
 static constexpr float DEG2RAD			{0.01745329251f};
 static constexpr float ACCEL_LPF_ALPHA	{0.05f}; // 0.05f optimal (perhaps)
-static constexpr float GYRO_LPF_ALPHA	{0.05f}; // 0.05f optimal
+static constexpr float GYRO_LPF_ALPHA	{0.5f}; // 0.05f optimal
 
 class ICM20948 {
 public:
