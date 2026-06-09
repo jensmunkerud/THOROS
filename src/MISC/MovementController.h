@@ -42,7 +42,7 @@ public:
 	void update();
 	bool isToggled;
 	double Kp = 1, Ki = 0, Kd = 1;
-	void clearInputs(bool clearThrottle = false);
+	void clearInputs(bool force = false);
 
 private:
 	FlightControls target;

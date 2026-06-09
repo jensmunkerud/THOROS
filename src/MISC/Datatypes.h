@@ -53,6 +53,8 @@ struct __attribute__((packed)) DroneData {
 	FlightControls flightControls;
 	float altitude;					// [m] above/under starting point
 
+	Attitude commandOutput;
+
 	bool GPS_OK;
 	bool MOTOR_OK;
 	bool PRESSURE_OK;

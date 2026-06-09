@@ -81,8 +81,8 @@ void MovementController::handlePanLeft(uint8_t v)  { target.yaw = v > 0 ? v/255.
 void MovementController::handlePanRight(uint8_t v) { target.yaw = v > 0 ? -v/255.0f : 0.0f; }
 void MovementController::handleUp(uint8_t v)       { target.throttle = v > 0 ? v/255.0f : 0.0f; }
 void MovementController::handleDown(uint8_t v)     { target.throttle = v > 0 ? -v/255.0f : 0.0f; }
-void MovementController::toggle(uint8_t v) {isToggled = not isToggled; return; Serial.print("Toggled , it is now: "); Serial.println(isToggled);}
-void MovementController::increaseSpeed(uint8_t v)  {if (canChangeSpeed && v > 0) {movementSpeed = constrain(movementSpeed + v, 50, 500); canChangeSpeed = false;} Serial.print("Sped up, speed: "); Serial.println(movementSpeed); if (v == 0) {canChangeSpeed = true;}}
+void MovementController::toggle(uint8_t v) { isToggled = !isToggled; }
+void MovementController::increaseSpeed(uint8_t v)  { if (canChangeSpeed && v > 0) { movementSpeed = constrain(movementSpeed + v, 50, 500); canChangeSpeed = false; } if (v == 0) { canChangeSpeed = true; } }
 void MovementController::decreaseSpeed(uint8_t v)  {if (canChangeSpeed && v > 0) {movementSpeed = constrain(movementSpeed - v, 50, 500); canChangeSpeed = false;} if (v == 0) {canChangeSpeed = true;}}
 void MovementController::log_toggle(uint8_t v)     {
 	if (runningCommands.find(CommandID::LOG_TOGGLE) != runningCommands.end()) {
@@ -146,8 +146,9 @@ float MovementController::smooth(float current, float target, float sensitivity,
 
 // === Update Loop ===
 void MovementController::update() {
-	deltaMs = millis() - lastTime;
-	lastTime = millis();
+	unsigned long now = millis();
+	deltaMs = now - lastTime;
+	lastTime = now;
 
 	if (xQueueReceive(rfd900.getCommandQueue(), &received, 0) == pdTRUE) {
 		newCommands.clear();
@@ -248,8 +249,8 @@ void MovementController::applyFailsafeIfTimedOut() {
 	}
 }
 
-void MovementController::clearInputs(bool clearThrottle) {
-	if (canApplyFailSafe || clearThrottle) {
+void MovementController::clearInputs(bool force) {
+	if (canApplyFailSafe || force) {
 		target.pitch = 0;
 		target.roll = 0;
 		target.yaw = 0;

@@ -12,7 +12,7 @@ constexpr int MOTOR2 {33}; // BACK RIGHT	CW
 constexpr int MOTOR3 {25}; // FRONT LEFT	CW
 constexpr int MOTOR4 {26}; // BACK LEFT		CCW
 
-constexpr int INITILIZE_ESC_TIME {40}; // 4000
+constexpr int INITIALIZE_ESC_TIME {40};
 constexpr int MIN_ARMED_DSHOT_VALUE {0}; // 0-47 is dShot reserved values
 constexpr int MAXIMUM_MOTOR_SPEED {500};
 constexpr float MOTOR_KILL_SPEED {1500.0f};	// [units/s]
@@ -38,7 +38,6 @@ public:
 	void loop();
 	void Kill();
 	void setAttitudePidTunings(const PID& pitch, const PID& roll, const PID& yaw);
-	Attitude getCommandOutput() const;
 	
 private:
 	// PID K_pitchAngle{0.4659, 0.2, 0.1};
@@ -99,4 +98,6 @@ private:
 	double m2;
 	double m3;
 	double m4;
+
+	Attitude commandOutput;
 };

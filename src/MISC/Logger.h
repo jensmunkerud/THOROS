@@ -13,8 +13,6 @@ static constexpr int LOGGER_MISO	{27};
 static constexpr int LOGGER_MOSI	{13};
 static constexpr int LOGGER_INTERVAL{10};	// [ms]
 
-class Motor;
-
 class Logger {
 public:
 	Logger(Drone& droneState, Telemetry& telemetryState);

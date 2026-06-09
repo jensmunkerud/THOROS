@@ -24,7 +24,6 @@ Motor::Motor(MovementController& mc, Drone& drone) :
 	yawRateFiltered_OUT{0},
 	lastOuterPidComputeUs{0},
 	lastInnerPidComputeUs{0},
-	commandOutput{},
 	pitchAngle{&drone.attitude.pitch, &pitchAngle_OUT, &target.pitch, K_pitchAngle.P, K_pitchAngle.I, K_pitchAngle.D, QuickPID::Action::direct},
 	rollAngle{&drone.attitude.roll, &rollAngle_OUT, &target.roll, K_rollAngle.P, K_rollAngle.I, K_rollAngle.D, QuickPID::Action::reverse},
 	yawAngle{&drone.attitude.yaw, &yawAngle_OUT, &target.yaw, K_yawAngle.P, K_yawAngle.I, K_yawAngle.D, QuickPID::Action::direct},
@@ -33,10 +32,6 @@ Motor::Motor(MovementController& mc, Drone& drone) :
 	yawRate{&drone.gyroRate.yaw, &yawRate_OUT, &yawAngle_OUT, K_yawRate.P, K_yawRate.I, K_yawRate.D, QuickPID::Action::direct}
 {}
 
-
-Attitude Motor::getCommandOutput() const {
-	return commandOutput;
-}
 
 
 void Motor::begin() {
@@ -78,7 +73,7 @@ void Motor::begin() {
 
 
 void Motor::arm() {
-	for(int i = 0; i < INITILIZE_ESC_TIME; i++) {
+	for(int i = 0; i < INITIALIZE_ESC_TIME; i++) {
 		motor1.send_dshot_value(0);
 		motor2.send_dshot_value(0);
 		motor3.send_dshot_value(0);
@@ -88,9 +83,9 @@ void Motor::arm() {
 	{
 		DroneLockGuard droneLock(drone);
 		drone.flightControls = {};
+		drone.commandOutput = {};
 		drone.mode = FlightMode::ARMED;
 	}
-	commandOutput = {};
 }
 
 void Motor::disarm() {
@@ -103,8 +98,8 @@ void Motor::disarm() {
 		drone.mode = FlightMode::DISARMED;
 		drone.flightControls = {};
 		drone.motorThrusts = {};
+		drone.commandOutput = {};
 	}
-	commandOutput = {};
 	movementController.clearInputs(true);
 }
 
@@ -230,11 +225,7 @@ void Motor::loop() {
 	float pitchCmd = pitchRateFiltered_OUT * pidAuthority;
 	float rollCmd = rollRateFiltered_OUT * pidAuthority;
 	float yawCmd = yawRateFiltered_OUT * pidAuthority;
-	commandOutput = {
-		pitchCmd,
-		yawCmd,
-		rollCmd
-	};
+	commandOutput = { pitchCmd, yawCmd, rollCmd };
 
 	// Apply motor mix
 	m1 = constrain(throttleBase * FRONT_BIAS + pitchCmd - rollCmd - yawCmd, 0, MAXIMUM_MOTOR_SPEED);
@@ -249,25 +240,11 @@ void Motor::loop() {
 			static_cast<int16_t>(m3),
 			static_cast<int16_t>(m4)
 		};
+		drone.commandOutput = commandOutput;
 	}
 
 	motor1.send_dshot_value(constrain((int)m1, MIN_ARMED_DSHOT_VALUE, MAXIMUM_MOTOR_SPEED));
 	motor2.send_dshot_value(constrain((int)m2, MIN_ARMED_DSHOT_VALUE, MAXIMUM_MOTOR_SPEED));
 	motor3.send_dshot_value(constrain((int)m3, MIN_ARMED_DSHOT_VALUE, MAXIMUM_MOTOR_SPEED));
 	motor4.send_dshot_value(constrain((int)m4, MIN_ARMED_DSHOT_VALUE, MAXIMUM_MOTOR_SPEED));
-	
-	return;
-	Serial.print(attitude.pitch);
-	Serial.print("/");
-	Serial.print(attitude.yaw);
-	Serial.print("/");
-	Serial.print(attitude.roll);
-	Serial.print("/");
-	Serial.print((int)m1);
-	Serial.print("/");
-	Serial.print((int)m2);
-	Serial.print("/");
-	Serial.print((int)m3);
-	Serial.print("/");
-	Serial.println((int)m4);
 }

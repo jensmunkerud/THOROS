@@ -1,7 +1,4 @@
 #include "Logger.h"
-#include "Motor.h"
-
-extern Motor motor;
 
 void Logger::LOGGERTaskEntry(void* param) {
 	static_cast<Logger*>(param)->LOGGERTask();
@@ -220,6 +217,7 @@ Logger::LogSnapshot Logger::captureSnapshot() const {
 		snapshot.flightControls = drone.flightControls;
 		snapshot.attitude = drone.attitude;
 		snapshot.gyroRate = drone.gyroRate;
+		snapshot.commandOutput = drone.commandOutput;
 		snapshot.motorThrusts = drone.motorThrusts;
 		snapshot.mode = drone.mode;
 		snapshot.altitude = drone.altitude;
@@ -234,7 +232,6 @@ Logger::LogSnapshot Logger::captureSnapshot() const {
 		TelemetryLockGuard telemetryLock(telemetry);
 		snapshot.telemetry = static_cast<const TelemetryData&>(telemetry);
 	}
-	snapshot.commandOutput = motor.getCommandOutput();
 	return snapshot;
 }
 

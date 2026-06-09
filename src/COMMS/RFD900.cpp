@@ -1,4 +1,5 @@
 #include "RFD900.h"
+#include "MISC/MovementController.h"
 
 #include <cstdio>
 
@@ -13,7 +14,7 @@ RFD900::RFD900(Telemetry& tel, Drone& drone) :
 	rfdTaskHandle{nullptr},
 	serialTxMutex{nullptr},
 	pingProgress{0},
-	temeletryProgress{0},
+	telemetryProgress{0},
 	lastCommand{millis()},
 	SerialRFD{RFD_SERIAL}
 {
@@ -40,9 +41,9 @@ void RFD900::RFD900Task(void* parameter) {
 			rfd->ping();
 			rfd->pingProgress = 0;
 		}
-		if (rfd->temeletryProgress++ >= SEND_TELEMETRY_INTERVAL) {
+		if (rfd->telemetryProgress++ >= SEND_TELEMETRY_INTERVAL) {
 			rfd->sendTelemetry();
-			rfd->temeletryProgress = 0;
+			rfd->telemetryProgress = 0;
 		}
 	}
 }
@@ -76,7 +77,7 @@ void RFD900::loop() {
 		}
 		if (hadGroundLink) {
 			// KILLS DRONE ON RADIO TIMEOUT
-			RFDCommandPacket killCommand{1, { {254, 0} }};
+			RFDCommandPacket killCommand{1, { {static_cast<uint8_t>(CommandID::KILL), 0} }};
 			xQueueSendToBack(commandQueue, &killCommand, pdMS_TO_TICKS(10));
 		}
 	}

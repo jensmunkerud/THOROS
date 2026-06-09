@@ -45,5 +45,5 @@ private:
 	SemaphoreHandle_t serialTxMutex;
 	HardwareSerial SerialRFD;
 	uint16_t pingProgress;
-	uint16_t temeletryProgress;
+	uint16_t telemetryProgress;
 };
