@@ -19,6 +19,9 @@ Motor::Motor(MovementController& mc, Drone& drone) :
 	pitchRate_OUT{0},
 	rollRate_OUT{0},
 	yawRate_OUT{0},
+	pitchRateFiltered_OUT{0},
+	rollRateFiltered_OUT{0},
+	yawRateFiltered_OUT{0},
 	lastOuterPidComputeUs{0},
 	lastInnerPidComputeUs{0},
 	commandOutput{},
@@ -218,12 +221,15 @@ void Motor::loop() {
 		pitchRate.Compute();
 		rollRate.Compute();
 		yawRate.Compute();
+		pitchRateFiltered_OUT = Filters::LowPass(pitchRateFiltered_OUT, pitchRate_OUT, INNER_PID_FILTER_ALPHA);
+		rollRateFiltered_OUT  = Filters::LowPass(rollRateFiltered_OUT,  rollRate_OUT,  INNER_PID_FILTER_ALPHA);
+		yawRateFiltered_OUT   = Filters::LowPass(yawRateFiltered_OUT,   yawRate_OUT,   INNER_PID_FILTER_ALPHA);
 	}
 
 	// Scale rate-loop commands by PID authority
-	float pitchCmd = pitchRate_OUT * pidAuthority;
-	float rollCmd = rollRate_OUT * pidAuthority;
-	float yawCmd = yawRate_OUT * pidAuthority;
+	float pitchCmd = pitchRateFiltered_OUT * pidAuthority;
+	float rollCmd = rollRateFiltered_OUT * pidAuthority;
+	float yawCmd = yawRateFiltered_OUT * pidAuthority;
 	commandOutput = {
 		pitchCmd,
 		yawCmd,

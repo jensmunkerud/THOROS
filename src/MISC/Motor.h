@@ -4,6 +4,7 @@
 #include <QuickPID.h>
 #include "MovementController.h"
 #include "Datatypes.h"
+#include "Filters.h"
 
 // CONFIGURATION
 constexpr int MOTOR1 {32}; // FRONT RIGHT	CCW
@@ -25,6 +26,7 @@ constexpr float ATTITUDE_RATE_LIMIT_DPS {180.0f}; // this has been multiplied 18
 constexpr int PITCH_PID_OUTPUT_LIMIT {200};
 constexpr int YAW_PID_OUTPUT_LIMIT {200};
 constexpr int ROLL_PID_OUTPUT_LIMIT {200};
+constexpr float INNER_PID_FILTER_ALPHA {0.3f};
 
 
 constexpr dshot_mode_e DSHOT_TYPE{DSHOT300};
@@ -85,6 +87,10 @@ private:
 	float pitchRate_OUT;
 	float yawRate_OUT;
 	float rollRate_OUT;
+
+	float pitchRateFiltered_OUT;
+	float yawRateFiltered_OUT;
+	float rollRateFiltered_OUT;
 
 	uint32_t lastOuterPidComputeUs;
 	uint32_t lastInnerPidComputeUs;
