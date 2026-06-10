@@ -38,6 +38,7 @@ public:
 	void setAnglePidTunings(const PID& pitch, const PID& roll, const PID& yaw);
 	void setRatePidTunings(const PID& pitch, const PID& roll, const PID& yaw);
 	void setFrontBias(float bias);
+	void setRightBias(float bias);
 	
 private:
 	// PID K_pitchAngle{0.4659, 0.2, 0.1};
@@ -54,7 +55,8 @@ private:
 	PID K_rollRate{3, 0.2, 0};
 	PID K_yawRate{2, 0, 0};
 
-	float frontBias{1.15f};
+	float frontBias{1.12f};
+	float rightBias{1.0f};
 
 	MovementController& movementController;
 	Drone& drone;

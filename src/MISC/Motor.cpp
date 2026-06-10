@@ -174,6 +174,10 @@ void Motor::setFrontBias(float bias) {
 	frontBias = constrain(bias, 0.5f, 2.0f);
 }
 
+void Motor::setRightBias(float bias) {
+	rightBias = constrain(bias, 0.5f, 2.0f);
+}
+
 // Wraps an angle into [-180, 180) degrees.
 static float wrapDeg180(float angle) {
 	angle = fmodf(angle + 180.0f, 360.0f);
@@ -261,10 +265,10 @@ void Motor::loop() {
 	commandOutput = { pitchCmd, yawCmd, rollCmd };
 
 	// Apply motor mix
-	m1 = throttleBase * frontBias + pitchCmd - rollCmd - yawCmd;
-	m2 = throttleBase             - pitchCmd - rollCmd + yawCmd;
-	m3 = throttleBase * frontBias + pitchCmd + rollCmd + yawCmd;
-	m4 = throttleBase             - pitchCmd + rollCmd - yawCmd;
+	m1 = throttleBase * frontBias * rightBias + pitchCmd - rollCmd - yawCmd;
+	m2 = throttleBase * rightBias             - pitchCmd - rollCmd + yawCmd;
+	m3 = throttleBase * frontBias             + pitchCmd + rollCmd + yawCmd;
+	m4 = throttleBase                         - pitchCmd + rollCmd - yawCmd;
 
 	// Desaturate: shift the collective so the differential (attitude) commands
 	// survive the motor limits instead of being clipped away. Keeping motors

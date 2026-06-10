@@ -141,10 +141,10 @@ bool RFD900::isLikelyTextFrame() const {
 		return false;
 	}
 
-	// Tagged tuning frames ("O/", "I/", "F/") are text regardless of length.
+	// Tagged tuning frames ("O/", "I/", "F/", "R/") are text regardless of length.
 	// The tag bytes do not collide with any binary CommandID value.
 	char first = static_cast<char>(buffer[1]);
-	if ((first == 'O' || first == 'I' || first == 'F') && static_cast<char>(buffer[2]) == '/') {
+	if ((first == 'O' || first == 'I' || first == 'F' || first == 'R') && static_cast<char>(buffer[2]) == '/') {
 		return true;
 	}
 
@@ -204,15 +204,21 @@ bool RFD900::handlePidLine() {
 		return false;
 	}
 
-	// "F/<value>" sets the front motor bias.
-	if (pidLineLength >= 2 && pidLineBuffer[0] == 'F' && pidLineBuffer[1] == '/') {
+	// "F/<value>" sets the front motor bias, "R/<value>" the right motor bias.
+	if (pidLineLength >= 2 && pidLineBuffer[1] == '/' &&
+		(pidLineBuffer[0] == 'F' || pidLineBuffer[0] == 'R')) {
+		char tag = pidLineBuffer[0];
 		float bias;
 		int matched = sscanf(pidLineBuffer + 2, "%f", &bias);
 		clearPidBuffer();
 		if (matched != 1) {
 			return false;
 		}
-		motor.setFrontBias(bias);
+		if (tag == 'F') {
+			motor.setFrontBias(bias);
+		} else {
+			motor.setRightBias(bias);
+		}
 		return true;
 	}
 
@@ -281,7 +287,7 @@ bool RFD900::handleFramedPidPayload() {
 		}
 
 		bool isNumericChar = (ch >= '0' && ch <= '9') || ch == '.' || ch == '-' || ch == '+' || ch == '/' || ch == ' ';
-		bool isTagChar = (writeIndex == 0) && (ch == 'O' || ch == 'I' || ch == 'F');
+		bool isTagChar = (writeIndex == 0) && (ch == 'O' || ch == 'I' || ch == 'F' || ch == 'R');
 		if (!isNumericChar && !isTagChar) {
 			return false;
 		}
@@ -293,8 +299,8 @@ bool RFD900::handleFramedPidPayload() {
 		pidLineBuffer[writeIndex++] = ch;
 	}
 
-	// Front bias frames carry a single value; PID frames need 9.
-	size_t requiredSlashes = (pidLineBuffer[0] == 'F') ? 1 : 8;
+	// Bias frames carry a single value; PID frames need 9.
+	size_t requiredSlashes = (pidLineBuffer[0] == 'F' || pidLineBuffer[0] == 'R') ? 1 : 8;
 	if (slashCount < requiredSlashes) {
 		clearPidBuffer();
 		return false;
