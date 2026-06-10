@@ -11,8 +11,8 @@ constexpr int MOTOR2 {33}; // BACK RIGHT	CW
 constexpr int MOTOR3 {25}; // FRONT LEFT	CW
 constexpr int MOTOR4 {26}; // BACK LEFT		CCW
 
-constexpr int INITIALIZE_ESC_TIME {40};
-constexpr int MIN_ARMED_DSHOT_VALUE {0}; // 0-47 is dShot reserved values
+constexpr int INITIALIZE_ESC_TIME {3000};
+constexpr int MIN_ARMED_DSHOT_VALUE {48}; // 0-47 is dShot reserved values; arm()/disarm() still send raw 0 for ESC init/stop
 constexpr int MAXIMUM_MOTOR_SPEED {500};
 constexpr float MOTOR_KILL_SPEED {1500.0f};	// [units/s]
 constexpr float MAX_DISARM_TILT_ANGLE_DEG {30.0f};
@@ -36,7 +36,8 @@ public:
 	void begin();
 	void loop();
 	void Kill();
-	void setAttitudePidTunings(const PID& pitch, const PID& roll, const PID& yaw);
+	void setAnglePidTunings(const PID& pitch, const PID& roll, const PID& yaw);
+	void setRatePidTunings(const PID& pitch, const PID& roll, const PID& yaw);
 	
 private:
 	// PID K_pitchAngle{0.4659, 0.2, 0.1};
@@ -67,7 +68,7 @@ private:
 	QuickPID pitchRate;
 	QuickPID rollRate;
 	QuickPID yawRate;
-	void arm();
+	void initEscs();
 	void disarm();
 	float pidAuthority;
 	Attitude commandOutput;

@@ -9,7 +9,6 @@
 #include "MISC/Logger.h"
 #include "MISC/LED.h"
 #include "MISC/Motor.h"
-#include "COMMS/PidTuningReceiver.h"
 
 // PARAMETERS
 constexpr unsigned long SENSOR_INTERVAL_FAST = 1000/1000;
@@ -29,8 +28,6 @@ MovementController movementController(telemetry, drone, rfd900);
 Logger logger(drone, telemetry);
 Motor motor(movementController, drone);
 
-PidTuningReceiver pidTuningReceiver(Serial, applyPidTuningsToMotor, &motor);
-
 void initDevice(const char* name, std::function<bool()> statusGetter, std::function<void()> beginFunc) {
 	beginFunc();
 	bool statusFlag = statusGetter();
@@ -45,7 +42,6 @@ void initDevice(const char* name, std::function<bool()> statusGetter, std::funct
 void setup() {
 	Serial.begin(115200);
 	Serial.println("==== SETUP BEGUN! ====");
-	rfd900.setPidApplyCallback(applyPidTuningsToMotor, &motor);
 	initDevice("ICM20948", [](){ DroneLockGuard droneLock(drone); return drone.IMU_OK; }, [](){ icm20948.begin(); });
 	// initDevice("BMP390", [](){ return drone.BMP390; }, [](){ bmp390.begin(); });
 	initDevice("RFD900", [](){ DroneLockGuard droneLock(drone); return drone.RADIO_OK; }, [](){ rfd900.begin(); });
@@ -65,7 +61,6 @@ void loop() {
 		icm20948.loop();
 		// bmp390.loop(); // This thing is SUPER SLOW
 		movementController.update();
-		pidTuningReceiver.loop();
 		motor.loop();
 	}
 

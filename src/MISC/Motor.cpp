@@ -61,7 +61,7 @@ void Motor::begin() {
 	rollRate.SetOutputLimits(-ROLL_PID_OUTPUT_LIMIT, ROLL_PID_OUTPUT_LIMIT);
 	yawRate.SetOutputLimits(-YAW_PID_OUTPUT_LIMIT, YAW_PID_OUTPUT_LIMIT);
 	
-	arm();
+	initEscs();
 	{
 		DroneLockGuard droneLock(drone);
 		drone.MOTOR_OK = true;
@@ -69,19 +69,15 @@ void Motor::begin() {
 }
 
 
-void Motor::arm() {
+// Sends the zero-value sequence the ESCs require before accepting throttle.
+// Leaves the drone DISARMED; arming only happens via the hold-to-arm command.
+void Motor::initEscs() {
 	for(int i = 0; i < INITIALIZE_ESC_TIME; i++) {
 		motor1.send_dshot_value(0);
 		motor2.send_dshot_value(0);
 		motor3.send_dshot_value(0);
 		motor4.send_dshot_value(0);
 		delay(1);
-	}
-	{
-		DroneLockGuard droneLock(drone);
-		drone.flightControls = {};
-		drone.commandOutput = {};
-		drone.mode = FlightMode::ARMED;
 	}
 }
 
@@ -161,7 +157,13 @@ void Motor::Kill() {
 	disarm();
 }
 
-void Motor::setAttitudePidTunings(const PID& pitch, const PID& roll, const PID& yaw) {
+void Motor::setAnglePidTunings(const PID& pitch, const PID& roll, const PID& yaw) {
+	pitchAngle.SetTunings(pitch.P, pitch.I, pitch.D);
+	rollAngle.SetTunings(roll.P, roll.I, roll.D);
+	yawAngle.SetTunings(yaw.P, yaw.I, yaw.D);
+}
+
+void Motor::setRatePidTunings(const PID& pitch, const PID& roll, const PID& yaw) {
 	pitchRate.SetTunings(pitch.P, pitch.I, pitch.D);
 	rollRate.SetTunings(roll.P, roll.I, roll.D);
 	yawRate.SetTunings(yaw.P, yaw.I, yaw.D);
@@ -186,7 +188,15 @@ void Motor::loop() {
 		controlInput = drone.flightControls;
 		attitude = drone.attitude;
 	}
-	if (mode == FlightMode::DISARMED) {return;}
+	if (mode == FlightMode::DISARMED) {
+		// Keep streaming zero-throttle frames so the ESCs stay initialized and
+		// accept throttle (>= MIN_ARMED_DSHOT_VALUE) immediately after arming.
+		motor1.send_dshot_value(0);
+		motor2.send_dshot_value(0);
+		motor3.send_dshot_value(0);
+		motor4.send_dshot_value(0);
+		return;
+	}
 
 	if (fabsf(attitude.pitch) > MAX_DISARM_TILT_ANGLE_DEG ||
 		fabsf(attitude.roll) > MAX_DISARM_TILT_ANGLE_DEG) {

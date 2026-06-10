@@ -1,16 +1,17 @@
 #include "RFD900.h"
 #include "MISC/MovementController.h"
+#include "MISC/Motor.h"
 
 #include <cstdio>
 
+extern Motor motor;
 
-RFD900::RFD900(Telemetry& tel, Drone& drone) : 
+
+RFD900::RFD900(Telemetry& tel, Drone& drone) :
 	telemetry{tel},
 	drone{drone},
 	numPackets{0},
 	pidLineLength{0},
-	pidCallback{nullptr},
-	pidContext{nullptr},
 	rfdTaskHandle{nullptr},
 	serialTxMutex{nullptr},
 	pingProgress{0},
@@ -190,20 +191,25 @@ void RFD900::ping() {
 
 QueueHandle_t RFD900::getCommandQueue() const { return commandQueue; }
 
-void RFD900::setPidApplyCallback(ApplyPidCallback callback, void* context) {
-	pidCallback = callback;
-	pidContext = context;
-}
-
 bool RFD900::handlePidLine() {
-	if (pidLineLength == 0 || pidCallback == nullptr) {
+	if (pidLineLength == 0) {
 		clearPidBuffer();
 		return false;
 	}
 
+	// Optional loop tag prefix: "O/" targets the outer angle loop, "I/" the
+	// inner rate loop. Untagged frames keep the legacy meaning (inner rate).
+	const char* payload = pidLineBuffer;
+	bool isOuterLoop = false;
+	if (pidLineLength >= 2 && pidLineBuffer[1] == '/' &&
+		(pidLineBuffer[0] == 'O' || pidLineBuffer[0] == 'I')) {
+		isOuterLoop = (pidLineBuffer[0] == 'O');
+		payload += 2;
+	}
+
 	float values[9];
 	int matched = sscanf(
-		pidLineBuffer,
+		payload,
 		"%f/%f/%f/%f/%f/%f/%f/%f/%f",
 		&values[0],
 		&values[1],
@@ -225,7 +231,11 @@ bool RFD900::handlePidLine() {
 	PID pitch{values[0], values[1], values[2]};
 	PID roll{values[3], values[4], values[5]};
 	PID yaw{values[6], values[7], values[8]};
-	pidCallback(pitch, roll, yaw, pidContext);
+	if (isOuterLoop) {
+		motor.setAnglePidTunings(pitch, roll, yaw);
+	} else {
+		motor.setRatePidTunings(pitch, roll, yaw);
+	}
 	return true;
 }
 
@@ -252,7 +262,8 @@ bool RFD900::handleFramedPidPayload() {
 		}
 
 		bool isNumericChar = (ch >= '0' && ch <= '9') || ch == '.' || ch == '-' || ch == '+' || ch == '/' || ch == ' ';
-		if (!isNumericChar) {
+		bool isLoopTagChar = (writeIndex == 0) && (ch == 'O' || ch == 'I');
+		if (!isNumericChar && !isLoopTagChar) {
 			return false;
 		}
 

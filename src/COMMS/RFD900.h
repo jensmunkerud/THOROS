@@ -14,9 +14,6 @@ constexpr uint8_t RFD_SERIAL {2};
 
 class RFD900 {
 public:
-	typedef void (*ApplyPidCallback)(const PID& pitch, const PID& roll, const PID& yaw, void* context);
-	void setPidApplyCallback(ApplyPidCallback callback, void* context = nullptr);
-
 	RFD900(Telemetry& tel, Drone& droneState);
 	void begin();
 	void loop();
@@ -31,9 +28,7 @@ private:
 	void clearPidBuffer();
 	char pidLineBuffer[128];
 	size_t pidLineLength;
-	ApplyPidCallback pidCallback;
-	void* pidContext;
-	
+
 	static void RFD900Task(void* parameter);
 	Telemetry& telemetry;
 	Drone& drone;
