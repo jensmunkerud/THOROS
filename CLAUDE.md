@@ -47,7 +47,7 @@ Drone + Telemetry → RFD900 (telemetry TX task)
 | PID + motors | `src/MISC/Motor` | Pitch/roll/yaw PID at 1kHz; motor mixer; DShot300 output |
 | IMU | `src/SENSORS/ICM20948` | SPI driver, sensor fusion, gyro bias calibration |
 | Barometer | `src/SENSORS/BMP390` | Altitude (currently disabled — too slow for 1kHz loop) |
-| Radio | `src/COMMS/RFD900` | 900MHz serial protocol; command RX + telemetry TX on FreeRTOS task; runtime PID gain updates via slash-delimited text frames (`O/` outer angle loop, `I/` or untagged inner rate loop) |
+| Radio | `src/COMMS/RFD900` | 900MHz serial protocol; command RX + telemetry TX on FreeRTOS task; runtime tuning via slash-delimited text frames (`O/` outer angle loop PIDs, `I/` or untagged inner rate loop PIDs, `F/` front motor bias) |
 | Logger | `src/MISC/Logger` | Concurrent FreeRTOS task; writes flight CSV to SD card |
 | LED | `src/MISC/LED.h` | GPIO2: solid = armed, blink = disarmed |
 | Filters | `src/MISC/Filters.h` | Low-pass filter utilities |

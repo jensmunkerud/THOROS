@@ -141,6 +141,13 @@ bool RFD900::isLikelyTextFrame() const {
 		return false;
 	}
 
+	// Tagged tuning frames ("O/", "I/", "F/") are text regardless of length.
+	// The tag bytes do not collide with any binary CommandID value.
+	char first = static_cast<char>(buffer[1]);
+	if ((first == 'O' || first == 'I' || first == 'F') && static_cast<char>(buffer[2]) == '/') {
+		return true;
+	}
+
 	size_t slashCount = 0;
 	for (size_t i = 1; i < static_cast<size_t>(numPackets - 1); ++i) {
 		char ch = static_cast<char>(buffer[i]);
@@ -195,6 +202,18 @@ bool RFD900::handlePidLine() {
 	if (pidLineLength == 0) {
 		clearPidBuffer();
 		return false;
+	}
+
+	// "F/<value>" sets the front motor bias.
+	if (pidLineLength >= 2 && pidLineBuffer[0] == 'F' && pidLineBuffer[1] == '/') {
+		float bias;
+		int matched = sscanf(pidLineBuffer + 2, "%f", &bias);
+		clearPidBuffer();
+		if (matched != 1) {
+			return false;
+		}
+		motor.setFrontBias(bias);
+		return true;
 	}
 
 	// Optional loop tag prefix: "O/" targets the outer angle loop, "I/" the
@@ -262,8 +281,8 @@ bool RFD900::handleFramedPidPayload() {
 		}
 
 		bool isNumericChar = (ch >= '0' && ch <= '9') || ch == '.' || ch == '-' || ch == '+' || ch == '/' || ch == ' ';
-		bool isLoopTagChar = (writeIndex == 0) && (ch == 'O' || ch == 'I');
-		if (!isNumericChar && !isLoopTagChar) {
+		bool isTagChar = (writeIndex == 0) && (ch == 'O' || ch == 'I' || ch == 'F');
+		if (!isNumericChar && !isTagChar) {
 			return false;
 		}
 
@@ -274,7 +293,9 @@ bool RFD900::handleFramedPidPayload() {
 		pidLineBuffer[writeIndex++] = ch;
 	}
 
-	if (slashCount < 8) {
+	// Front bias frames carry a single value; PID frames need 9.
+	size_t requiredSlashes = (pidLineBuffer[0] == 'F') ? 1 : 8;
+	if (slashCount < requiredSlashes) {
 		clearPidBuffer();
 		return false;
 	}

@@ -13,10 +13,9 @@ constexpr int MOTOR4 {26}; // BACK LEFT		CCW
 
 constexpr int INITIALIZE_ESC_TIME {3000};
 constexpr int MIN_ARMED_DSHOT_VALUE {48}; // 0-47 is dShot reserved values; arm()/disarm() still send raw 0 for ESC init/stop
-constexpr int MAXIMUM_MOTOR_SPEED {500};
+constexpr int MAXIMUM_MOTOR_SPEED {1200};
 constexpr float MOTOR_KILL_SPEED {1500.0f};	// [units/s]
 constexpr float MAX_DISARM_TILT_ANGLE_DEG {30.0f};
-constexpr float FRONT_BIAS {1.1f};
 
 constexpr int PID_MAX_EFFECT_AFTER_SPEED {200};
 constexpr uint32_t OUTER_PID_INTERVAL_US {10000};		// 100 Hz
@@ -38,6 +37,7 @@ public:
 	void Kill();
 	void setAnglePidTunings(const PID& pitch, const PID& roll, const PID& yaw);
 	void setRatePidTunings(const PID& pitch, const PID& roll, const PID& yaw);
+	void setFrontBias(float bias);
 	
 private:
 	// PID K_pitchAngle{0.4659, 0.2, 0.1};
@@ -53,6 +53,8 @@ private:
 	PID K_pitchRate{0.4659, 0, 0};
 	PID K_rollRate{3, 0.2, 0};
 	PID K_yawRate{2, 0, 0};
+
+	float frontBias{1.15f};
 
 	MovementController& movementController;
 	Drone& drone;
