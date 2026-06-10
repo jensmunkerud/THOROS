@@ -4,7 +4,6 @@
 #include <SD.h>
 #include <SPI.h>
 #include <time.h>
-
 #include "Datatypes.h"
 
 static constexpr int LOGGER_CS		{5};

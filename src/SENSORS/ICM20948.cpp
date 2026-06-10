@@ -28,8 +28,10 @@ void ICM20948::begin() {
 	icm20948.setSampleRate(ICM_20948_Internal_Gyr, sampleRate);
 
 	ICM_20948_dlpcfg_t dlpfCfg;
+	// ~24 Hz LPF for accel
 	dlpfCfg.a = acc_d23bw9_n34bw4;
-	dlpfCfg.g = gyr_d23bw9_n35bw9;
+	// ~120 Hz LPF for gyro
+	dlpfCfg.g = gyr_d119bw5_n154bw3;
 	icm20948.setDLPFcfg(ICM_20948_Internal_Acc, dlpfCfg);
 	icm20948.setDLPFcfg(ICM_20948_Internal_Gyr, dlpfCfg);
 	icm20948.enableDLPF(ICM_20948_Internal_Acc, true);

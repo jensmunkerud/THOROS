@@ -19,9 +19,6 @@ Motor::Motor(MovementController& mc, Drone& drone) :
 	pitchRate_OUT{0},
 	rollRate_OUT{0},
 	yawRate_OUT{0},
-	pitchRateFiltered_OUT{0},
-	rollRateFiltered_OUT{0},
-	yawRateFiltered_OUT{0},
 	lastOuterPidComputeUs{0},
 	lastInnerPidComputeUs{0},
 	pitchAngle{&drone.attitude.pitch, &pitchAngle_OUT, &target.pitch, K_pitchAngle.P, K_pitchAngle.I, K_pitchAngle.D, QuickPID::Action::direct},
@@ -170,6 +167,15 @@ void Motor::setAttitudePidTunings(const PID& pitch, const PID& roll, const PID& 
 	yawRate.SetTunings(yaw.P, yaw.I, yaw.D);
 }
 
+// Wraps an angle into [-180, 180) degrees.
+static float wrapDeg180(float angle) {
+	angle = fmodf(angle + 180.0f, 360.0f);
+	if (angle < 0.0f) {
+		angle += 360.0f;
+	}
+	return angle - 180.0f;
+}
+
 void Motor::loop() {
 	FlightMode mode;
 	FlightControls controlInput;
@@ -190,17 +196,32 @@ void Motor::loop() {
 
 	target.pitch = controlInput.pitch;
 	target.roll = controlInput.roll;
-	target.yaw = controlInput.yaw;
+	// Re-reference the yaw target to within 180 deg of the current yaw so the
+	// angle PID never sees the +-180 wrap as a 360 deg error step.
+	target.yaw = attitude.yaw + wrapDeg180(controlInput.yaw - attitude.yaw);
 	throttleBase = controlInput.throttle;
 	uint32_t nowUs = micros();
 	bool shouldRunOuter = (uint32_t)(nowUs - lastOuterPidComputeUs) >= OUTER_PID_INTERVAL_US;
 	bool shouldRunInner = (uint32_t)(nowUs - lastInnerPidComputeUs) >= INNER_RATE_PID_INTERVAL_US;
-	
+
 	pidAuthority = constrain(
 			(throttleBase - (float)MIN_ARMED_DSHOT_VALUE) / (float)(PID_MAX_EFFECT_AFTER_SPEED - MIN_ARMED_DSHOT_VALUE),
 			0.0f,
 			1.0f
 	);
+
+	// Scale the PID output limits with authority so the integrators can never
+	// store more output than is currently deliverable. QuickPID clamps its
+	// integral sum to the output limits, so this prevents windup on the ground
+	// from dumping into the motors once the throttle passes the authority ramp.
+	float authorityScale = fmaxf(pidAuthority, PID_AUTHORITY_FLOOR);
+	float outerLimit = ATTITUDE_RATE_LIMIT_DPS * authorityScale;
+	pitchAngle.SetOutputLimits(-outerLimit, outerLimit);
+	rollAngle.SetOutputLimits(-outerLimit, outerLimit);
+	yawAngle.SetOutputLimits(-outerLimit, outerLimit);
+	pitchRate.SetOutputLimits(-PITCH_PID_OUTPUT_LIMIT * authorityScale, PITCH_PID_OUTPUT_LIMIT * authorityScale);
+	rollRate.SetOutputLimits(-ROLL_PID_OUTPUT_LIMIT * authorityScale, ROLL_PID_OUTPUT_LIMIT * authorityScale);
+	yawRate.SetOutputLimits(-YAW_PID_OUTPUT_LIMIT * authorityScale, YAW_PID_OUTPUT_LIMIT * authorityScale);
 
 	// Angle loop -> desired rate
 	if (shouldRunOuter) {
@@ -216,22 +237,35 @@ void Motor::loop() {
 		pitchRate.Compute();
 		rollRate.Compute();
 		yawRate.Compute();
-		pitchRateFiltered_OUT = Filters::LowPass(pitchRateFiltered_OUT, pitchRate_OUT, INNER_PID_FILTER_ALPHA);
-		rollRateFiltered_OUT  = Filters::LowPass(rollRateFiltered_OUT,  rollRate_OUT,  INNER_PID_FILTER_ALPHA);
-		yawRateFiltered_OUT   = Filters::LowPass(yawRateFiltered_OUT,   yawRate_OUT,   INNER_PID_FILTER_ALPHA);
 	}
 
 	// Scale rate-loop commands by PID authority
-	float pitchCmd = pitchRateFiltered_OUT * pidAuthority;
-	float rollCmd = rollRateFiltered_OUT * pidAuthority;
-	float yawCmd = yawRateFiltered_OUT * pidAuthority;
+	float pitchCmd = pitchRate_OUT * pidAuthority;
+	float rollCmd = rollRate_OUT * pidAuthority;
+	float yawCmd = yawRate_OUT * pidAuthority;
 	commandOutput = { pitchCmd, yawCmd, rollCmd };
 
 	// Apply motor mix
-	m1 = constrain(throttleBase * FRONT_BIAS + pitchCmd - rollCmd - yawCmd, 0, MAXIMUM_MOTOR_SPEED);
-	m2 = constrain(throttleBase              - pitchCmd - rollCmd + yawCmd, 0, MAXIMUM_MOTOR_SPEED);
-	m3 = constrain(throttleBase * FRONT_BIAS + pitchCmd + rollCmd + yawCmd, 0, MAXIMUM_MOTOR_SPEED);
-	m4 = constrain(throttleBase              - pitchCmd + rollCmd - yawCmd, 0, MAXIMUM_MOTOR_SPEED);
+	m1 = throttleBase * FRONT_BIAS + pitchCmd - rollCmd - yawCmd;
+	m2 = throttleBase              - pitchCmd - rollCmd + yawCmd;
+	m3 = throttleBase * FRONT_BIAS + pitchCmd + rollCmd + yawCmd;
+	m4 = throttleBase              - pitchCmd + rollCmd - yawCmd;
+
+	// Desaturate: shift the collective so the differential (attitude) commands
+	// survive the motor limits instead of being clipped away. Keeping motors
+	// below max wins over keeping them above min when both cannot hold.
+	double high = max(max(m1, m2), max(m3, m4));
+	double low  = min(min(m1, m2), min(m3, m4));
+	double offset = 0.0;
+	if (high > (double)MAXIMUM_MOTOR_SPEED) {
+		offset = (double)MAXIMUM_MOTOR_SPEED - high;
+	} else if (low < (double)MIN_ARMED_DSHOT_VALUE) {
+		offset = min((double)MIN_ARMED_DSHOT_VALUE - low, (double)MAXIMUM_MOTOR_SPEED - high);
+	}
+	m1 = constrain(m1 + offset, 0.0, (double)MAXIMUM_MOTOR_SPEED);
+	m2 = constrain(m2 + offset, 0.0, (double)MAXIMUM_MOTOR_SPEED);
+	m3 = constrain(m3 + offset, 0.0, (double)MAXIMUM_MOTOR_SPEED);
+	m4 = constrain(m4 + offset, 0.0, (double)MAXIMUM_MOTOR_SPEED);
 	{
 		DroneLockGuard droneLock(drone);
 		drone.motorThrusts = {
