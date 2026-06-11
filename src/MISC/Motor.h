@@ -16,6 +16,7 @@ constexpr int MIN_ARMED_DSHOT_VALUE {48}; // 0-47 is dShot reserved values; arm(
 constexpr int MAXIMUM_MOTOR_SPEED {1200};
 constexpr float MOTOR_KILL_SPEED {1500.0f};	// [units/s]
 constexpr float MAX_DISARM_TILT_ANGLE_DEG {30.0f};
+constexpr unsigned long TILT_DISARM_HOLD_MS {100};	// tilt must persist this long; vibration spikes in the estimate pass quickly
 
 constexpr int PID_MAX_EFFECT_AFTER_SPEED {200};
 constexpr uint32_t OUTER_PID_INTERVAL_US {10000};		// 100 Hz
@@ -93,6 +94,7 @@ private:
 
 	uint32_t lastOuterPidComputeUs;
 	uint32_t lastInnerPidComputeUs;
+	unsigned long tiltExceededAtMs{0};	// 0 = tilt currently below the disarm threshold
 
 	double m1;
 	double m2;

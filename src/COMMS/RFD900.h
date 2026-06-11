@@ -6,7 +6,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
 
-constexpr int16_t RFD_TIMEOUT_MS {300};
+constexpr int16_t RFD_TIMEOUT_MS {320};
 constexpr int16_t PING_INTERVAL {500};
 constexpr int16_t SEND_TELEMETRY_INTERVAL {50};
 constexpr uint8_t RFD_SERIAL {2};

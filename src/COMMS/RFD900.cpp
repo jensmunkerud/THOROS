@@ -69,20 +69,6 @@ void RFD900::begin() {
 }
 
 void RFD900::loop() {
-	if (millis() - lastCommand > RFD_TIMEOUT_MS) {
-		bool hadGroundLink = false;
-		{
-			DroneLockGuard droneLock(drone);
-			hadGroundLink = drone.GROUND_LINK_OK;
-			drone.GROUND_LINK_OK = false;
-		}
-		if (hadGroundLink) {
-			// KILLS DRONE ON RADIO TIMEOUT
-			RFDCommandPacket killCommand{1, { {static_cast<uint8_t>(CommandID::KILL), 0} }};
-			xQueueSendToBack(commandQueue, &killCommand, pdMS_TO_TICKS(10));
-		}
-	}
-
 	while (SerialRFD.available() > 0) {
 		byte incoming = SerialRFD.read();
 
@@ -132,6 +118,22 @@ void RFD900::loop() {
 			// Send entire packet to queue
 			xQueueSendToBack(commandQueue, &packet, pdMS_TO_TICKS(10));
 			numPackets = 0;
+		}
+	}
+
+	// Failsafe is evaluated AFTER draining the RX buffer so that frames already
+	// received (but not yet parsed, e.g. after a scheduling hiccup) count as link.
+	if (millis() - lastCommand > RFD_TIMEOUT_MS) {
+		bool hadGroundLink = false;
+		{
+			DroneLockGuard droneLock(drone);
+			hadGroundLink = drone.GROUND_LINK_OK;
+			drone.GROUND_LINK_OK = false;
+		}
+		if (hadGroundLink) {
+			// KILLS DRONE ON RADIO TIMEOUT
+			RFDCommandPacket killCommand{1, { {static_cast<uint8_t>(CommandID::KILL), 0} }};
+			xQueueSendToBack(commandQueue, &killCommand, pdMS_TO_TICKS(10));
 		}
 	}
 }

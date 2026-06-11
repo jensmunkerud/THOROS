@@ -209,8 +209,16 @@ void Motor::loop() {
 
 	if (fabsf(attitude.pitch) > MAX_DISARM_TILT_ANGLE_DEG ||
 		fabsf(attitude.roll) > MAX_DISARM_TILT_ANGLE_DEG) {
-		disarm();
-		return;
+		unsigned long nowMs = millis();
+		if (tiltExceededAtMs == 0) {
+			tiltExceededAtMs = nowMs;
+		} else if (nowMs - tiltExceededAtMs >= TILT_DISARM_HOLD_MS) {
+			tiltExceededAtMs = 0;
+			disarm();
+			return;
+		}
+	} else {
+		tiltExceededAtMs = 0;
 	}
 
 	target.pitch = controlInput.pitch;
