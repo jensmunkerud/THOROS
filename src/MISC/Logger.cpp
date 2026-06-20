@@ -1,7 +1,4 @@
 #include "Logger.h"
-#include "Motor.h"
-
-extern Motor motor;
 
 void Logger::LOGGERTaskEntry(void* param) {
 	static_cast<Logger*>(param)->LOGGERTask();
@@ -125,19 +122,22 @@ void Logger::writeBasicSnapshot(const LogSnapshot& snapshot) {
 	writeSeparator();
 	writeFloat(snapshot.deltaSeconds, 3);
 	writeSeparator();
-	writeFloat(snapshot.flightControls.pitch, 3);
+	// writeFloat(snapshot.flightControls.pitch, 3);
+	writeFloat(snapshot.gyroRate.pitch, 3);
 	writeSeparator();
 	writeFloat(snapshot.attitude.pitch, 3);
 	writeSeparator();
 	writeFloat(snapshot.commandOutput.pitch, 3);
 	writeSeparator();
-	writeFloat(snapshot.flightControls.roll, 3);
+	// writeFloat(snapshot.flightControls.roll, 3);
+	writeFloat(snapshot.gyroRate.roll, 3);
 	writeSeparator();
 	writeFloat(snapshot.attitude.roll, 3);
 	writeSeparator();
 	writeFloat(snapshot.commandOutput.roll, 3);
 	writeSeparator();
-	writeFloat(snapshot.flightControls.yaw, 3);
+	// writeFloat(snapshot.flightControls.yaw, 3);
+	writeFloat(snapshot.gyroRate.yaw, 3);
 	writeSeparator();
 	writeFloat(snapshot.attitude.yaw, 3);
 	writeSeparator();
@@ -216,6 +216,8 @@ Logger::LogSnapshot Logger::captureSnapshot() const {
 		DroneLockGuard droneLock(drone);
 		snapshot.flightControls = drone.flightControls;
 		snapshot.attitude = drone.attitude;
+		snapshot.gyroRate = drone.gyroRate;
+		snapshot.commandOutput = drone.commandOutput;
 		snapshot.motorThrusts = drone.motorThrusts;
 		snapshot.mode = drone.mode;
 		snapshot.altitude = drone.altitude;
@@ -230,7 +232,6 @@ Logger::LogSnapshot Logger::captureSnapshot() const {
 		TelemetryLockGuard telemetryLock(telemetry);
 		snapshot.telemetry = static_cast<const TelemetryData&>(telemetry);
 	}
-	snapshot.commandOutput = motor.getCommandOutput();
 	return snapshot;
 }
 

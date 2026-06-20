@@ -6,17 +6,14 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
 
-constexpr int16_t RFD_TIMEOUT_MS {2500};
-constexpr int16_t PING_INTERVAL {1000};
+constexpr int16_t RFD_TIMEOUT_MS {320};
+constexpr int16_t PING_INTERVAL {500};
 constexpr int16_t SEND_TELEMETRY_INTERVAL {50};
 constexpr uint8_t RFD_SERIAL {2};
 
 
 class RFD900 {
 public:
-	typedef void (*ApplyPidCallback)(const PID& pitch, const PID& roll, const PID& yaw, void* context);
-	void setPidApplyCallback(ApplyPidCallback callback, void* context = nullptr);
-
 	RFD900(Telemetry& tel, Drone& droneState);
 	void begin();
 	void loop();
@@ -31,9 +28,7 @@ private:
 	void clearPidBuffer();
 	char pidLineBuffer[128];
 	size_t pidLineLength;
-	ApplyPidCallback pidCallback;
-	void* pidContext;
-	
+
 	static void RFD900Task(void* parameter);
 	Telemetry& telemetry;
 	Drone& drone;
@@ -45,5 +40,5 @@ private:
 	SemaphoreHandle_t serialTxMutex;
 	HardwareSerial SerialRFD;
 	uint16_t pingProgress;
-	uint16_t temeletryProgress;
+	uint16_t telemetryProgress;
 };

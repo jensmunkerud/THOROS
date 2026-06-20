@@ -28,8 +28,10 @@ void ICM20948::begin() {
 	icm20948.setSampleRate(ICM_20948_Internal_Gyr, sampleRate);
 
 	ICM_20948_dlpcfg_t dlpfCfg;
+	// ~24 Hz LPF for accel
 	dlpfCfg.a = acc_d23bw9_n34bw4;
-	dlpfCfg.g = gyr_d23bw9_n35bw9;
+	// ~120 Hz LPF for gyro
+	dlpfCfg.g = gyr_d119bw5_n154bw3;
 	icm20948.setDLPFcfg(ICM_20948_Internal_Acc, dlpfCfg);
 	icm20948.setDLPFcfg(ICM_20948_Internal_Gyr, dlpfCfg);
 	icm20948.enableDLPF(ICM_20948_Internal_Acc, true);
@@ -107,6 +109,9 @@ void ICM20948::loop() {
 			drone.attitude.pitch = -fusedRoll;
 			drone.attitude.roll  = fusedPitch;
 			drone.attitude.yaw   = fusedYaw;
+			drone.gyroRate.pitch = -gyr.x / DEG2RAD;
+			drone.gyroRate.roll = gyr.y / DEG2RAD;
+			drone.gyroRate.yaw = gyr.z / DEG2RAD;
 		}
 
 		// Remove gravity using current attitude, then convert to world frame.

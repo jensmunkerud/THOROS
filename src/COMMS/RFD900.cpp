@@ -1,19 +1,21 @@
 #include "RFD900.h"
+#include "MISC/MovementController.h"
+#include "MISC/Motor.h"
 
 #include <cstdio>
 
+extern Motor motor;
 
-RFD900::RFD900(Telemetry& tel, Drone& drone) : 
+
+RFD900::RFD900(Telemetry& tel, Drone& drone) :
 	telemetry{tel},
 	drone{drone},
 	numPackets{0},
 	pidLineLength{0},
-	pidCallback{nullptr},
-	pidContext{nullptr},
 	rfdTaskHandle{nullptr},
 	serialTxMutex{nullptr},
 	pingProgress{0},
-	temeletryProgress{0},
+	telemetryProgress{0},
 	lastCommand{millis()},
 	SerialRFD{RFD_SERIAL}
 {
@@ -40,9 +42,9 @@ void RFD900::RFD900Task(void* parameter) {
 			rfd->ping();
 			rfd->pingProgress = 0;
 		}
-		if (rfd->temeletryProgress++ >= SEND_TELEMETRY_INTERVAL) {
+		if (rfd->telemetryProgress++ >= SEND_TELEMETRY_INTERVAL) {
 			rfd->sendTelemetry();
-			rfd->temeletryProgress = 0;
+			rfd->telemetryProgress = 0;
 		}
 	}
 }
@@ -67,20 +69,6 @@ void RFD900::begin() {
 }
 
 void RFD900::loop() {
-	if (millis() - lastCommand > RFD_TIMEOUT_MS) {
-		bool hadGroundLink = false;
-		{
-			DroneLockGuard droneLock(drone);
-			hadGroundLink = drone.GROUND_LINK_OK;
-			drone.GROUND_LINK_OK = false;
-		}
-		if (hadGroundLink) {
-			// KILLS DRONE ON RADIO TIMEOUT
-			RFDCommandPacket killCommand{1, { {254, 0} }};
-			xQueueSendToBack(commandQueue, &killCommand, pdMS_TO_TICKS(10));
-		}
-	}
-
 	while (SerialRFD.available() > 0) {
 		byte incoming = SerialRFD.read();
 
@@ -132,11 +120,34 @@ void RFD900::loop() {
 			numPackets = 0;
 		}
 	}
+
+	// Failsafe is evaluated AFTER draining the RX buffer so that frames already
+	// received (but not yet parsed, e.g. after a scheduling hiccup) count as link.
+	if (millis() - lastCommand > RFD_TIMEOUT_MS) {
+		bool hadGroundLink = false;
+		{
+			DroneLockGuard droneLock(drone);
+			hadGroundLink = drone.GROUND_LINK_OK;
+			drone.GROUND_LINK_OK = false;
+		}
+		if (hadGroundLink) {
+			// KILLS DRONE ON RADIO TIMEOUT
+			RFDCommandPacket killCommand{1, { {static_cast<uint8_t>(CommandID::KILL), 0} }};
+			xQueueSendToBack(commandQueue, &killCommand, pdMS_TO_TICKS(10));
+		}
+	}
 }
 
 bool RFD900::isLikelyTextFrame() const {
 	if (numPackets < 3) {
 		return false;
+	}
+
+	// Tagged tuning frames ("O/", "I/", "F/", "R/") are text regardless of length.
+	// The tag bytes do not collide with any binary CommandID value.
+	char first = static_cast<char>(buffer[1]);
+	if ((first == 'O' || first == 'I' || first == 'F' || first == 'R') && static_cast<char>(buffer[2]) == '/') {
+		return true;
 	}
 
 	size_t slashCount = 0;
@@ -189,20 +200,43 @@ void RFD900::ping() {
 
 QueueHandle_t RFD900::getCommandQueue() const { return commandQueue; }
 
-void RFD900::setPidApplyCallback(ApplyPidCallback callback, void* context) {
-	pidCallback = callback;
-	pidContext = context;
-}
-
 bool RFD900::handlePidLine() {
-	if (pidLineLength == 0 || pidCallback == nullptr) {
+	if (pidLineLength == 0) {
 		clearPidBuffer();
 		return false;
 	}
 
+	// "F/<value>" sets the front motor bias, "R/<value>" the right motor bias.
+	if (pidLineLength >= 2 && pidLineBuffer[1] == '/' &&
+		(pidLineBuffer[0] == 'F' || pidLineBuffer[0] == 'R')) {
+		char tag = pidLineBuffer[0];
+		float bias;
+		int matched = sscanf(pidLineBuffer + 2, "%f", &bias);
+		clearPidBuffer();
+		if (matched != 1) {
+			return false;
+		}
+		if (tag == 'F') {
+			motor.setFrontBias(bias);
+		} else {
+			motor.setRightBias(bias);
+		}
+		return true;
+	}
+
+	// Optional loop tag prefix: "O/" targets the outer angle loop, "I/" the
+	// inner rate loop. Untagged frames keep the legacy meaning (inner rate).
+	const char* payload = pidLineBuffer;
+	bool isOuterLoop = false;
+	if (pidLineLength >= 2 && pidLineBuffer[1] == '/' &&
+		(pidLineBuffer[0] == 'O' || pidLineBuffer[0] == 'I')) {
+		isOuterLoop = (pidLineBuffer[0] == 'O');
+		payload += 2;
+	}
+
 	float values[9];
 	int matched = sscanf(
-		pidLineBuffer,
+		payload,
 		"%f/%f/%f/%f/%f/%f/%f/%f/%f",
 		&values[0],
 		&values[1],
@@ -224,7 +258,11 @@ bool RFD900::handlePidLine() {
 	PID pitch{values[0], values[1], values[2]};
 	PID roll{values[3], values[4], values[5]};
 	PID yaw{values[6], values[7], values[8]};
-	pidCallback(pitch, roll, yaw, pidContext);
+	if (isOuterLoop) {
+		motor.setAnglePidTunings(pitch, roll, yaw);
+	} else {
+		motor.setRatePidTunings(pitch, roll, yaw);
+	}
 	return true;
 }
 
@@ -251,7 +289,8 @@ bool RFD900::handleFramedPidPayload() {
 		}
 
 		bool isNumericChar = (ch >= '0' && ch <= '9') || ch == '.' || ch == '-' || ch == '+' || ch == '/' || ch == ' ';
-		if (!isNumericChar) {
+		bool isTagChar = (writeIndex == 0) && (ch == 'O' || ch == 'I' || ch == 'F' || ch == 'R');
+		if (!isNumericChar && !isTagChar) {
 			return false;
 		}
 
@@ -262,7 +301,9 @@ bool RFD900::handleFramedPidPayload() {
 		pidLineBuffer[writeIndex++] = ch;
 	}
 
-	if (slashCount < 8) {
+	// Bias frames carry a single value; PID frames need 9.
+	size_t requiredSlashes = (pidLineBuffer[0] == 'F' || pidLineBuffer[0] == 'R') ? 1 : 8;
+	if (slashCount < requiredSlashes) {
 		clearPidBuffer();
 		return false;
 	}

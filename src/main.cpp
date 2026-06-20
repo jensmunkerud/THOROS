@@ -11,7 +11,6 @@
 #include "MISC/Logger.h"
 #include "MISC/LED.h"
 #include "MISC/Motor.h"
-#include "COMMS/PidTuningReceiver.h"
 #include "../secret.h"
 
 // PARAMETERS
@@ -31,8 +30,6 @@ RFD900 rfd900(telemetry, drone);
 MovementController movementController(telemetry, drone, rfd900);
 Logger logger(drone, telemetry);
 Motor motor(movementController, drone);
-
-PidTuningReceiver pidTuningReceiver(Serial, applyPidTuningsToMotor, &motor);
 
 void initDevice(const char* name, std::function<bool()> statusGetter, std::function<void()> beginFunc) {
 	beginFunc();
@@ -79,7 +76,6 @@ void loop() {
 		icm20948.loop();
 		// bmp390.loop(); // This thing is SUPER SLOW
 		movementController.update();
-		pidTuningReceiver.loop();
 		motor.loop();
 	}
 

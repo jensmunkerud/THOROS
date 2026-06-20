@@ -4,7 +4,6 @@
 #include <SD.h>
 #include <SPI.h>
 #include <time.h>
-
 #include "Datatypes.h"
 
 static constexpr int LOGGER_CS		{5};
@@ -12,8 +11,6 @@ static constexpr int LOGGER_SCK		{14};
 static constexpr int LOGGER_MISO	{27};
 static constexpr int LOGGER_MOSI	{13};
 static constexpr int LOGGER_INTERVAL{10};	// [ms]
-
-class Motor;
 
 class Logger {
 public:
@@ -30,6 +27,7 @@ private:
 		float deltaSeconds;
 		FlightControls flightControls;
 		Attitude attitude;
+		Attitude gyroRate;
 		Attitude commandOutput;
 		MotorThrusts motorThrusts;
 		TelemetryData telemetry;
