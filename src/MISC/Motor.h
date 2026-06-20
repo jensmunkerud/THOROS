@@ -15,7 +15,7 @@ constexpr int INITIALIZE_ESC_TIME {3000};
 constexpr int MIN_ARMED_DSHOT_VALUE {48}; // 0-47 is dShot reserved values; arm()/disarm() still send raw 0 for ESC init/stop
 constexpr int MAXIMUM_MOTOR_SPEED {1200};
 constexpr float MOTOR_KILL_SPEED {1500.0f};	// [units/s]
-constexpr float MAX_DISARM_TILT_ANGLE_DEG {30.0f};
+constexpr float MAX_DISARM_TILT_ANGLE_DEG {25.0f};
 constexpr unsigned long TILT_DISARM_HOLD_MS {100};	// tilt must persist this long; vibration spikes in the estimate pass quickly
 
 constexpr int PID_MAX_EFFECT_AFTER_SPEED {200};

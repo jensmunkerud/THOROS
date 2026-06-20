@@ -273,10 +273,10 @@ void Motor::loop() {
 	commandOutput = { pitchCmd, yawCmd, rollCmd };
 
 	// Apply motor mix
-	m1 = throttleBase * frontBias * rightBias + pitchCmd - rollCmd - yawCmd;
-	m2 = throttleBase * rightBias             - pitchCmd - rollCmd + yawCmd;
-	m3 = throttleBase * frontBias             + pitchCmd + rollCmd + yawCmd;
-	m4 = throttleBase                         - pitchCmd + rollCmd - yawCmd;
+	m1 = throttleBase * frontBias * rightBias + pitchCmd + rollCmd - yawCmd;
+	m2 = throttleBase * rightBias             - pitchCmd + rollCmd + yawCmd;
+	m3 = throttleBase * frontBias             + pitchCmd - rollCmd + yawCmd;
+	m4 = throttleBase                         - pitchCmd - rollCmd - yawCmd;
 
 	// Desaturate: shift the collective so the differential (attitude) commands
 	// survive the motor limits instead of being clipped away. Keeping motors
