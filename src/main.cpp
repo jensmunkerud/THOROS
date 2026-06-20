@@ -45,7 +45,6 @@ void initDevice(const char* name, std::function<bool()> statusGetter, std::funct
 void setup() {
 	Serial.begin(115200);
 	Serial.println("==== SETUP BEGUN! ====");
-	rfd900.setPidApplyCallback(applyPidTuningsToMotor, &motor);
 	WiFi.begin(ssid, password);
 	while (WiFi.status() != WL_CONNECTED) {delay(500); Serial.println("connecting...");}
 	Serial.println("Connected! IP: " + WiFi.localIP().toString());
