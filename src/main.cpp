@@ -1,7 +1,7 @@
 #include <Arduino.h>
 #include <SPI.h>
-#include <WiFi.h>
-#include <ArduinoOTA.h>
+// #include <WiFi.h>
+// #include <ArduinoOTA.h>
 #include "MISC/Datatypes.h"
 #include "SENSORS/ICM20948.h"
 #include "SENSORS/BMP390.h"
@@ -35,8 +35,10 @@ void initDevice(const char* name, std::function<bool()> statusGetter, std::funct
 	beginFunc();
 	bool statusFlag = statusGetter();
 	Serial.print(name);
-	Serial.println(statusFlag ? " Success" : " Failed");
+	Serial.println(statusFlag ? " Success" : " waiting...");
 	while (!statusGetter()) {}
+	Serial.print(name);
+	Serial.println(" Success");
 }
 
 // ----------------- //
@@ -45,15 +47,15 @@ void initDevice(const char* name, std::function<bool()> statusGetter, std::funct
 void setup() {
 	Serial.begin(115200);
 	Serial.println("==== SETUP BEGUN! ====");
-	WiFi.begin(ssid, password);
-	while (WiFi.status() != WL_CONNECTED) {delay(500); Serial.println("connecting...");}
-	Serial.println("Connected! IP: " + WiFi.localIP().toString());
-	ArduinoOTA.onStart([]() { Serial.println("OTA Start"); });
-	ArduinoOTA.onEnd([]()   { Serial.println("OTA End");   });
-	ArduinoOTA.onError([](ota_error_t e) {
-		Serial.printf("OTA Error[%u]\n", e);
-	});
-	ArduinoOTA.begin();
+	// WiFi.begin(ssid, password);
+	// while (WiFi.status() != WL_CONNECTED) {delay(500); Serial.println("connecting...");}
+	// Serial.println("Connected! IP: " + WiFi.localIP().toString());
+	// ArduinoOTA.onStart([]() { Serial.println("OTA Start"); });
+	// ArduinoOTA.onEnd([]()   { Serial.println("OTA End");   });
+	// ArduinoOTA.onError([](ota_error_t e) {
+		// Serial.printf("OTA Error[%u]\n", e);
+	// });
+	// ArduinoOTA.begin();
 
 	initDevice("ICM20948", [](){ DroneLockGuard droneLock(drone); return drone.IMU_OK; }, [](){ icm20948.begin(); });
 	// initDevice("BMP390", [](){ return drone.BMP390; }, [](){ bmp390.begin(); });
@@ -67,7 +69,7 @@ void setup() {
 //       LOOP       //
 // ---------------- //
 void loop() {
-	ArduinoOTA.handle();
+	// ArduinoOTA.handle();
 	unsigned long current = millis();
 
 	if (current - prevFAST >= SENSOR_INTERVAL_FAST) {

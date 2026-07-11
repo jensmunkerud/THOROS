@@ -7,9 +7,9 @@
 #include "COMMS/RFD900.h"
 #include "set"
 
-static constexpr float PAN_SPEED					{5.0f};		// [deg/s]
+static constexpr float PAN_SPEED					{45.0f};	// [deg/s]
 static constexpr float MAX_PAN						{175.0f};	// [deg]
-static constexpr float TILT_SPEED					{10.0f};	// [deg/s]
+static constexpr float TILT_SPEED					{20.0f};	// [deg/s]
 static constexpr float MAX_TILT_ANGLE				{5.0f};		// [deg]
 static constexpr float THROTTLE_SPEED				{400.0f};	// [u/s]
 static constexpr float MAX_THROTTLE					{1200.0f};	// [u]

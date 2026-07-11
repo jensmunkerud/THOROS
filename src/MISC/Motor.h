@@ -53,11 +53,11 @@ private:
 	// PID K_rollRate{3, 0.2, 0.6};
 	// PID K_yawRate{2, 0, 1};
 	PID K_pitchRate{0.4659, 0, 0};
-	PID K_rollRate{3, 0.2, 0};
+	PID K_rollRate{1, 0.2, 0};
 	PID K_yawRate{2, 0, 0};
 
-	float frontBias{1.12f};
-	float rightBias{1.0f};
+	float frontBias{1.10f};
+	float rightBias{0.99f};
 
 	MovementController& movementController;
 	Drone& drone;
